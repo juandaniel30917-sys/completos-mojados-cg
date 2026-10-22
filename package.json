@@ -1,0 +1,11 @@
+{
+  "name": "completos-mojados-cg",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Gráficas en vivo para OBS con control remoto (Completos Mojados)",
+  "scripts": {
+    "start": "python3 -m http.server 8080",
+    "configurar": "node scripts/configurar.mjs",
+    "test": "python3 test/e2e_local.py && python3 test/e2e_remoto.py"
+  }
+}

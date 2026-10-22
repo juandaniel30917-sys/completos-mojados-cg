@@ -1,0 +1,23 @@
+# secretos y configuración local
+.env
+.env.*
+!.env.example
+supabase/.temp/
+supabase/.branches/
+
+# pruebas
+test/capturas/
+__pycache__/
+*.pyc
+
+# sistema / editores
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+node_modules/
+
+# archivos de video pesados de trabajo (sube a la sala desde el panel, no al repo)
+*.mov
+*.prores

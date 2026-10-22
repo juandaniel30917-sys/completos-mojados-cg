@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+<title>Salida · Completos Mojados CG</title>
+<!-- SALIDA PARA OBS: agrégala como fuente "Navegador". Solo dibuja gráficas, sin controles. Fondo transparente.
+     ?sala=XXXX&k=CLAVE  → sala remota      ?local=1 → mismo equipo (panel como dock de OBS)
+     ?verde=1 → fondo verde chroma          ?w=1280&h=720 → otra resolución (el diseño se escala) -->
+<link rel="stylesheet" href="css/salida.css">
+<style>
+#ayuda{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#0d0f14;color:#e9ecf2;font:16px/1.5 system-ui,sans-serif;padding:24px;text-align:center}
+#ayuda b{color:#ffb020}
+#estadoRed{position:fixed;right:10px;bottom:10px;display:none;padding:6px 12px;border-radius:20px;background:rgba(0,0,0,.7);color:#fff;font:12px system-ui,sans-serif}
+body.debug #estadoRed{display:block}
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="ayuda"><div><b>Salida de gráficas</b><br>Esta página necesita el link de salida de una sala.<br>Ábrela desde el panel con el botón <b>Remoto → Link de salida</b>.</div></div>
+<div id="estadoRed"></div>
+<script src="js/config.js"></script>
+<script src="js/plantillas.js"></script>
+<script src="js/chroma.js"></script>
+<script src="js/render.js"></script>
+<script src="js/conexion.js"></script>
+<script>
+(function () {
+  "use strict";
+  var p = CG.params(), stage = document.getElementById("stage"), base = location.href.replace(/[^/]*([?#].*)?$/, "");
+  var monitor = p.monitor === "1", con = null;
+  if (p.verde === "1") { document.body.classList.add("verde"); }
+  if (p.monitor === "1") { document.body.classList.add("monitor"); }
+  if (p.debug === "1") { document.body.classList.add("debug"); }
+
+  /* tamaño: 1920x1080 por defecto; con ?w&h se fija otra resolución y el diseño se escala */
+  var W = +p.w || 0, H = +p.h || 0;
+  if (W && H) { document.body.style.width = W + "px"; document.body.style.height = H + "px"; }
+  function ajustar() { var w = W || innerWidth, h = H || innerHeight, k = Math.min(w / 1920, h / 1080); stage.style.transform = "scale(" + k + ")"; stage.style.left = ((w - 1920 * k) / 2) + "px"; stage.style.top = ((h - 1080 * k) / 2) + "px"; }
+  addEventListener("resize", ajustar); ajustar();
+
+  function red(s, msg) { var e = document.getElementById("estadoRed"); e.textContent = {conectado: "● En línea", respaldo: "● En línea (respaldo)", reconectando: "◌ Reconectando…", "sin-conexion": "✕ Sin internet — mostrando lo último", error: "✕ " + (msg || "Error"), local: "● Local"}[s] || s; }
+
+  var salida = CG.crearSalida({
+    stage: stage, base: base, monitor: monitor,
+    resolverMedia: function (m) { return CG.resolverMedia(m, base); },
+    onFin: function (id) { avisar("fin", {id: id}); },
+    onError: function (msg) { console.warn("[salida]", msg); avisar("error", {msg: msg}); }
+  });
+  function avisar(t, d) {
+    if (monitor) { parent.postMessage(Object.assign({cg: 1, t: t}, d), location.origin); }
+    else if (con && con.avisar) { con.avisar(t, d); }
+  }
+  window.CG_SALIDA = salida; /* para pruebas */
+
+  if (monitor) {
+    /* MONITOR del panel (vista previa / programa): solo escucha al panel que lo contiene. Nunca se conecta a la sala. */
+    addEventListener("message", function (m) {
+      if (m.origin !== location.origin || m.source !== parent || !m.data || !m.data.cg) { return; }
+      var d = m.data;
+      if (d.t === "estado") { salida.aplicar(d.estado); }
+      else if (d.t === "evento") { salida.evento(d.evento); }
+      else if (d.t === "repetir") { salida.repetir(); }
+    });
+    parent.postMessage({cg: 1, t: "listo"}, location.origin);
+    return;
+  }
+
+  if (p.local === "1") {
+    con = CG.Local(); red("local");
+    con.on("estado", function (e) { salida.aplicar(e); });
+    con.conectar().then(function (r) { if (r.estado) { salida.aplicar(r.estado); } });
+    return;
+  }
+
+  var sala = (p.sala || "").toLowerCase(), clave = p.k || p.tk || "";
+  if (!sala || !clave) { document.getElementById("ayuda").style.display = "flex"; return; }
+  con = CG.SalaSalida(sala, clave);
+  con.on("estado", function (e) { salida.aplicar(e); });
+  con.on("red", red);
+  (function intentar(n) {
+    red("reconectando");
+    con.conectar().then(function () {}, function (e) {
+      red("error", e.message); console.error("[salida]", e.message);
+      if (e.status !== 400 && !/link no es válido/.test(e.message)) { setTimeout(function () { intentar(n + 1); }, Math.min(15000, 1000 * Math.pow(2, n))); }
+    });
+  })(0);
+})();
+</script>
+</body>
+</html>

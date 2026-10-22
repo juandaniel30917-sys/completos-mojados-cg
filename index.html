@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#0e1015">
+<title>Completos Mojados · Gráficas en vivo</title>
+<link rel="icon" href="assets/logo.png">
+<link rel="stylesheet" href="css/panel.css">
+<style>
+body{overflow:auto;background:radial-gradient(1200px 600px at 80% -10%,rgba(255,138,31,.10),transparent 60%),radial-gradient(900px 500px at -10% 110%,rgba(255,59,59,.08),transparent 60%),var(--fondo)}
+.inicio{max-width:980px;margin:0 auto;padding:40px 20px 60px}
+.cab{display:flex;align-items:center;gap:16px;margin-bottom:28px}
+.cab img{width:72px;height:72px;object-fit:contain;filter:drop-shadow(0 6px 14px rgba(0,0,0,.5))}
+.cab h1{margin:0;font-size:26px;letter-spacing:-.01em}
+.cab p{margin:2px 0 0;color:var(--txt2)}
+.grid{display:grid;grid-template-columns:1.1fr .9fr;gap:16px}
+.card{background:var(--panel);border:1px solid var(--borde);border-radius:14px;padding:20px;animation:entraFicha .4s cubic-bezier(.2,.8,.2,1) both}
+.card:nth-child(2){animation-delay:.06s}.card:nth-child(3){animation-delay:.12s}.card:nth-child(4){animation-delay:.18s}
+.card h2{margin:0 0 4px;font-size:16px;display:flex;align-items:center;gap:8px}
+.card h2 svg{color:var(--acento);width:18px;height:18px}
+.card p{color:var(--txt2);margin:0 0 14px}
+.fila{display:flex;gap:8px}
+.fila input{flex:1;min-width:0;height:40px;border-radius:9px;border:1px solid var(--borde);background:var(--fondo);padding:0 12px;outline:none;font-size:14px}
+.fila input:focus{border-color:var(--acento)}
+.fila .btn{height:40px}
+.salas{display:flex;flex-direction:column;gap:6px}
+.sala-it{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid var(--borde);background:var(--panel2);text-decoration:none;color:var(--txt);transition:all var(--rapido)}
+.sala-it:hover{border-color:var(--acento);transform:translateX(3px)}
+.sala-it .cod{font:700 12px ui-monospace,monospace;color:var(--acento);background:rgba(255,138,31,.1);padding:3px 7px;border-radius:6px}
+.sala-it .nom{flex:1;font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sala-it small{color:var(--txt3)}
+.sala-it button{border:0;background:none;color:var(--txt3);width:26px;height:26px;border-radius:6px}
+.sala-it button:hover{color:#ff7b7b;background:var(--panel3)}
+.vacia{color:var(--txt3);padding:6px 0}
+.como{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
+.como div{background:var(--panel);border:1px solid var(--borde);border-radius:12px;padding:14px}
+.como>div>b{display:block;margin-bottom:4px}
+.como span{color:var(--txt2);font-size:12.5px}
+.n{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--acento);color:#1a0b00;font-weight:800;font-size:12px;margin-right:6px}
+.pie{margin-top:28px;color:var(--txt3);font-size:12px;text-align:center}
+@media (max-width:760px){.grid,.como{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="inicio">
+  <div class="cab"><img src="assets/logo.png" alt=""><div><h1>Gráficas en vivo</h1><p>Controla los GC de Completos Mojados desde cualquier equipo y sácalos por OBS.</p></div></div>
+
+  <div class="grid">
+    <div class="card">
+      <h2><svg><use href="#i-mas"/></svg>Crear una sala</h2>
+      <p>Una sala guarda tus gráficas y conecta el panel con OBS por internet.</p>
+      <form class="fila" id="fCrear"><input id="nombre" placeholder="Nombre (ej: Completos Mojados en vivo)" maxlength="60"><button class="btn prim" id="bCrear">Crear sala</button></form>
+      <div id="msgCrear"></div>
+    </div>
+    <div class="card">
+      <h2><svg><use href="#i-link"/></svg>Entrar con un link</h2>
+      <p>¿Te mandaron un link de control? Pégalo aquí.</p>
+      <form class="fila" id="fLink"><input id="link" placeholder="https://…/panel.html?sala=…#t=…" autocomplete="off"><button class="btn">Entrar</button></form>
+    </div>
+    <div class="card">
+      <h2><svg><use href="#i-monitor"/></svg>Mis salas en este equipo</h2>
+      <div class="salas" id="salas"></div>
+    </div>
+    <div class="card">
+      <h2><svg><use href="#i-capas"/></svg>Modo local (sin internet)</h2>
+      <p>Todo queda en este navegador. Úsalo con el panel como <b>dock de OBS</b> en el mismo computador.</p>
+      <a class="btn" href="panel.html?local=1">Abrir modo local</a>
+    </div>
+  </div>
+
+  <div class="como">
+    <div><b><span class="n">1</span>Crea la sala</b><span>Recibes un link de control (secreto) y un link de salida.</span></div>
+    <div><b><span class="n">2</span>Pega la salida en OBS</b><span>Fuente <b>Navegador</b>, 1920×1080. Muestra solo las gráficas, con fondo transparente.</span></div>
+    <div><b><span class="n">3</span>Controla desde donde quieras</b><span>PC, tablet o celular. Revisa en vista previa y presiona MOSTRAR.</span></div>
+  </div>
+  <p class="pie">Completos Mojados · CG v<span id="ver"></span> · Los links de control dan acceso total a la sala: compártelos solo con tu equipo.</p>
+</div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-mas" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 21h8" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-capas" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5zM3 13l9 5 9-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+</defs></svg>
+<script src="js/config.js"></script>
+<script src="js/plantillas.js"></script>
+<script src="js/conexion.js"></script>
+<script>
+(function () {
+  "use strict";
+  var $ = function (s) { return document.querySelector(s); };
+  $("#ver").textContent = (window.CG_CONFIG || {}).VERSION || "";
+  function lista() { try { return JSON.parse(localStorage.getItem("cg_salas_v2")) || []; } catch (e) { return []; } }
+  function guardar(l) { try { localStorage.setItem("cg_salas_v2", JSON.stringify(l)); } catch (e) {} }
+  function pintar() {
+    var l = lista(), c = $("#salas");
+    if (!l.length) { c.innerHTML = '<div class="vacia">Todavía no hay salas guardadas en este equipo.</div>'; return; }
+    c.innerHTML = l.map(function (s, i) {
+      return '<a class="sala-it" href="panel.html?sala=' + encodeURIComponent(s.sala) + '#t=' + encodeURIComponent(s.token) + '"><span class="cod">' + CG.esc(s.sala.toUpperCase()) + '</span><span class="nom">' + CG.esc(s.nombre || s.sala) + '</span><small>' + new Date(s.ultima || 0).toLocaleDateString("es-CL") + '</small><button data-i="' + i + '" title="Olvidar en este equipo (la sala no se borra)">✕</button></a>';
+    }).join("");
+  }
+  $("#salas").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-i]"); if (!b) { return; }
+    e.preventDefault(); var l = lista(); l.splice(+b.dataset.i, 1); guardar(l); pintar();
+  });
+  pintar();
+  $("#fCrear").onsubmit = function (e) {
+    e.preventDefault();
+    var b = $("#bCrear"), n = $("#nombre").value.trim() || "Completos Mojados";
+    b.disabled = true; b.textContent = "Creando…"; $("#msgCrear").innerHTML = "";
+    CG.rpc("cg_crear_sala", {p_nombre: n}).then(function (r) {
+      var l = lista().filter(function (x) { return x.sala !== r.sala; }); l.unshift({sala: r.sala, token: r.token, nombre: n, ultima: Date.now()}); guardar(l);
+      location.href = "panel.html?sala=" + r.sala + "#t=" + r.token;
+    }, function (err) {
+      b.disabled = false; b.textContent = "Crear sala";
+      $("#msgCrear").innerHTML = '<div class="aviso-box err" style="margin-top:12px">No se pudo crear la sala: ' + CG.esc(err.message) + '<br>Si no tienes internet puedes usar el <b>modo local</b>.</div>';
+    });
+  };
+  $("#fLink").onsubmit = function (e) {
+    e.preventDefault();
+    var v = $("#link").value.trim();
+    try {
+      var u = new URL(v, location.href), sala = u.searchParams.get("sala"), t = new URLSearchParams(u.hash.slice(1)).get("t");
+      if (u.pathname.indexOf("salida") >= 0) { alert("Ese es un link de SALIDA (para OBS). Para controlar necesitas el link de control."); return; }
+      if (!sala || !t) { throw 0; }
+      location.href = "panel.html?sala=" + encodeURIComponent(sala) + "#t=" + encodeURIComponent(t);
+    } catch (x) { alert("El link no parece válido. Debe contener ?sala=… y #t=…"); }
+  };
+})();
+</script>
+</body>
+</html>
