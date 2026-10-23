@@ -23,11 +23,12 @@
   <div class="estado">
     <span class="pill" id="pRed" title="Conexión con el servidor"><i></i><span>Conectando…</span></span>
     <span class="pill" id="pSalidas" title="Salidas (OBS) conectadas a esta sala"><i></i><span>Salida</span></span>
+    <button class="pill pend" id="pPend" hidden title="Recursos que faltan (logos, videos, nombres, número)"><i></i><span>0 pendientes</span></button>
     <span class="guardado" id="pGuardado"></span>
   </div>
   <div class="acciones">
     <button class="btn cortina" id="bCortina" title="Lanzar cortina de salsa (tapa un cambio de cámara)"><svg><use href="#i-rayo"/></svg><span>Cortina</span></button>
-    <button class="btn" id="bLimpiar" title="Ocultar todo lo que está al aire"><svg><use href="#i-limpiar"/></svg><span>Limpiar</span></button>
+    <button class="btn limpiar" id="bLimpiar" title="Retira todas las gráficas de la salida (no corta la conexión)"><svg><use href="#i-limpiar"/></svg><span>Limpiar salida</span></button>
     <button class="btn" id="bRemoto" title="Links para OBS y para controlar desde otro equipo"><svg><use href="#i-link"/></svg><span>Remoto</span></button>
     <button class="btn ico" id="bAjustes" title="Ajustes: logo, velocidad, copia de seguridad"><svg><use href="#i-ajustes"/></svg></button>
     <button class="btn ico" id="bAyuda" title="Ayuda rápida"><svg><use href="#i-ayuda"/></svg></button>
@@ -37,6 +38,16 @@
 <main id="main">
   <!-- ================= LISTA ================= -->
   <aside id="lista">
+    <div class="vistas" role="tablist">
+      <button data-vista="libreto" class="on" title="Gráficas en el orden del libreto">Libreto</button>
+      <button data-vista="categorias" title="Todas las gráficas por tipo">Categorías</button>
+    </div>
+    <div class="ahora" id="ahora" hidden>
+      <button class="btn ico mini" id="pAnt" title="Paso anterior (Re Pág)"><svg style="transform:scaleX(-1)"><use href="#i-flecha"/></svg></button>
+      <div class="ahora-txt"><small>AHORA</small><b id="ahoraTit">—</b><span id="sigTit"></span></div>
+      <button class="btn ico mini" id="pSig" title="Paso siguiente (Av Pág)"><svg><use href="#i-flecha"/></svg></button>
+    </div>
+    <div class="bloques" id="bloques" hidden></div>
     <div class="buscar">
       <svg><use href="#i-buscar"/></svg>
       <input id="qBuscar" type="search" placeholder="Buscar gráfica…" autocomplete="off">
@@ -98,6 +109,11 @@
   </section>
 </main>
 
+<nav id="movNav" aria-label="Vistas del celular">
+  <button data-mv="lista" class="on"><svg><use href="#i-capas"/></svg><span>Escaleta</span></button>
+  <button data-mv="editar"><svg><use href="#i-titulo"/></svg><span>Editar</span></button>
+  <button data-mv="ver"><svg><use href="#i-monitor"/></svg><span>Ver</span></button>
+</nav>
 <div id="toasts" aria-live="polite"></div>
 <div id="modal" hidden><div class="caja" role="dialog" aria-modal="true"><button class="cerrar" title="Cerrar">✕</button><div class="cont"></div></div></div>
 
@@ -136,11 +152,17 @@
     <symbol id="i-ticker" viewBox="0 0 24 24"><rect x="2" y="15" width="20" height="5" rx="1" fill="currentColor"/><path d="M5 10h14M15 7l4 3-4 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
     <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 21h8" stroke="currentColor" stroke-width="2"/></symbol>
     <symbol id="i-punto" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6" fill="currentColor"/></symbol>
+    <symbol id="i-arriba" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-abajo" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></symbol>
+    <symbol id="i-alerta" viewBox="0 0 24 24"><path d="M12 3 22 21H2z M12 10v5 M12 18v.4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/></symbol>
   </defs>
 </svg>
 
 <script src="js/config.js"></script>
 <script src="js/plantillas.js"></script>
+<script src="js/paquete.js"></script>
+<script src="js/libreto.js"></script>
 <script src="js/conexion.js"></script>
 <script src="js/vendor/qrcode.js"></script>
 <script src="js/chroma.js"></script>
