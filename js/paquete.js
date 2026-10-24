@@ -150,6 +150,8 @@
      GC DE PERSONA — igual a los videos CONDUCTOR / INVITADO / CM_GC_GUEST (botella de mostaza)
      y estilo noticiero (Presentador: barra roja, caja azul, bajada amarilla)
      ================================================================================= */
+  /* botella del GC: mostaza, ketchup o mayo (verde); en «Va variando» cambia cada vez que el GC entra */
+  var SALSAS = ["mostaza", "ketchup", "mayo"], salsaActual = "mostaza", salsaN = -1;
   P.gcPersona = {
     nombre: "GC persona (conductor / invitado)", cat: "nombres", icono: "persona", capa: 52, salidaMs: 520, tipo: "GC", grupo: "tercio",
     desc: "El GC de los videos: botella de mostaza, etiqueta, nombre en caja crema y cargo en caja dorada.",
@@ -158,14 +160,21 @@
       {k: "nombre", l: "Nombre", t: "text", g: "Texto"}, {k: "cargo", l: "Cargo / descripción", t: "text", g: "Texto"},
       {k: "estilo", l: "Estilo", t: "seg", g: "Estilo", o: [["programa", "Completos Mojados"], ["noticiero", "Noticiero"]]},
       {k: "colorEtq", l: "Color etiqueta", t: "seg", g: "Estilo", o: [["rojo", "Rojo"], ["naranjo", "Naranjo"]]},
+      {k: "salsa", l: "Botella (estilo Completos Mojados)", t: "seg", g: "Estilo", o: [["auto", "Va variando"], ["mostaza", "Mostaza"], ["ketchup", "Ketchup"], ["mayo", "Mayo"]]},
       {k: "subir", l: "Subir (si hay cintillo abajo)", t: "range", min: 0, max: 400, step: 2, u: "px", g: "Posición"}, VEL
     ],
-    defaults: {etiqueta: "INVITADO", nombre: "Nombre Apellido", cargo: "Cargo", estilo: "programa", colorEtq: "naranjo", subir: 0, vel: 100},
+    defaults: {etiqueta: "INVITADO", nombre: "Nombre Apellido", cargo: "Cargo", estilo: "programa", colorEtq: "naranjo", salsa: "auto", subir: 0, vel: 100},
     render: function (d) {
       return '<div class="gp2 e-' + esc(d.estilo) + ' ce-' + esc(d.colorEtq) + '" style="bottom:' + (80 + (+d.subir || 0)) + 'px">' +
-        (d.estilo === "noticiero" ? '<i class="gp2-barra"></i>' : '<div class="gp2-bot"><i class="tapa"></i><i class="cuerpo"></i><i class="banda"></i></div>') +
+        (d.estilo === "noticiero" ? '<i class="gp2-barra"></i>' : '<div class="gp2-bot s-' + (SALSAS.indexOf(d.salsa) >= 0 ? d.salsa : "auto s-" + salsaActual) + '"><i class="punta"></i><i class="tapa"></i><i class="envase"></i><i class="banda"></i><i class="brillo"></i></div>') +
         '<div class="gp2-col">' + (tx(d.etiqueta) ? '<div class="gp2-etq">' + tx(d.etiqueta) + '</div>' : '') +
         '<div class="gp2-nom"><span data-fit="1300">' + tx(d.nombre) + '</span></div>' + (tx(d.cargo) ? '<div class="gp2-car"><span data-fit="1300">' + tx(d.cargo) + '</span></div>' : '') + '</div></div>';
+    },
+    montar: function (c) {
+      var b = c.querySelector(".gp2-bot.s-auto"); if (!b) { return null; }
+      if (c.classList.contains("entra")) { salsaN = (salsaN + 1) % 3; salsaActual = SALSAS[salsaN]; }
+      SALSAS.forEach(function (x) { b.classList.toggle("s-" + x, x === salsaActual); });
+      return null;
     }
   };
 
