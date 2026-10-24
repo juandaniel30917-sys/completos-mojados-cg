@@ -1007,7 +1007,7 @@
     con.on("remoto", function (e) {
       estado = normalizar(e);
       Object.keys(borr).forEach(function (id) { if (!el(id)) { delete borr[id]; } });
-      dibujarLista(); pgm(); dibujarBotonera(); if (sel && !el(sel)) { seleccionar(null); } else if (sel) { fichaCab(); estadoFicha(); extras(); }
+      dibujarLista(); pgm(); dibujarBotonera(); if (editarBotonera && !(document.activeElement && document.activeElement.closest("#botInsp"))) { pintarInsp(); } if (sel && !el(sel)) { seleccionar(null); } else if (sel) { fichaCab(); estadoFicha(); extras(); }
       toast("Otro panel hizo cambios", "");
     });
     con.conectar().then(function (r) {
@@ -1062,21 +1062,121 @@
     var p = P[e.plantilla], pend = CG.pendientesDe(e);
     return {on: e.on, ev: !!p.evento, pend: pend.length > 0, falta: e.plantilla === "video" && !e.datos.media, txt: e.nombre, tipo: (CG.TIPOS[CG.tipoDe(e)] || "").toUpperCase(), e: e};
   }
+  var selB = -1, filtroBot = "";
   function dibujarBotonera() {
     var cont = $("#botGrid"); if (!cont || !estado) { return; }
     var bo = estado.botonera || {columnas: 4};
     cont.style.setProperty("--cols", bo.columnas || 4);
     document.body.classList.toggle("bot-editando", editarBotonera);
-    $("#bEditBot").textContent = editarBotonera ? "Listo" : "Editar botonera";
-    $("#botCols").value = String(bo.columnas || 4);
+    $("#bEditBot").innerHTML = editarBotonera ? "✓ Listo" : "✏️ Editar botones";
+    $("#bEditBot").classList.toggle("listo", editarBotonera);
+    $("#botTam").textContent = bo.columnas || 4;
+    $("#botNota").innerHTML = editarBotonera ? "<b>Modo edición:</b> toca un botón para cambiarlo · arrástralo para moverlo · todo se guarda solo" : "Toca un botón para sacar su gráfica al aire · o usa su tecla";
+    if (selB >= botones().length) { selB = -1; }
     cont.innerHTML = botones().map(function (b, i) {
       var s2 = estadoBoton(b), col = b.color || "#3A3F4E";
-      return '<button class="bt' + (s2.on ? " on" : "") + (s2.ev ? " ev" : "") + (s2.falta ? " falta" : "") + (b.esp ? " esp" : "") + '" data-i="' + i + '" style="--c:' + esc(col) + '" title="' + esc(s2.txt) + '">' +
+      return '<button class="bt' + (s2.on ? " on" : "") + (s2.ev ? " ev" : "") + (s2.falta ? " falta" : "") + (b.esp ? " esp" : "") + (editarBotonera && i === selB ? " sel" : "") + '" data-i="' + i + '" style="--c:' + esc(col) + '" title="' + esc(s2.txt) + '">' +
         '<span class="bt-tec">' + esc(nombreTecla(b.tecla)) + '</span>' + (s2.pend || s2.falta ? '<span class="bt-pend" title="Tiene datos o archivos pendientes">⚠</span>' : '') +
         '<span class="bt-et">' + esc(b.etiqueta || s2.txt) + '</span><span class="bt-sub">' + esc(s2.tipo) + (s2.ev ? " · se lanza" : s2.on ? (salidas === 0 ? " · PROG." : " · AL AIRE") : "") + '</span>' +
-        (editarBotonera ? '<span class="bt-ord"><i data-m="-1">◀</i><i data-m="1">▶</i></span>' : '') + '</button>';
-    }).join("") + (editarBotonera ? '<button class="bt bt-mas" id="btMas"><span class="bt-et">+ BOTÓN</span><span class="bt-sub">agregar</span></button>' : '');
-    if (!botones().length && !editarBotonera) { cont.innerHTML = '<div class="lista-vacia">No hay botones. Toca «Editar botonera» para agregarlos.</div>'; }
+        (editarBotonera ? '<span class="bt-asa" title="Arrastrar para mover">⠿</span>' : '') + '</button>';
+    }).join("") + (editarBotonera ? '<button class="bt bt-mas" id="btMas"><span class="bt-mas-ico">+</span><span class="bt-sub">AGREGAR BOTÓN</span></button>' : '');
+    if (!botones().length && !editarBotonera) { cont.innerHTML = '<div class="lista-vacia">No hay botones. Toca «Editar botones» para agregarlos.</div>'; }
+  }
+  /* guarda y redibuja sin perder lo que se está escribiendo en el panel lateral */
+  var tGuardarBot = null;
+  function cambioBot(insp, lento) {
+    dibujarBotonera(); if (insp) { pintarInsp(); }
+    clearTimeout(tGuardarBot);
+    if (lento) { tGuardarBot = setTimeout(function () { con.publicar(estado); }, 350); } else { con.publicar(estado); }
+  }
+  function opcionesBot() {
+    var usados = {}; pasos().forEach(function (p) { p.items.forEach(function (id) { usados[id] = usados[id] || p.n; }); });
+    var acc = Object.keys(ESPECIALES).map(function (k) { return {v: ":" + k, nom: ESPECIALES[k], tipo: "ACCIÓN", num: "⚡"}; });
+    var gr = estado.elementos.filter(function (e) { return P[e.plantilla]; }).slice().sort(function (a, c) { return (usados[a.id] || "99").localeCompare(usados[c.id] || "99"); })
+      .map(function (e) { return {v: e.id, nom: e.nombre, tipo: (CG.TIPOS[CG.tipoDe(e)] || "").toUpperCase(), num: usados[e.id] || "·"}; });
+    return acc.concat(gr);
+  }
+  function pintarInsp() {
+    var a = $("#botInsp"); if (!a) { return; }
+    a.hidden = !editarBotonera; if (!editarBotonera) { return; }
+    var b = botones()[selB];
+    if (!b) {
+      a.innerHTML = '<div class="bi-vacio"><div class="bi-ilus">👆</div><b>Toca un botón para editarlo</b><p>Puedes cambiar qué gráfica saca, su texto, su color y su tecla. Los cambios se ven al instante.</p><p>Para ordenarlos, <b>arrástralos</b> en la grilla.</p><button class="btn prim grande" id="biNuevo">+ Agregar botón</button></div>';
+      $("#biNuevo").onclick = agregarBoton; return;
+    }
+    var v = b.esp ? ":" + b.esp : b.el, s2 = estadoBoton(b), ops = opcionesBot();
+    var dueno = {}; botones().forEach(function (x, j) { if (x.tecla) { dueno[x.tecla] = j; } });
+    var teclas = TECLAS_F.slice(); if (b.tecla && teclas.indexOf(b.tecla) < 0) { teclas.push(b.tecla); }
+    var mostrarAcc = !b.esp && !s2.ev;
+    a.innerHTML =
+      '<div class="bi-cab"><span class="bi-prev" style="--c:' + esc(b.color || "#3A3F4E") + '">' + esc(nombreTecla(b.tecla) || "—") + '</span><div><small>BOTÓN ' + (selB + 1) + ' DE ' + botones().length + '</small><b>' + esc(b.etiqueta || s2.txt) + '</b></div><button class="btn ico" id="biCerrar" title="Cerrar">✕</button></div>' +
+      '<div class="bi-sec"><label class="bi-tit"><span>1</span>¿Qué gráfica saca?</label>' +
+        '<input type="search" id="biBus" placeholder="Buscar gráfica…" value="' + esc(filtroBot) + '"><div class="bi-ops" id="biOps">' +
+        ops.map(function (o) { return '<button class="bi-op' + (o.v === v ? " on" : "") + '" data-v="' + esc(o.v) + '"><span class="bi-num">' + esc(o.num) + '</span><span class="bi-nom">' + esc(o.nom) + '</span><span class="bi-tipo">' + esc(o.tipo) + '</span></button>'; }).join("") + '</div></div>' +
+      '<div class="bi-sec"><label class="bi-tit" for="biEt"><span>2</span>Texto del botón</label><input type="text" id="biEt" maxlength="28" value="' + esc(b.etiqueta || "") + '" placeholder="' + esc(s2.txt.toUpperCase()) + '"><span class="nota">Si lo dejas vacío usa el nombre de la gráfica.</span></div>' +
+      '<div class="bi-sec"><label class="bi-tit"><span>3</span>Color</label><div class="bi-cols">' + COLORES_B.map(function (x) { return '<button class="bi-col' + (x === b.color ? " on" : "") + '" data-c="' + x + '" style="background:' + x + '"></button>'; }).join("") +
+        '<label class="bi-col bi-col-mas" title="Otro color"><input type="color" id="biColor" value="' + esc(b.color || "#3A3F4E") + '">+</label></div></div>' +
+      '<div class="bi-sec"><label class="bi-tit"><span>4</span>Tecla</label><div class="bi-teclas">' +
+        teclas.map(function (k) { var j = dueno[k], otro = j != null && j !== selB ? botones()[j] : null; return '<button class="bi-tecla' + (b.tecla === k ? " on" : "") + (otro ? " usada" : "") + '" data-k="' + esc(k) + '" title="' + (otro ? "La usa «" + esc(otro.etiqueta || estadoBoton(otro).txt) + "»: se le quitará" : "Libre") + '"><b>' + esc(nombreTecla(k)) + '</b><small>' + (b.tecla === k ? "este botón" : otro ? esc(otro.etiqueta || estadoBoton(otro).txt) : "libre") + '</small></button>'; }).join("") +
+        '<button class="bi-tecla' + (!b.tecla ? " on" : "") + '" data-k=""><b>—</b><small>sin tecla</small></button></div>' +
+        '<button class="btn bi-cap" id="biCap">⌨️ Presionar una tecla del teclado</button></div>' +
+      (mostrarAcc ? '<div class="bi-sec"><label class="bi-tit"><span>5</span>Al presionar</label><div class="seg bi-acc" id="biAcc">' + [["alternar", "Muestra / oculta"], ["mostrar", "Solo muestra"], ["ocultar", "Solo oculta"]].map(function (x) { return '<button data-v="' + x[0] + '" class="' + ((b.accion || "alternar") === x[0] ? "on" : "") + '">' + x[1] + '</button>'; }).join("") + '</div></div>' : '') +
+      '<div class="bi-pie"><button class="btn" id="biIzq" title="Mover a la izquierda">◀</button><button class="btn" id="biDer" title="Mover a la derecha">▶</button><button class="btn" id="biDup">Duplicar</button><button class="btn peligro" id="biDel">Eliminar</button></div>';
+    var on = $(".bi-op.on", a); if (on && !filtroBot) { on.scrollIntoView({block: "nearest"}); }
+    filtrarOps();
+    $("#biCerrar").onclick = function () { selB = -1; cambioBot(true); };
+    $("#biBus").oninput = function () { filtroBot = this.value; filtrarOps(); };
+    $("#biOps").onclick = function (ev) {
+      var o = ev.target.closest(".bi-op"); if (!o) { return; }
+      var nv = o.dataset.v; b.el = nv.charAt(0) === ":" ? "" : nv; b.esp = nv.charAt(0) === ":" ? nv.slice(1) : ""; b.etiqueta = ""; filtroBot = "";
+      cambioBot(true);
+    };
+    $("#biEt").oninput = function () { b.etiqueta = this.value.toUpperCase(); $(".bi-cab b", a).textContent = b.etiqueta || estadoBoton(b).txt; cambioBot(false, true); };
+    $$(".bi-col[data-c]", a).forEach(function (x) { x.onclick = function () { b.color = x.dataset.c; cambioBot(true); }; });
+    $("#biColor").oninput = function () { b.color = this.value; cambioBot(false, true); $(".bi-prev", a).style.setProperty("--c", b.color); };
+    $$(".bi-tecla", a).forEach(function (x) { x.onclick = function () { asignarTecla(b, x.dataset.k); }; });
+    $("#biCap").onclick = function () {
+      var bt = this; bt.textContent = "Presiona la tecla ahora… (Esc cancela)"; bt.classList.add("esperando"); capturando = true;
+      var f = function (ev) {
+        ev.preventDefault(); ev.stopPropagation(); document.removeEventListener("keydown", f, true); capturando = null;
+        if (ev.key === "Escape") { pintarInsp(); return; }
+        if (/^(Tab|Enter|Shift|Control|Alt|Meta|CapsLock)$/.test(ev.key)) { toast("Esa tecla no se puede usar. Prueba otra.", "err"); pintarInsp(); return; }
+        asignarTecla(b, ev.key);
+      };
+      document.addEventListener("keydown", f, true);
+    };
+    if ($("#biAcc")) { $$("#biAcc button", a).forEach(function (x) { x.onclick = function () { b.accion = x.dataset.v; cambioBot(true); }; }); }
+    $("#biIzq").onclick = function () { moverBoton(selB, selB - 1); };
+    $("#biDer").onclick = function () { moverBoton(selB, selB + 1); };
+    $("#biDup").onclick = function () { var c = nuevoBoton(clon(b)); c.id = nuevoBoton({}).id; c.tecla = ""; botones().splice(selB + 1, 0, c); selB++; cambioBot(true); toast("Botón duplicado (sin tecla)", "ok"); };
+    $("#biDel").onclick = function () {
+      var quit = botones().splice(selB, 1)[0], pos = selB; selB = -1; cambioBot(true);
+      toast("Botón eliminado", "", {txt: "Deshacer", fn: function () { botones().splice(pos, 0, quit); selB = pos; cambioBot(true); }});
+    };
+  }
+  function filtrarOps() {
+    var q = filtroBot.trim().toLowerCase();
+    $$("#biOps .bi-op").forEach(function (o) { o.hidden = q && o.textContent.toLowerCase().indexOf(q) < 0; });
+  }
+  function asignarTecla(b, k) {
+    var quitado = null;
+    if (k) { botones().forEach(function (x) { if (x !== b && x.tecla === k) { x.tecla = ""; quitado = x; } }); }
+    b.tecla = k || "";
+    cambioBot(true);
+    if (quitado) { toast("Tecla " + nombreTecla(k) + " movida desde «" + (quitado.etiqueta || estadoBoton(quitado).txt) + "»", "ok"); }
+  }
+  function moverBoton(i, j) {
+    var bs = botones(); if (j < 0 || j >= bs.length || i === j) { return; }
+    var x = bs.splice(i, 1)[0]; bs.splice(j, 0, x); selB = j; cambioBot(true);
+  }
+  function agregarBoton() {
+    var b = nuevoBoton({color: COLORES_B[botones().length % COLORES_B.length]});
+    var libre = TECLAS_F.filter(function (k) { return !botones().some(function (x) { return x.tecla === k; }); })[0];
+    b.tecla = libre || "";
+    var g = estado.elementos.filter(function (e) { return P[e.plantilla] && !botones().some(function (x) { return x.el === e.id; }); })[0];
+    b.el = g ? g.id : ""; if (!g) { b.esp = "limpiar"; }
+    botones().push(b); selB = botones().length - 1; filtroBot = ""; cambioBot(true);
+    setTimeout(function () { var s = $("#biBus"); if (s && !esMovil()) { s.focus(); } var n = $('#botGrid .bt[data-i="' + selB + '"]'); if (n) { n.scrollIntoView({block: "nearest"}); } }, 30);
   }
   function disparar(b, nodo) {
     if (!b) { return; }
@@ -1097,77 +1197,61 @@
     var i = -1; botones().forEach(function (b, j) { if (i < 0 && b.tecla && b.tecla === ev.key) { i = j; } });
     if (i < 0) { return false; }
     ev.preventDefault();
+    if (editarBotonera) { selB = i; dibujarBotonera(); pintarInsp(); return true; }
     disparar(botones()[i], $('#botGrid .bt[data-i="' + i + '"]'));
     return true;
   }
+  /* clic normal = disparar; en edición: tocar = editar, arrastrar = mover (mouse en todo el botón, dedo desde ⠿) */
+  var arr = null;
   $("#botGrid").addEventListener("click", function (ev) {
     var t = ev.target.closest(".bt"); if (!t) { return; }
-    if (t.id === "btMas") { configBoton(-1); return; }
-    var i = +t.dataset.i, m = ev.target.closest(".bt-ord i");
-    if (m) { var j = i + (+m.dataset.m), bs = botones(); if (j >= 0 && j < bs.length) { var x = bs[i]; bs[i] = bs[j]; bs[j] = x; publicar(); } return; }
-    if (editarBotonera) { configBoton(i); } else { disparar(botones()[i], t); }
+    if (t.id === "btMas") { agregarBoton(); return; }
+    if (editarBotonera) { if (arr && arr.movido) { return; } selB = +t.dataset.i; filtroBot = ""; dibujarBotonera(); pintarInsp(); if (esMovil()) { $("#botInsp").scrollTop = 0; } return; }
+    disparar(botones()[+t.dataset.i], t);
   });
-  $("#bEditBot").onclick = function () { editarBotonera = !editarBotonera; dibujarBotonera(); };
-  $("#botCols").onchange = function () { estado.botonera.columnas = +this.value; publicar(); };
+  $("#botGrid").addEventListener("pointerdown", function (ev) {
+    if (!editarBotonera || ev.button > 0) { return; }
+    var t = ev.target.closest(".bt[data-i]"); if (!t) { return; }
+    if (ev.pointerType !== "mouse" && !ev.target.closest(".bt-asa")) { return; }
+    arr = {i: +t.dataset.i, x: ev.clientX, y: ev.clientY, movido: false, fant: null};
+    if (ev.pointerType !== "mouse") { ev.preventDefault(); }
+  });
+  addEventListener("pointermove", function (ev) {
+    if (!arr) { return; }
+    if (!arr.movido) {
+      if (Math.abs(ev.clientX - arr.x) + Math.abs(ev.clientY - arr.y) < 8) { return; }
+      arr.movido = true; document.body.classList.add("bot-arrastrando");
+      var src = $('#botGrid .bt[data-i="' + arr.i + '"]'), r = src.getBoundingClientRect();
+      arr.fant = src.cloneNode(true); arr.fant.classList.add("bt-fantasma"); arr.fant.style.width = r.width + "px"; arr.fant.style.height = r.height + "px";
+      arr.dx = arr.x - r.left; arr.dy = arr.y - r.top; document.body.appendChild(arr.fant);
+    }
+    arr.fant.style.transform = "translate(" + (ev.clientX - arr.dx) + "px," + (ev.clientY - arr.dy) + "px) rotate(-2deg) scale(1.04)";
+    var bajo = document.elementFromPoint(ev.clientX, ev.clientY), t = bajo && bajo.closest("#botGrid .bt[data-i]");
+    if (t && +t.dataset.i !== arr.i) { var bs = botones(), x = bs.splice(arr.i, 1)[0], j = +t.dataset.i; bs.splice(j, 0, x); arr.i = j; selB = j; dibujarBotonera(); }
+    var n = $('#botGrid .bt[data-i="' + arr.i + '"]'); if (n) { n.classList.add("hueco"); }
+  });
+  function soltar() {
+    if (!arr) { return; }
+    var a2 = arr;
+    if (a2.fant) { a2.fant.remove(); }
+    document.body.classList.remove("bot-arrastrando");
+    if (a2.movido) { cambioBot(true); setTimeout(function () { arr = null; }, 0); } else { arr = null; }
+  }
+  addEventListener("pointerup", soltar); addEventListener("pointercancel", soltar);
+  $("#bEditBot").onclick = function () { editarBotonera = !editarBotonera; if (!editarBotonera) { selB = -1; } dibujarBotonera(); pintarInsp(); };
+  $("#botMenos").onclick = function () { estado.botonera.columnas = Math.max(2, (estado.botonera.columnas || 4) - 1); cambioBot(false); };
+  $("#botMas").onclick = function () { estado.botonera.columnas = Math.min(8, (estado.botonera.columnas || 4) + 1); cambioBot(false); };
   $("#bBotAyuda").onclick = function () {
     modal("<h2>Botonera y teclado</h2><p class='lead'>Cada botón muestra u oculta una gráfica con un toque (o lanza una transición).</p><ul class='pasos'>" +
-      "<li>Las teclas <b>F13 a F24</b> (o cualquier otra que elijas) disparan su botón <b>en cualquier pestaña</b> del panel.</li>" +
-      "<li>Los teclados externos y botoneras programables (macro pads, Stream Deck, etc.) pueden enviar F13–F24: configúralos en su programa.</li>" +
-      "<li>Las teclas funcionan cuando la ventana del panel está activa (en primer plano). Si usas el panel como dock de OBS, haz clic en el dock antes de usar el teclado.</li>" +
-      "<li>Los botones usan lo <b>guardado</b> de cada gráfica, no lo que estés escribiendo en el editor.</li>" +
-      "<li><b>Editar botonera</b>: toca un botón para cambiar gráfica, nombre, color, acción o tecla; ◀ ▶ lo mueven; «+ BOTÓN» agrega.</li></ul>" +
+      "<li><b>Para editar</b>: toca «✏️ Editar botones» y luego toca cualquier botón. A la derecha eliges la gráfica, el texto, el color y la tecla. Todo se guarda solo.</li>" +
+      "<li><b>Para ordenar</b>: en modo edición arrastra los botones (en el celular, desde el ícono ⠿).</li>" +
+      "<li>Las teclas <b>F13 a F24</b> (o cualquier otra que elijas) disparan su botón <b>en cualquier pestaña</b> del panel. Teclados externos, macro pads y Stream Deck pueden enviar F13–F24 desde su programa.</li>" +
+      "<li>Las teclas funcionan con la ventana del panel <b>al frente</b>. Si usas el panel como dock de OBS, haz clic en el dock antes de usar el teclado.</li>" +
+      "<li>Los botones usan lo <b>guardado</b> de cada gráfica, no lo que estés escribiendo en el editor.</li></ul>" +
       "<div class='modal-pie'><button class='btn prim' onclick=\"document.querySelector('#modal .cerrar').click()\">Entendido</button></div>");
   };
-  function configBoton(i) {
-    var nuevo = i < 0, b = nuevo ? nuevoBoton({color: COLORES_B[botones().length % COLORES_B.length]}) : JSON.parse(JSON.stringify(botones()[i]));
-    var usados = {}; pasos().forEach(function (p) { p.items.forEach(function (id) { usados[id] = usados[id] || p.n; }); });
-    var lista = estado.elementos.filter(function (e) { return P[e.plantilla]; }).slice().sort(function (a, c) { return (usados[a.id] || "99").localeCompare(usados[c.id] || "99"); });
-    var opts = '<optgroup label="Acciones">' + Object.keys(ESPECIALES).map(function (k) { return '<option value=":' + k + '">' + esc(ESPECIALES[k]) + '</option>'; }).join("") + '</optgroup><optgroup label="Gráficas">' +
-      lista.map(function (e) { return '<option value="' + esc(e.id) + '">' + (usados[e.id] ? usados[e.id] + " · " : "") + esc(e.nombre) + '</option>'; }).join("") + '</optgroup>';
-    var c = modal("<h2>" + (nuevo ? "Nuevo botón" : "Configurar botón") + "</h2>" +
-      "<div class='form-fila'><div class='campo ancho'><label>Gráfica o acción</label><select id='cbEl'>" + opts + "</select></div>" +
-      "<div class='campo'><label>Texto del botón</label><input type='text' id='cbEt' maxlength='28' placeholder='Igual al nombre de la gráfica'></div>" +
-      "<div class='campo'><label>Al presionar</label><div class='seg' id='cbAcc'><button type='button' data-v='alternar'>Mostrar / ocultar</button><button type='button' data-v='mostrar'>Solo mostrar</button><button type='button' data-v='ocultar'>Solo ocultar</button></div></div>" +
-      "<div class='campo'><label>Color</label><div class='color'><div class='sw' id='cbCol'>" + COLORES_B.map(function (x) { return "<button type='button' style='background:" + x + ";width:28px;height:28px' data-c='" + x + "'></button>"; }).join("") + "</div></div></div>" +
-      "<div class='campo'><label>Tecla</label><div class='media'><select id='cbTec'><option value=''>Sin tecla</option>" + TECLAS_F.map(function (k) { return "<option>" + k + "</option>"; }).join("") + "<option value='__otra'>Otra tecla…</option></select><button type='button' class='btn mini' id='cbCap'>Presionar tecla</button></div><span class='nota' id='cbTecNota'></span></div></div>" +
-      "<div class='modal-pie'>" + (nuevo ? "" : "<button class='btn peligro' id='cbDel'>Eliminar botón</button>") + "<button class='btn' id='cbNo'>Cancelar</button><button class='btn prim' id='cbOk'>Guardar</button></div>", {alCerrar: function () { capturando = null; }});
-    var sel2 = $("#cbEl", c); sel2.value = b.esp ? ":" + b.esp : b.el; if (!sel2.value && sel2.options.length) { sel2.selectedIndex = Object.keys(ESPECIALES).length; }
-    $("#cbEt", c).value = b.etiqueta || "";
-    function marcarAcc() { $$("#cbAcc button", c).forEach(function (x) { x.classList.toggle("on", x.dataset.v === (b.accion || "alternar")); }); }
-    $$("#cbAcc button", c).forEach(function (x) { x.onclick = function () { b.accion = x.dataset.v; marcarAcc(); }; }); marcarAcc();
-    function marcarCol() { $$("#cbCol button", c).forEach(function (x) { x.style.outline = x.dataset.c === b.color ? "3px solid #fff" : ""; }); }
-    $$("#cbCol button", c).forEach(function (x) { x.onclick = function () { b.color = x.dataset.c; marcarCol(); }; }); marcarCol();
-    var st = $("#cbTec", c), nota = $("#cbTecNota", c);
-    function ponerTecla(k) {
-      b.tecla = k;
-      if (k && TECLAS_F.indexOf(k) < 0) { if (![].some.call(st.options, function (o) { return o.value === k; })) { var o = document.createElement("option"); o.value = k; o.textContent = nombreTecla(k); st.insertBefore(o, st.lastChild); } }
-      st.value = k || "";
-      var otro = botones().filter(function (x, j) { return j !== i && x.tecla && x.tecla === k; })[0];
-      nota.textContent = otro ? "Esa tecla la usa «" + (otro.etiqueta || "otro botón") + "»: se le quitará." : (k ? "Tecla asignada: " + nombreTecla(k) : "");
-    }
-    ponerTecla(b.tecla);
-    st.onchange = function () { if (st.value === "__otra") { $("#cbCap", c).click(); } else { ponerTecla(st.value); } };
-    $("#cbCap", c).onclick = function () {
-      nota.textContent = "Presiona la tecla en tu teclado o botonera… (Esc cancela)"; capturando = true;
-      var f = function (ev) {
-        ev.preventDefault(); ev.stopPropagation(); document.removeEventListener("keydown", f, true); capturando = null;
-        if (ev.key === "Escape") { ponerTecla(b.tecla); return; }
-        if (/^(Tab|Enter|Shift|Control|Alt|Meta)$/.test(ev.key)) { nota.textContent = "Esa tecla no se puede usar. Prueba otra."; return; }
-        ponerTecla(ev.key);
-      };
-      document.addEventListener("keydown", f, true);
-    };
-    $("#cbNo", c).onclick = cerrarModal;
-    if (!nuevo) { $("#cbDel", c).onclick = function () { botones().splice(i, 1); cerrarModal(); publicar(); toast("Botón eliminado", "ok"); }; }
-    $("#cbOk", c).onclick = function () {
-      var v = sel2.value; b.el = v.charAt(0) === ":" ? "" : v; b.esp = v.charAt(0) === ":" ? v.slice(1) : ""; b.etiqueta = $("#cbEt", c).value.trim().toUpperCase();
-      if (b.tecla) { botones().forEach(function (x, j) { if (j !== i && x.tecla === b.tecla) { x.tecla = ""; } }); }
-      if (nuevo) { botones().push(b); } else { botones()[i] = b; }
-      cerrarModal(); publicar(); toast("Botón guardado", "ok");
-    };
-  }
   $("#bBotRest").onclick = function () {
-    confirmar("¿Restaurar botonera?", "Vuelve a los botones iniciales con las teclas F13–F24. Tus gráficas no se tocan.", "Restaurar").then(function (ok) { if (!ok) { return; } delete estado.botonera; sembrarBotonera(estado); publicar(); });
+    confirmar("¿Restaurar botonera?", "Vuelve a los botones iniciales con las teclas F13–F24. Tus gráficas no se tocan.", "Restaurar").then(function (ok) { if (!ok) { return; } delete estado.botonera; sembrarBotonera(estado); selB = -1; publicar(); pintarInsp(); });
   };
 
   window.CG_PANEL = {estado: function () { return estado; }, seleccionar: seleccionar, mostrar: mostrar, ocultar: ocultar, borrador: borrador, lanzar: lanzar, botones: botones}; /* para pruebas */

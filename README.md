@@ -129,6 +129,8 @@ La pestaña **Botonera** es un panel de botones grandes, uno por gráfica, para 
 
 GC listos tomados de los videos de referencia: *Felipe Jiménez / Presentador*, *Carlos Piña / Vocalista de la banda El Piña Papa*, *Invitado 1 / Dirección del Seremi* y *Presentador 2 / Notiserio* (etiqueta PERIODISTA, estilo noticiero).
 
+> Al publicar cambios, sube el número `?v=` de los `<link>`/`<script>` en `panel.html`, `salida.html` e `index.html` para que los navegadores no mezclen archivos viejos y nuevos.
+
 ## 2. Videos propios (pantalla verde o transparencia)
 
 En el panel: **+ Nueva → Video** (o «Subir video» dentro de una gráfica de video).
