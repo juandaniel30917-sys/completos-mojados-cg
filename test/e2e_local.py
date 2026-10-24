@@ -15,6 +15,11 @@ def check(nombre, cond, extra=""):
     print(("  OK  " if cond else "  FALLA ") + nombre + (" · " + str(extra) if extra else ""))
 
 
+async def tecla(pg, k):
+    # Playwright no simula F13–F24; se envía el mismo evento keydown que genera un teclado externo
+    await pg.evaluate("k=>{var o={key:k,code:k,bubbles:true,cancelable:true};document.activeElement.dispatchEvent(new KeyboardEvent('keydown',o));document.activeElement.dispatchEvent(new KeyboardEvent('keyup',o))}", k)
+
+
 async def main():
     async with async_playwright() as p:
         b = await p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
@@ -167,6 +172,35 @@ async def main():
         check("El cierre retira todas las demás gráficas", capas == ["t-cierre"], capas)
         await out.screenshot(path=SH + "salida_cierre.png")
 
+        # botonera
+        await pg.click("#bLimpiar"); await pg.wait_for_timeout(900)
+        await pg.click(".tabs [data-tab=boton]"); await pg.wait_for_timeout(500)
+        nb = await pg.evaluate("()=>document.querySelectorAll('#botGrid .bt:not(.bt-mas)').length")
+        check("Botonera visible con botones", await pg.is_visible("#botGrid") and nb >= 12, nb)
+        teclas = await pg.evaluate("()=>[...document.querySelectorAll('#botGrid .bt-tec')].map(x=>x.textContent).filter(Boolean)")
+        check("Botones traen teclas F13–F24", "F13" in teclas and "F24" in teclas, teclas)
+        await pg.screenshot(path=SH + "botonera.png")
+        await tecla(pg, "F13"); await pg.wait_for_timeout(1500)
+        check("Tecla F13 saca el GC conductor", await out.evaluate("()=>!!document.querySelector('.gp2')"))
+        check("Botón queda marcado AL AIRE", await pg.evaluate("()=>!!document.querySelector('#botGrid .bt.on')"))
+        await tecla(pg, "F13"); await pg.wait_for_timeout(1500)
+        check("Segunda pulsación de F13 lo retira", not await out.evaluate("()=>!!document.querySelector('.el .gp2')"))
+        # mostrar desde un clic
+        await pg.click("#botGrid .bt:nth-child(2)"); await pg.wait_for_timeout(1400)
+        check("Clic en botón saca la gráfica", await out.evaluate("()=>document.querySelectorAll('.el').length") >= 1)
+        # configurar: asignar F14 al primer botón (y ver que el duplicado se quita)
+        await pg.click("#bEditBot"); await pg.wait_for_timeout(200)
+        await pg.click("#botGrid .bt:nth-child(1)"); await pg.wait_for_timeout(300)
+        check("Editar un botón abre su configuración", await pg.is_visible("#cbTec"))
+        await pg.fill("#cbEt", "MI GC"); await pg.select_option("#cbTec", "F14"); await pg.click("#cbOk"); await pg.wait_for_timeout(300)
+        r = await pg.evaluate("()=>{var b=window.CG_PANEL.botones();return [b[0].etiqueta,b[0].tecla,b.filter(x=>x.tecla==='F14').length]}")
+        check("Configurar etiqueta y tecla (sin duplicados)", r == ["MI GC", "F14", 1], r)
+        await pg.click("#bEditBot"); await pg.wait_for_timeout(200)
+        await pg.click(".tabs [data-tab=control]"); await pg.wait_for_timeout(300)
+        await pg.click("#bLimpiar"); await pg.wait_for_timeout(1000)
+        await tecla(pg, "F14"); await pg.wait_for_timeout(1500)
+        check("Las teclas funcionan desde otra pestaña", await out.evaluate("()=>!!document.querySelector('.gp2')"))
+
         # limpiar salida
         await pg.click("#bLimpiar"); await pg.wait_for_timeout(1200)
         check("LIMPIAR SALIDA retira todo sin recargar", await out.evaluate("()=>document.querySelectorAll('.el').length") == 0 and await out.evaluate("()=>window.__marca===1"))
@@ -192,6 +226,9 @@ async def main():
         await pc.tap('#movNav [data-mv=ver]'); await pc.wait_for_timeout(900)
         await pc.screenshot(path=SH + "celular_ver.png")
         check("La vista Ver muestra vista previa y programa", await pc.is_visible("#ifPVW") and await pc.is_visible("#ifPGM"))
+        await pc.tap('#movNav [data-mv=boton]'); await pc.wait_for_timeout(600)
+        check("Botonera en celular (2 columnas, sin scroll lateral)", await pc.is_visible("#botGrid") and await pc.evaluate("()=>document.documentElement.scrollWidth") <= 390)
+        await pc.screenshot(path=SH + "celular_botonera.png")
         await cel.close()
 
         check("Sin errores de JavaScript", not errs, errs)

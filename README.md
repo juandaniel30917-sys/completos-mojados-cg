@@ -115,6 +115,20 @@ Las ventanas emergentes se abren desde abajo y los campos usan letra de 16 px pa
 
 ---
 
+### Botonera (teclas F13–F24)
+
+La pestaña **Botonera** es un panel de botones grandes, uno por gráfica, para operar rápido. Convive con **Control** y **Control + Visual**: usan las mismas gráficas, y lo que edites en uno se ve en los otros.
+
+- **Un toque = al aire**. Si la gráfica ya está al aire, el mismo botón la retira (acción *Alternar*). Cada botón también se puede dejar en *Solo mostrar* o *Solo ocultar*. Las transiciones y cortinas siempre se lanzan.
+- El botón que está al aire se marca con un borde rojo. Con ⚠ se indica que a la gráfica le falta un dato del libreto.
+- **Teclas F13 a F24**: al abrirla, la botonera ya trae asignados los 12 botones principales. Con **Editar botonera** cambias en cada botón la gráfica, el texto, el color y la tecla. Con *Otra tecla…* puedes asignar cualquier tecla que mande tu teclado externo o tu Stream Deck. Una tecla solo puede estar en un botón.
+- Las teclas funcionan en las tres pestañas, pero solo con **la ventana del panel al frente** (el navegador no recibe teclas si está en segundo plano). Mientras escribes en un campo de texto, no se disparan.
+- Botones de acción especiales: *Limpiar salida*, *Paso siguiente*, *Paso anterior*, *Cortina*.
+- La botonera se guarda en la sala, así que la ve igual cualquier equipo conectado. **Restaurar** vuelve a los botones iniciales sin tocar las gráficas.
+- En el celular aparece como cuarta vista en la barra inferior, con 2 columnas.
+
+GC listos tomados de los videos de referencia: *Felipe Jiménez / Presentador*, *Carlos Piña / Vocalista de la banda El Piña Papa*, *Invitado 1 / Dirección del Seremi* y *Presentador 2 / Notiserio* (etiqueta PERIODISTA, estilo noticiero).
+
 ## 2. Videos propios (pantalla verde o transparencia)
 
 En el panel: **+ Nueva → Video** (o «Subir video» dentro de una gráfica de video).

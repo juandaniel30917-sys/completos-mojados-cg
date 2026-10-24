@@ -19,6 +19,7 @@
   <nav class="tabs" role="tablist">
     <button role="tab" data-tab="control" aria-selected="true">Control</button>
     <button role="tab" data-tab="visual" aria-selected="false">Control + Visual</button>
+    <button role="tab" data-tab="boton" aria-selected="false" title="Botones grandes y teclas F13–F24">Botonera</button>
   </nav>
   <div class="estado">
     <span class="pill" id="pRed" title="Conexión con el servidor"><i></i><span>Conectando…</span></span>
@@ -97,6 +98,18 @@
   </section>
 
   <!-- ================= MONITORES ================= -->
+  <!-- ================= BOTONERA ================= -->
+  <section id="botonera">
+    <div class="bot-barra">
+      <b>Botonera</b><span class="bot-nota">Teclas F13–F24 activas con esta ventana al frente</span>
+      <label class="bot-cols">Columnas <select id="botCols"><option>3</option><option>4</option><option>5</option><option>6</option><option>8</option></select></label>
+      <button class="btn mini" id="bBotRest" title="Volver a los botones iniciales">Restaurar</button>
+      <button class="btn mini" id="bBotAyuda" title="Cómo funciona"><svg><use href="#i-ayuda"/></svg></button>
+      <button class="btn mini prim" id="bEditBot">Editar botonera</button>
+    </div>
+    <div id="botGrid" class="bot-grid"></div>
+  </section>
+
   <section id="monitores">
     <div class="monitor pvw">
       <div class="mon-cab"><span class="tag">VISTA PREVIA</span><small>solo tú la ves · no sale al aire</small><button class="btn mini" id="mRepetir" title="Repetir animación"><svg><use href="#i-repetir"/></svg></button></div>
@@ -112,6 +125,7 @@
 <nav id="movNav" aria-label="Vistas del celular">
   <button data-mv="lista" class="on"><svg><use href="#i-capas"/></svg><span>Escaleta</span></button>
   <button data-mv="editar"><svg><use href="#i-titulo"/></svg><span>Editar</span></button>
+  <button data-mv="boton"><svg><use href="#i-punto"/></svg><span>Botonera</span></button>
   <button data-mv="ver"><svg><use href="#i-monitor"/></svg><span>Ver</span></button>
 </nav>
 <div id="toasts" aria-live="polite"></div>
