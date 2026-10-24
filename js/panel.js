@@ -101,19 +101,22 @@
   /* ------------------------------------------------------------------ publicar al aire */
   function publicar() {
     con.publicar(estado);
-    pgm(); dibujarLista(); estadoFicha();
+    pgm(); dibujarLista(); estadoFicha(); dibujarBotonera();
   }
   function finDe(id) {
     var e = el(id);
     if (e && e.on && (e.plantilla === "video" || e.plantilla === "temporizador")) { e.on = false; publicar(); }
   }
-  function datosParaAire(e) {
-    var d = clon(borrador(e.id));
+  function datosParaAire(e, guardado) {
+    var d = clon(guardado ? e.datos : borrador(e.id));
     RUNTIME.forEach(function (k) { if (e.datos[k] !== undefined) { d[k] = e.datos[k]; } else { delete d[k]; } });
     return d;
   }
-  function mostrar(id, silencio, confirmado) {
+  function mostrar(id, silencio, confirmado, guardado) {
     var e = el(id); if (!e) { return; }
+    var fuente = guardado ? e.datos : borrador(id);
+    if (guardado && e.plantilla === "video" && !fuente.media) { toast("«" + e.nombre + "» no tiene video todavía. Súbelo desde Control.", "err"); return false; }
+    if (guardado && CG.pendientesDe({datos: fuente, pend: e.pend}).length) { toast("«" + e.nombre + "» tiene datos pendientes (salen en blanco).", "err"); confirmado = true; }
     if (e.plantilla === "video" && !borrador(id).media) {
       toast("Falta el archivo de este video (" + ((e.pend && e.pend.media) || "sin video") + "). Súbelo para poder mostrarlo.", "err");
       seleccionar(id); abrirSubida(function (m) { cambio("media", m.id); cambio("modo", m.modo); if (m.chroma) { Object.keys(m.chroma).forEach(function (k) { cambio(k, m.chroma[k]); }); } dibujarCampos(); guardarElemento(id); });
@@ -124,8 +127,8 @@
       confirmar("Tiene datos pendientes", "Falta: " + pend.join(", ") + ". Lo pendiente NO aparece en pantalla (queda en blanco). ¿Mostrar igual?", "Mostrar igual").then(function (ok) { if (ok) { mostrar(id, silencio, true); } });
       return;
     }
-    if (esEvento(e)) { lanzar(id); return; }
-    var nuevo = !e.on, g = CG.grupoDe({plantilla: e.plantilla, datos: borrador(id)});
+    if (esEvento(e)) { lanzar(id, guardado); return; }
+    var nuevo = !e.on, g = CG.grupoDe({plantilla: e.plantilla, datos: fuente});
     /* reglas: el cierre limpia todo; dos gráficas del mismo grupo (ej. dos GC de nombre) no se superponen */
     if (nuevo) {
       estado.elementos.forEach(function (o) {
@@ -133,7 +136,7 @@
         if (P[e.plantilla].exclusivo || CG.grupoDe(o) === g) { o.on = false; }
       });
     }
-    e.datos = datosParaAire(e); borr[id] = clon(e.datos); e.on = true;
+    e.datos = datosParaAire(e, guardado); if (!guardado) { borr[id] = clon(e.datos); } e.on = true;
     if (e.plantilla === "video" && nuevo) { e.datos.cmd = null; }
     publicar(); guardarBorr();
     if (!silencio) { flash($("#aMostrar")); }
@@ -144,15 +147,15 @@
     e.datos = datosParaAire(e); borr[id] = clon(e.datos); publicar(); guardarBorr();
     toast(e.on ? "Actualizado al aire" : "Guardado (no está al aire)", "ok");
   }
-  function lanzar(id) {
+  function lanzar(id, guardado) {
     var e = el(id); if (!e) { return; }
     if (salidas === 0) { toast("Ojo: no hay ninguna salida conectada, nadie verá esta cortina.", "err"); }
-    e.datos = clon(borrador(id));
+    if (!guardado) { e.datos = clon(borrador(id)); }
     var ev = {id: CG.nuevoId(), tipo: e.plantilla, datos: clon(e.datos), t: Date.now()};
     estado.ev = (estado.ev || []).concat(ev).slice(-12);
     publicar(); guardarBorr();
     flash($("#aMostrar"));
-    toast((/cortina/.test(e.plantilla) ? "Cortina" : "Aviso") + " lanzado al aire", "ok");
+    toast((/cortina|transicion/.test(e.plantilla) ? "Transición" : "Aviso") + " lanzada al aire", "ok");
   }
   function flash(b) { if (!b) { return; } b.classList.remove("flash"); void b.offsetWidth; b.classList.add("flash"); }
   function comando(id, a) {
@@ -615,7 +618,9 @@
   /* ------------------------------------------------------------------ pestañas */
   function cambiarTab(t) {
     document.body.classList.toggle("tab-visual", t === "visual");
-    document.body.classList.toggle("tab-control", t !== "visual");
+    document.body.classList.toggle("tab-boton", t === "boton");
+    document.body.classList.toggle("tab-control", t === "control");
+    if (t === "boton" && estado) { dibujarBotonera(); pgm(); }
     $$(".tabs button").forEach(function (b) { b.setAttribute("aria-selected", b.dataset.tab === t ? "true" : "false"); });
     guardarLS("cg_tab", t);
   }
@@ -629,6 +634,7 @@
     document.body.dataset.mv = v;
     $$("#movNav button").forEach(function (b) { b.classList.toggle("on", b.dataset.mv === v); });
     if (v === "ver") { pvw(); if (estado) { pgm(); } }
+    if (v === "boton" && estado) { dibujarBotonera(); }
     window.scrollTo(0, 0);
   }
   $$("#movNav button").forEach(function (b) { b.onclick = function () { vistaMovil(b.dataset.mv); }; });
@@ -655,6 +661,7 @@
     var escribiendo = /input|textarea|select/i.test((document.activeElement || {}).tagName || "");
     if (!escribiendo && $("#modal").hidden && estado && (e.key === "PageDown" || e.key === "PageUp")) { e.preventDefault(); moverPaso(e.key === "PageDown" ? 1 : -1); return; }
     if (e.key === "Escape" && !$("#modal").hidden) { cerrarModal(); return; }
+    if (teclaBotonera(e, escribiendo)) { return; }
     if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && sel && $("#modal").hidden) { e.preventDefault(); if (e.shiftKey) { ocultar(sel); } else { $("#aMostrar").click(); } }
   });
 
@@ -958,7 +965,7 @@
   /* ------------------------------------------------------------------ arranque */
   function normalizar(e) {
     e = e || {}; var ini = CG.estadoInicial();
-    if (!Array.isArray(e.elementos) || !e.elementos.length) { CG.sembrarLibreto(ini); return ini; }
+    if (!Array.isArray(e.elementos) || !e.elementos.length) { CG.sembrarLibreto(ini); sembrarBotonera(ini); return ini; }
     e.elementos = e.elementos.filter(function (x) { return x && P[x.plantilla]; }).map(function (x) {
       x.datos = Object.assign(clon(P[x.plantilla].defaults), x.datos || {}); x.on = !!x.on; return x;
     });
@@ -966,6 +973,7 @@
     ini.biblioteca.forEach(function (m) { if (!e.biblioteca.some(function (x) { return x.id === m.id; })) { e.biblioteca.unshift(m); } });
     e.ev = Array.isArray(e.ev) ? e.ev : []; e.ajustes = e.ajustes || {velocidad: 100}; e.logo = e.logo || "";
     if (CG.sembrarLibreto(e)) { e._sembrado = true; }
+    if (sembrarBotonera(e)) { e._sembrado = true; }
     return e;
   }
   function guardarSala(s, t, nombre) {
@@ -999,7 +1007,7 @@
     con.on("remoto", function (e) {
       estado = normalizar(e);
       Object.keys(borr).forEach(function (id) { if (!el(id)) { delete borr[id]; } });
-      dibujarLista(); pgm(); if (sel && !el(sel)) { seleccionar(null); } else if (sel) { fichaCab(); estadoFicha(); extras(); }
+      dibujarLista(); pgm(); dibujarBotonera(); if (sel && !el(sel)) { seleccionar(null); } else if (sel) { fichaCab(); estadoFicha(); extras(); }
       toast("Otro panel hizo cambios", "");
     });
     con.conectar().then(function (r) {
@@ -1019,6 +1027,149 @@
   }
   /* avisa antes de cerrar si quedó algo sin enviar */
   addEventListener("beforeunload", function (e) { if (con && con.hayPendiente && con.hayPendiente()) { e.preventDefault(); e.returnValue = ""; } });
-  window.CG_PANEL = {estado: function () { return estado; }, seleccionar: seleccionar, mostrar: mostrar, ocultar: ocultar, borrador: borrador, lanzar: lanzar}; /* para pruebas */
+  /* ======================= BOTONERA (teclera con botones y teclas F13–F24) ======================= */
+  var TECLAS_F = ["F13", "F14", "F15", "F16", "F17", "F18", "F19", "F20", "F21", "F22", "F23", "F24"];
+  var ESPECIALES = {limpiar: "Limpiar salida", siguiente: "Paso siguiente", anterior: "Paso anterior", cortina: "Cortina rápida"};
+  var COLORES_B = ["#E02A12", "#F59A23", "#6AA832", "#0B3A8C", "#5B2A63", "#B8527A", "#F7B500", "#3A3F4E"];
+  var editarBotonera = false, capturando = null;
+  function nuevoBoton(o) { return Object.assign({id: "b" + Math.random().toString(36).slice(2, 8), el: "", esp: "", accion: "alternar", etiqueta: "", color: "", tecla: ""}, o); }
+  /* botones iniciales: lo más usado del libreto (se cambian en «Editar botonera») */
+  function sembrarBotonera(e) {
+    if (e.botonera && Array.isArray(e.botonera.botones)) { return false; }
+    var base = [
+      ["lb-gc-conductor", "GC CONDUCTOR", "#E02A12"], ["lb-gc-felipe", "FELIPE JIMÉNEZ", "#F59A23"], ["lb-gc-pina", "CARLOS PIÑA", "#F59A23"],
+      ["lb-gc-invitado1", "INVITADO 1", "#F59A23"], ["lb-gc-presentador2", "PRESENTADOR 2", "#0B3A8C"], ["lb-cortina-cm", "CORTINA CM", "#B8527A"],
+      ["lb-cortina-programa", "CORTINA PROGRAMA", "#B8527A"], ["lb-trans-pase", "PASE NOTICIERO", "#0B3A8C"], ["lb-urgente", "ÚLTIMO MINUTO", "#0B3A8C"],
+      ["lb-logo", "LOGO ESQUINA", "#6AA832"], ["lb-telefono", "CONCURSO TEL.", "#6AA832"], [":limpiar", "LIMPIAR SALIDA", "#3A3F4E"],
+      ["lb-titulares", "TICKER", "#0B3A8C"], ["lb-logo-noticiero", "LOGO NOTICIERO", "#0B3A8C"], ["lb-mencion-mary", "MARY MECHADAS", "#F7B500"], ["lb-mencion-rayo", "RAYO MAULINO", "#F7B500"],
+      ["lb-trans-bloque2", "BLOQUE 2", "#5B2A63"], ["lb-trans-pina", "TRANSICIÓN PIÑA", "#F7B500"], ["lb-cierre", "CIERRE", "#B8527A"], [":siguiente", "PASO SIGUIENTE", "#3A3F4E"]
+    ];
+
+    var ids = {}; e.elementos.forEach(function (x) { ids[x.id] = 1; });
+    var bs = [];
+    base.forEach(function (b) {
+      if (b[0].charAt(0) !== ":" && !ids[b[0]]) { return; }
+      bs.push(nuevoBoton({el: b[0].charAt(0) === ":" ? "" : b[0], esp: b[0].charAt(0) === ":" ? b[0].slice(1) : "", etiqueta: b[1], color: b[2], tecla: bs.length < 12 ? TECLAS_F[bs.length] : ""}));
+    });
+    e.botonera = {v: 1, columnas: 4, botones: bs};
+    return true;
+  }
+  function botones() { return (estado && estado.botonera && estado.botonera.botones) || []; }
+  function nombreTecla(k) { return k === " " ? "Espacio" : k || ""; }
+  function estadoBoton(b) {
+    if (b.esp) { return {on: false, txt: ESPECIALES[b.esp] || b.esp, tipo: "ACCIÓN"}; }
+    var e = el(b.el); if (!e) { return {falta: true, txt: "Gráfica eliminada", tipo: "—"}; }
+    var p = P[e.plantilla], pend = CG.pendientesDe(e);
+    return {on: e.on, ev: !!p.evento, pend: pend.length > 0, falta: e.plantilla === "video" && !e.datos.media, txt: e.nombre, tipo: (CG.TIPOS[CG.tipoDe(e)] || "").toUpperCase(), e: e};
+  }
+  function dibujarBotonera() {
+    var cont = $("#botGrid"); if (!cont || !estado) { return; }
+    var bo = estado.botonera || {columnas: 4};
+    cont.style.setProperty("--cols", bo.columnas || 4);
+    document.body.classList.toggle("bot-editando", editarBotonera);
+    $("#bEditBot").textContent = editarBotonera ? "Listo" : "Editar botonera";
+    $("#botCols").value = String(bo.columnas || 4);
+    cont.innerHTML = botones().map(function (b, i) {
+      var s2 = estadoBoton(b), col = b.color || "#3A3F4E";
+      return '<button class="bt' + (s2.on ? " on" : "") + (s2.ev ? " ev" : "") + (s2.falta ? " falta" : "") + (b.esp ? " esp" : "") + '" data-i="' + i + '" style="--c:' + esc(col) + '" title="' + esc(s2.txt) + '">' +
+        '<span class="bt-tec">' + esc(nombreTecla(b.tecla)) + '</span>' + (s2.pend || s2.falta ? '<span class="bt-pend" title="Tiene datos o archivos pendientes">⚠</span>' : '') +
+        '<span class="bt-et">' + esc(b.etiqueta || s2.txt) + '</span><span class="bt-sub">' + esc(s2.tipo) + (s2.ev ? " · se lanza" : s2.on ? (salidas === 0 ? " · PROG." : " · AL AIRE") : "") + '</span>' +
+        (editarBotonera ? '<span class="bt-ord"><i data-m="-1">◀</i><i data-m="1">▶</i></span>' : '') + '</button>';
+    }).join("") + (editarBotonera ? '<button class="bt bt-mas" id="btMas"><span class="bt-et">+ BOTÓN</span><span class="bt-sub">agregar</span></button>' : '');
+    if (!botones().length && !editarBotonera) { cont.innerHTML = '<div class="lista-vacia">No hay botones. Toca «Editar botonera» para agregarlos.</div>'; }
+  }
+  function disparar(b, nodo) {
+    if (!b) { return; }
+    if (nodo) { nodo.classList.remove("pulso"); void nodo.offsetWidth; nodo.classList.add("pulso"); }
+    if (b.esp === "limpiar") { $("#bLimpiar").click(); return; }
+    if (b.esp === "siguiente") { moverPaso(1); return; }
+    if (b.esp === "anterior") { moverPaso(-1); return; }
+    if (b.esp === "cortina") { $("#bCortina").click(); return; }
+    var e = el(b.el); if (!e) { toast("Ese botón apunta a una gráfica que ya no existe. Edítalo.", "err"); return; }
+    if (esEvento(e)) { lanzar(e.id, true); return; }
+    var acc = b.accion || "alternar";
+    if (acc === "ocultar" || (acc === "alternar" && e.on)) { ocultar(e.id); return; }
+    mostrar(e.id, true, false, true);
+  }
+  function teclaBotonera(ev, escribiendo) {
+    if (capturando) { return false; }
+    if (escribiendo || !$("#modal").hidden || !estado || ev.repeat || ev.ctrlKey || ev.altKey || ev.metaKey) { return false; }
+    var i = -1; botones().forEach(function (b, j) { if (i < 0 && b.tecla && b.tecla === ev.key) { i = j; } });
+    if (i < 0) { return false; }
+    ev.preventDefault();
+    disparar(botones()[i], $('#botGrid .bt[data-i="' + i + '"]'));
+    return true;
+  }
+  $("#botGrid").addEventListener("click", function (ev) {
+    var t = ev.target.closest(".bt"); if (!t) { return; }
+    if (t.id === "btMas") { configBoton(-1); return; }
+    var i = +t.dataset.i, m = ev.target.closest(".bt-ord i");
+    if (m) { var j = i + (+m.dataset.m), bs = botones(); if (j >= 0 && j < bs.length) { var x = bs[i]; bs[i] = bs[j]; bs[j] = x; publicar(); } return; }
+    if (editarBotonera) { configBoton(i); } else { disparar(botones()[i], t); }
+  });
+  $("#bEditBot").onclick = function () { editarBotonera = !editarBotonera; dibujarBotonera(); };
+  $("#botCols").onchange = function () { estado.botonera.columnas = +this.value; publicar(); };
+  $("#bBotAyuda").onclick = function () {
+    modal("<h2>Botonera y teclado</h2><p class='lead'>Cada botón muestra u oculta una gráfica con un toque (o lanza una transición).</p><ul class='pasos'>" +
+      "<li>Las teclas <b>F13 a F24</b> (o cualquier otra que elijas) disparan su botón <b>en cualquier pestaña</b> del panel.</li>" +
+      "<li>Los teclados externos y botoneras programables (macro pads, Stream Deck, etc.) pueden enviar F13–F24: configúralos en su programa.</li>" +
+      "<li>Las teclas funcionan cuando la ventana del panel está activa (en primer plano). Si usas el panel como dock de OBS, haz clic en el dock antes de usar el teclado.</li>" +
+      "<li>Los botones usan lo <b>guardado</b> de cada gráfica, no lo que estés escribiendo en el editor.</li>" +
+      "<li><b>Editar botonera</b>: toca un botón para cambiar gráfica, nombre, color, acción o tecla; ◀ ▶ lo mueven; «+ BOTÓN» agrega.</li></ul>" +
+      "<div class='modal-pie'><button class='btn prim' onclick=\"document.querySelector('#modal .cerrar').click()\">Entendido</button></div>");
+  };
+  function configBoton(i) {
+    var nuevo = i < 0, b = nuevo ? nuevoBoton({color: COLORES_B[botones().length % COLORES_B.length]}) : JSON.parse(JSON.stringify(botones()[i]));
+    var usados = {}; pasos().forEach(function (p) { p.items.forEach(function (id) { usados[id] = usados[id] || p.n; }); });
+    var lista = estado.elementos.filter(function (e) { return P[e.plantilla]; }).slice().sort(function (a, c) { return (usados[a.id] || "99").localeCompare(usados[c.id] || "99"); });
+    var opts = '<optgroup label="Acciones">' + Object.keys(ESPECIALES).map(function (k) { return '<option value=":' + k + '">' + esc(ESPECIALES[k]) + '</option>'; }).join("") + '</optgroup><optgroup label="Gráficas">' +
+      lista.map(function (e) { return '<option value="' + esc(e.id) + '">' + (usados[e.id] ? usados[e.id] + " · " : "") + esc(e.nombre) + '</option>'; }).join("") + '</optgroup>';
+    var c = modal("<h2>" + (nuevo ? "Nuevo botón" : "Configurar botón") + "</h2>" +
+      "<div class='form-fila'><div class='campo ancho'><label>Gráfica o acción</label><select id='cbEl'>" + opts + "</select></div>" +
+      "<div class='campo'><label>Texto del botón</label><input type='text' id='cbEt' maxlength='28' placeholder='Igual al nombre de la gráfica'></div>" +
+      "<div class='campo'><label>Al presionar</label><div class='seg' id='cbAcc'><button type='button' data-v='alternar'>Mostrar / ocultar</button><button type='button' data-v='mostrar'>Solo mostrar</button><button type='button' data-v='ocultar'>Solo ocultar</button></div></div>" +
+      "<div class='campo'><label>Color</label><div class='color'><div class='sw' id='cbCol'>" + COLORES_B.map(function (x) { return "<button type='button' style='background:" + x + ";width:28px;height:28px' data-c='" + x + "'></button>"; }).join("") + "</div></div></div>" +
+      "<div class='campo'><label>Tecla</label><div class='media'><select id='cbTec'><option value=''>Sin tecla</option>" + TECLAS_F.map(function (k) { return "<option>" + k + "</option>"; }).join("") + "<option value='__otra'>Otra tecla…</option></select><button type='button' class='btn mini' id='cbCap'>Presionar tecla</button></div><span class='nota' id='cbTecNota'></span></div></div>" +
+      "<div class='modal-pie'>" + (nuevo ? "" : "<button class='btn peligro' id='cbDel'>Eliminar botón</button>") + "<button class='btn' id='cbNo'>Cancelar</button><button class='btn prim' id='cbOk'>Guardar</button></div>", {alCerrar: function () { capturando = null; }});
+    var sel2 = $("#cbEl", c); sel2.value = b.esp ? ":" + b.esp : b.el; if (!sel2.value && sel2.options.length) { sel2.selectedIndex = Object.keys(ESPECIALES).length; }
+    $("#cbEt", c).value = b.etiqueta || "";
+    function marcarAcc() { $$("#cbAcc button", c).forEach(function (x) { x.classList.toggle("on", x.dataset.v === (b.accion || "alternar")); }); }
+    $$("#cbAcc button", c).forEach(function (x) { x.onclick = function () { b.accion = x.dataset.v; marcarAcc(); }; }); marcarAcc();
+    function marcarCol() { $$("#cbCol button", c).forEach(function (x) { x.style.outline = x.dataset.c === b.color ? "3px solid #fff" : ""; }); }
+    $$("#cbCol button", c).forEach(function (x) { x.onclick = function () { b.color = x.dataset.c; marcarCol(); }; }); marcarCol();
+    var st = $("#cbTec", c), nota = $("#cbTecNota", c);
+    function ponerTecla(k) {
+      b.tecla = k;
+      if (k && TECLAS_F.indexOf(k) < 0) { if (![].some.call(st.options, function (o) { return o.value === k; })) { var o = document.createElement("option"); o.value = k; o.textContent = nombreTecla(k); st.insertBefore(o, st.lastChild); } }
+      st.value = k || "";
+      var otro = botones().filter(function (x, j) { return j !== i && x.tecla && x.tecla === k; })[0];
+      nota.textContent = otro ? "Esa tecla la usa «" + (otro.etiqueta || "otro botón") + "»: se le quitará." : (k ? "Tecla asignada: " + nombreTecla(k) : "");
+    }
+    ponerTecla(b.tecla);
+    st.onchange = function () { if (st.value === "__otra") { $("#cbCap", c).click(); } else { ponerTecla(st.value); } };
+    $("#cbCap", c).onclick = function () {
+      nota.textContent = "Presiona la tecla en tu teclado o botonera… (Esc cancela)"; capturando = true;
+      var f = function (ev) {
+        ev.preventDefault(); ev.stopPropagation(); document.removeEventListener("keydown", f, true); capturando = null;
+        if (ev.key === "Escape") { ponerTecla(b.tecla); return; }
+        if (/^(Tab|Enter|Shift|Control|Alt|Meta)$/.test(ev.key)) { nota.textContent = "Esa tecla no se puede usar. Prueba otra."; return; }
+        ponerTecla(ev.key);
+      };
+      document.addEventListener("keydown", f, true);
+    };
+    $("#cbNo", c).onclick = cerrarModal;
+    if (!nuevo) { $("#cbDel", c).onclick = function () { botones().splice(i, 1); cerrarModal(); publicar(); toast("Botón eliminado", "ok"); }; }
+    $("#cbOk", c).onclick = function () {
+      var v = sel2.value; b.el = v.charAt(0) === ":" ? "" : v; b.esp = v.charAt(0) === ":" ? v.slice(1) : ""; b.etiqueta = $("#cbEt", c).value.trim().toUpperCase();
+      if (b.tecla) { botones().forEach(function (x, j) { if (j !== i && x.tecla === b.tecla) { x.tecla = ""; } }); }
+      if (nuevo) { botones().push(b); } else { botones()[i] = b; }
+      cerrarModal(); publicar(); toast("Botón guardado", "ok");
+    };
+  }
+  $("#bBotRest").onclick = function () {
+    confirmar("¿Restaurar botonera?", "Vuelve a los botones iniciales con las teclas F13–F24. Tus gráficas no se tocan.", "Restaurar").then(function (ok) { if (!ok) { return; } delete estado.botonera; sembrarBotonera(estado); publicar(); });
+  };
+
+  window.CG_PANEL = {estado: function () { return estado; }, seleccionar: seleccionar, mostrar: mostrar, ocultar: ocultar, borrador: borrador, lanzar: lanzar, botones: botones}; /* para pruebas */
   iniciar();
 })();

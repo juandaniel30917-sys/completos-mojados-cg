@@ -99,6 +99,8 @@
   E("cierre", "cierre", "CORTINA_CIERRE (pantalla final)");
   /* otros GC de referencia (no están en el libreto, quedan listos en la lista) */
   E("gc-felipe", "gcPersona", "GC Felipe Jiménez", {etiqueta: "INVITADO", nombre: "Felipe Jiménez", cargo: "Presentador", colorEtq: "naranjo"}, {fueraLibreto: true});
+  E("gc-invitado1", "gcPersona", "GC Invitado 1", {etiqueta: "INVITADO", nombre: "Invitado 1", cargo: "Dirección del Seremi", colorEtq: "naranjo"}, {fueraLibreto: true});
+  E("gc-presentador2", "gcPersona", "GC Presentador 2 (periodista)", {etiqueta: "PERIODISTA", nombre: "PRESENTADOR 2", cargo: "NOTISERIO", estilo: "noticiero", colorEtq: "rojo"}, {fueraLibreto: true});
 
   /* ---------------- pasos (orden del libreto) ---------------- */
   var PASOS = [
