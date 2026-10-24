@@ -174,7 +174,8 @@ async def main():
         if await pg.is_visible("#modal"):
             await pg.click("#modal .cerrar")
         sala = pg.url.split("sala=")[1].split("#")[0]
-        check("La sala nueva se guardó en el servidor con las gráficas de ejemplo", len(sb.salas[sala]["estado"].get("elementos", [])) > 10)
+        await pg.click('.vistas [data-vista=categorias]'); await pg.wait_for_timeout(200)
+        check("La sala nueva se guardó en el servidor con las gráficas de ejemplo y la escaleta del libreto", len(sb.salas[sala]["estado"].get("elementos", [])) > 10 and len(sb.salas[sala]["estado"].get("escaleta", {}).get("pasos", [])) == 32)
 
         # links
         await pg.click("#bRemoto"); await pg.wait_for_timeout(300)
@@ -251,6 +252,7 @@ async def main():
         await pc.goto(control_url); await pc.wait_for_timeout(1500)
         if await pc.is_visible("#modal"):
             await pc.click("#modal .cerrar")
+        await pc.click('.vistas [data-vista=categorias]'); await pc.wait_for_timeout(200)
         if not await pc.is_visible('.it:has-text("Logo esquina")'):
             await pc.click(".cat[data-cat=logos] .cat-cab"); await pc.wait_for_timeout(400)
         await pc.click('.it:has-text("Logo esquina") .go'); await pc.wait_for_timeout(1500)

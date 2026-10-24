@@ -14,6 +14,7 @@
   var con = null, estado = null, borr = {}, sel = null, filtro = "todo", busqueda = "", outKey = null;
   var abiertas = leerLS("cg_cats_abiertas", {cintillos: true, nombres: true, concurso: true});
   var RUNTIME = ["run", "cmd"];
+  var vista = leerLS("cg_vista", "libreto"), ordenEdit = false, salidas = null, latidos = {};
 
   /* ------------------------------------------------------------------ utilidades */
   function leerLS(k, def) { try { var v = JSON.parse(localStorage.getItem(k)); return v == null ? def : v; } catch (e) { return def; } }
@@ -79,8 +80,11 @@
   function pgm() {
     enviar(ifPGM, {t: "estado", estado: estado});
     var n = estado.elementos.filter(function (e) { return e.on; }).length;
-    $("#pgmInfo").textContent = n ? n + (n === 1 ? " gráfica al aire" : " gráficas al aire") : "nada al aire";
-    $(".monitor.pgm").classList.toggle("vivo", n > 0);
+    $("#pgmInfo").textContent = (salidas === 0 ? "SIN SALIDA CONECTADA · " : "") + (n ? n + (n === 1 ? " gráfica programada" : " gráficas programadas") : "nada al aire");
+    $(".monitor.pgm").classList.toggle("vivo", n > 0 && salidas !== 0);
+    $(".monitor.pgm").classList.toggle("sinsalida", salidas === 0);
+    $(".monitor.pgm .tag").textContent = salidas === 0 ? "PROGRAMA" : "AL AIRE";
+    pendientes();
   }
   addEventListener("message", function (m) {
     if (m.origin !== location.origin || !m.data || !m.data.cg) { return; }
@@ -108,12 +112,27 @@
     RUNTIME.forEach(function (k) { if (e.datos[k] !== undefined) { d[k] = e.datos[k]; } else { delete d[k]; } });
     return d;
   }
-  function mostrar(id, silencio) {
+  function mostrar(id, silencio, confirmado) {
     var e = el(id); if (!e) { return; }
+    if (e.plantilla === "video" && !borrador(id).media) {
+      toast("Falta el archivo de este video (" + ((e.pend && e.pend.media) || "sin video") + "). Súbelo para poder mostrarlo.", "err");
+      seleccionar(id); abrirSubida(function (m) { cambio("media", m.id); cambio("modo", m.modo); if (m.chroma) { Object.keys(m.chroma).forEach(function (k) { cambio(k, m.chroma[k]); }); } dibujarCampos(); guardarElemento(id); });
+      return;
+    }
+    var pend = CG.pendientesDe({datos: borrador(id), pend: e.pend});
+    if (pend.length && !confirmado) {
+      confirmar("Tiene datos pendientes", "Falta: " + pend.join(", ") + ". Lo pendiente NO aparece en pantalla (queda en blanco). ¿Mostrar igual?", "Mostrar igual").then(function (ok) { if (ok) { mostrar(id, silencio, true); } });
+      return;
+    }
     if (esEvento(e)) { lanzar(id); return; }
-    var nuevo = !e.on;
-    /* reemplaza a otra del mismo tipo que esté al aire (como un GC por otro) */
-    if (nuevo) { estado.elementos.forEach(function (o) { if (o !== e && o.on && o.plantilla === e.plantilla) { o.on = false; } }); }
+    var nuevo = !e.on, g = CG.grupoDe({plantilla: e.plantilla, datos: borrador(id)});
+    /* reglas: el cierre limpia todo; dos gráficas del mismo grupo (ej. dos GC de nombre) no se superponen */
+    if (nuevo) {
+      estado.elementos.forEach(function (o) {
+        if (o === e || !o.on) { return; }
+        if (P[e.plantilla].exclusivo || CG.grupoDe(o) === g) { o.on = false; }
+      });
+    }
     e.datos = datosParaAire(e); borr[id] = clon(e.datos); e.on = true;
     if (e.plantilla === "video" && nuevo) { e.datos.cmd = null; }
     publicar(); guardarBorr();
@@ -127,12 +146,13 @@
   }
   function lanzar(id) {
     var e = el(id); if (!e) { return; }
+    if (salidas === 0) { toast("Ojo: no hay ninguna salida conectada, nadie verá esta cortina.", "err"); }
     e.datos = clon(borrador(id));
     var ev = {id: CG.nuevoId(), tipo: e.plantilla, datos: clon(e.datos), t: Date.now()};
     estado.ev = (estado.ev || []).concat(ev).slice(-12);
     publicar(); guardarBorr();
     flash($("#aMostrar"));
-    toast((e.plantilla === "cortina" ? "Cortina" : "Aviso") + " lanzado al aire", "ok");
+    toast((/cortina/.test(e.plantilla) ? "Cortina" : "Aviso") + " lanzado al aire", "ok");
   }
   function flash(b) { if (!b) { return; } b.classList.remove("flash"); void b.offsetWidth; b.classList.add("flash"); }
   function comando(id, a) {
@@ -167,7 +187,8 @@
     $("#pRed").title = s === "sin-conexion" ? "Sin conexión. Lo que hagas se enviará solo cuando vuelva internet. Las salidas siguen mostrando lo último." : "Conexión con el servidor";
   }
   function presencia(p) {
-    var n = p.salidas;
+    var n = p.salidas, antes = salidas; salidas = n;
+    if (estado && (antes === null || !antes !== !n)) { dibujarLista(); pgm(); estadoFicha(); }
     pill("#pSalidas", n ? "ok" : "warn", n ? (n === 1 ? "1 salida" : n + " salidas") : "Sin salida");
     $("#pSalidas").title = n ? "Salidas de OBS conectadas a esta sala" + (p.controles > 0 ? " · " + p.controles + " panel(es) más controlando" : "") : "Ninguna salida (OBS) conectada todavía. Usa Remoto → Link de salida.";
   }
@@ -191,11 +212,28 @@
       case "etiqueta": return d.texto;
       case "placa": return d.titulo;
       case "aviso": return d.titulo + " · " + d.texto;
+      case "gcPersona": return [d.etiqueta, d.nombre, d.cargo].filter(Boolean).join(" · ");
+      case "gcUltimoMinuto": return [d.etiqueta, d.titular].filter(Boolean).join(" · ");
+      case "logoNoticiero": return d.l1 + " " + d.l2;
+      case "tickerNoticiero": return (d.items || []).join(" · ");
+      case "intro": return d.ciudad + " · " + d.region;
+      case "introNoticiero": return d.l1 + " " + d.l2 + " · " + d.titular;
+      case "cierre": return [d.superior, d.inferior].filter(Boolean).join(" · ");
+      case "transicion": var es = CG.ESCENAS[d.escena]; return es ? es.n : d.escena;
+      case "mencion": return d.marca;
+      case "telefono": return d.numero || "sin número";
+      case "pregunta": return d.pregunta;
+      case "marcador": return (d.filas || []).length + " participantes";
       case "video": var m = (estado.biblioteca || []).filter(function (x) { return x.id === d.media; })[0]; return m ? ({chroma: "Quitar verde", alfa: "Transparente", normal: "Normal"}[d.modo] || "") : "Sin video";
       default: return P[e.plantilla].nombre;
     }
   }
+  function resumenLimpio(e) { return String(resumen(e) || "").split(" · ").map(function (x) { return CG.esPendiente(x) ? "⚠ " + x.trim() : x; }).join(" · "); }
+  function badgeAire(e) { return e.on ? '<span class="badge' + (salidas === 0 ? " sinsal" : "") + '" title="' + (salidas === 0 ? "Programada, pero no hay ninguna salida conectada" : "En pantalla") + '">' + (salidas === 0 ? "PROG." : "AIRE") + '</span>' : ""; }
   function dibujarLista() {
+    $("#ahora").hidden = $("#bloques").hidden = vista !== "libreto";
+    $$(".vistas button").forEach(function (b) { b.classList.toggle("on", b.dataset.vista === vista); });
+    if (vista === "libreto" && estado.escaleta) { dibujarEscaleta(); return; }
     var cont = $("#cats"), q = busqueda.toLowerCase(), html = "", total = 0;
     CG.CATEGORIAS.forEach(function (c) {
       var items = estado.elementos.filter(function (e) {
@@ -214,9 +252,9 @@
           var ev = esEvento(e);
           return '<div class="it' + (e.on ? " on" : "") + (e.id === sel ? " sel" : "") + (ev ? " evento" : "") + '" data-id="' + e.id + '" tabindex="0">' +
             '<button class="fav' + (e.fav ? " on" : "") + '" title="Favorito"><svg><use href="#i-estrella"/></svg></button>' +
-            '<div class="nom">' + esc(e.nombre) + '<span class="sub">' + esc(resumen(e)) + '</span></div>' +
+            '<div class="nom">' + esc(e.nombre) + '<span class="sub">' + esc(resumenLimpio(e)) + '</span></div>' +
             (difiere(e) ? '<i class="cambios" title="Tiene cambios sin enviar"></i>' : '') +
-            '<span class="badge">AIRE</span>' +
+            badgeAire(e) +
             '<button class="go" title="' + (ev ? "Lanzar ahora" : e.on ? "Ocultar" : "Mostrar ahora") + '"><svg><use href="#i-' + (ev ? "rayo" : e.on ? "stop" : "play") + '"/></svg></button></div>';
         }).join("") +
         (items.length ? '' : '<div class="lista-vacia" style="padding:8px 12px;text-align:left">Vacío. Usa <b>+ Nueva</b>.</div>') + '</div></div></div>';
@@ -224,7 +262,86 @@
     if (!total && (filtro !== "todo" || q)) { html = '<div class="lista-vacia">' + (filtro === "fav" ? "Aún no tienes favoritos. Toca la ★ de una gráfica." : filtro === "aire" ? "No hay nada al aire." : "No se encontró nada.") + '</div>'; }
     cont.innerHTML = html;
   }
+  /* ======================= ESCALETA (orden del libreto) ======================= */
+  function pasos() { return (estado.escaleta && estado.escaleta.pasos) || []; }
+  function pasoActual() { var ps = pasos(); return ps.filter(function (p) { return p.id === estado.paso; })[0] || ps[0]; }
+  function tipoEtiqueta(e) { var t = CG.tipoDe(e); return '<span class="tipo tp-' + t + '">' + esc((CG.TIPOS[t] || t)).toUpperCase() + '</span>'; }
+  function temaDe(e) {
+    var d = e.datos || {};
+    if (e.plantilla === "gcPersona") { return d.estilo === "noticiero" ? "noticiero" : "programa"; }
+    if (e.plantilla === "transicion") { return {pase_noticiero: "noticiero", nota: "noticiero", cierre_noticiero: "noticiero", vtr01: "vtr", vtr02: "vtr", vtr03: "vino", bloque2: "vino", pina_papa: "pina"}[d.escena] || "programa"; }
+    if (e.plantilla === "fondo" || e.plantilla === "placa") { return {noticiero: "noticiero", vtr: "vtr", vino: "vino", cierre: "cierre", tropical: "pina"}[d.tipo || d.fondo] || "programa"; }
+    if (d.color && /^[a-z]+$/.test(d.color)) { return {azul: "noticiero", ketchup: "concurso", mostaza: "vtr", palta: "palta", vino: "vino", pina: "pina"}[d.color] || "programa"; }
+    return ({gcNoticiero: "noticiero", gcUltimoMinuto: "noticiero", logoNoticiero: "noticiero", tickerNoticiero: "noticiero", introNoticiero: "noticiero", zocalo: "noticiero", enVivo: "concurso", video: "video", temporizador: "concurso"}[e.plantilla] || "programa");
+  }
+  function dibujarEscaleta() {
+    var cont = $("#cats"), q = busqueda.toLowerCase(), act = pasoActual(), html = "", hay = 0, ps = pasos();
+    ps.forEach(function (p, ip) {
+      var filas = p.items.map(function (id, i) { return {e: el(id), i: i}; }).filter(function (x) {
+        if (!x.e || !P[x.e.plantilla]) { return false; }
+        if (filtro === "fav" && !x.e.fav) { return false; }
+        if (filtro === "aire" && !x.e.on) { return false; }
+        if (q && (x.e.nombre + " " + resumen(x.e) + " " + p.titulo).toLowerCase().indexOf(q) < 0) { return false; }
+        return true;
+      });
+      if (!filas.length && (q || filtro !== "todo")) { return; }
+      hay += filas.length;
+      var aire = filas.filter(function (x) { return x.e.on; }).length;
+      if (ip === 0 || ps[ip - 1].bloque !== p.bloque) { html += '<div class="bloque-tit" id="blq' + p.bloque + '">BLOQUE ' + p.bloque + '</div>'; }
+      html += '<section class="paso' + (act && act.id === p.id ? " actual" : "") + '" data-paso="' + p.id + '"><button class="paso-cab" title="Marcar como paso actual"><b>' + esc(p.n) + '</b><span class="pt">' + esc(p.titulo) + '</span>' +
+        (p.dur ? '<small>' + esc(p.dur) + '</small>' : '') + (aire ? '<span class="aire">● ' + aire + '</span>' : '') + '</button>' +
+        (p.ref ? '<p class="ref">' + esc(p.ref) + '</p>' : '') +
+        filas.map(function (x) {
+          var e = x.e, ev = esEvento(e), pend = CG.pendientesDe(e), vid = e.plantilla === "video" && !e.datos.media;
+          return '<div class="it esc' + (e.on ? " on" : "") + (e.id === sel ? " sel" : "") + (ev ? " evento" : "") + (pend.length ? " pend" : "") + '" data-id="' + e.id + '" data-paso="' + p.id + '" data-i="' + x.i + '" tabindex="0">' +
+            '<span class="num">' + esc(p.n) + '.' + (x.i + 1) + '</span>' +
+            '<span class="mini-ic tm-' + esc(temaDe(e)) + '"><svg><use href="#i-' + (P[e.plantilla].icono || "punto") + '"/></svg></span>' +
+            '<div class="nom">' + esc(e.nombre) + '<span class="sub">' + tipoEtiqueta(e) + esc(resumenLimpio(e)) + '</span></div>' +
+            (difiere(e) ? '<i class="cambios" title="Tiene cambios sin enviar"></i>' : '') +
+            (pend.length ? '<span class="bpend" title="Falta: ' + esc(pend.join(", ")) + '"><svg><use href="#i-alerta"/></svg></span>' : '') + badgeAire(e) +
+            (ordenEdit ? '<span class="ord"><button class="o-up" title="Subir"><svg><use href="#i-arriba"/></svg></button><button class="o-dn" title="Bajar"><svg><use href="#i-abajo"/></svg></button><button class="o-x" title="Quitar de este paso (la gráfica no se borra)"><svg><use href="#i-x"/></svg></button></span>'
+              : '<button class="go" title="' + (vid ? "Falta el video: toca para subirlo" : ev ? "Lanzar ahora" : "Mostrar") + '"><svg><use href="#i-' + (vid ? "subir" : ev ? "rayo" : "play") + '"/></svg></button>' +
+                (ev ? '' : '<button class="qt" title="Retirar"' + (e.on ? '' : ' disabled') + '><svg><use href="#i-stop"/></svg></button>')) + '</div>';
+        }).join("") +
+        (ordenEdit ? '<button class="btn mini agregar" data-paso="' + p.id + '"><svg><use href="#i-mas"/></svg>Agregar gráfica a este paso</button>' : '') + '</section>';
+    });
+    if (!hay && (q || filtro !== "todo")) { html = '<div class="lista-vacia">' + (filtro === "aire" ? "No hay nada al aire." : filtro === "fav" ? "Sin favoritos en la escaleta." : "No se encontró nada.") + '</div>'; }
+    html += '<div class="esc-pie"><button class="btn mini" id="bOrden">' + (ordenEdit ? "Listo" : "Ajustar orden") + '</button>' + (estado.escaleta.modificada ? '<span class="mod" title="El orden ya no es exactamente el del libreto. Puedes restaurarlo en Ajustes.">Orden modificado</span>' : '<span class="ok">Orden del libreto</span>') + '</div>';
+    cont.innerHTML = html;
+    ahora();
+  }
+  function ahora() {
+    var ps = pasos(), act = pasoActual(); if (!act) { return; }
+    var i = ps.indexOf(act), sig = ps[i + 1];
+    $("#ahoraTit").textContent = act.n + " · " + act.titulo;
+    $("#sigTit").textContent = sig ? "Sigue: " + sig.n + " · " + sig.titulo : "Último paso";
+    $("#bloques").innerHTML = [1, 2].map(function (b) { return '<button data-b="' + b + '" class="' + (act.bloque === b ? "on" : "") + '">Bloque ' + b + '</button>'; }).join("");
+  }
+  function irPaso(id, desplazar) {
+    estado.paso = id; publicar();
+    if (desplazar !== false) { var s2 = $('.paso[data-paso="' + id + '"]'); if (s2) { s2.scrollIntoView({block: "start", behavior: "smooth"}); } }
+  }
+  function moverPaso(d) { var ps = pasos(), i = ps.indexOf(pasoActual()) + d; if (ps[i]) { irPaso(ps[i].id); } }
+  $("#pAnt").onclick = function () { moverPaso(-1); };
+  $("#pSig").onclick = function () { moverPaso(1); };
+  $("#bloques").addEventListener("click", function (ev) { var b = ev.target.closest("button"); if (!b) { return; } var t = $("#blq" + b.dataset.b); if (t) { t.scrollIntoView({block: "start", behavior: "smooth"}); } });
+  $$(".vistas button").forEach(function (b) { b.onclick = function () { vista = b.dataset.vista; guardarLS("cg_vista", vista); dibujarLista(); }; });
+  function editarOrden(pasoId, fn) { var p = pasos().filter(function (x) { return x.id === pasoId; })[0]; if (!p) { return; } fn(p); estado.escaleta.modificada = true; publicar(); }
+
   $("#cats").addEventListener("click", function (ev) {
+    if (ev.target.closest("#bOrden")) { ordenEdit = !ordenEdit; dibujarLista(); return; }
+    var pc = ev.target.closest(".paso-cab"); if (pc) { irPaso(pc.parentNode.dataset.paso, false); return; }
+    var ag = ev.target.closest(".agregar"); if (ag) { agregarAPaso(ag.dataset.paso); return; }
+    var ordB = ev.target.closest(".ord button");
+    if (ordB) {
+      var row = ordB.closest(".it"), i = +row.dataset.i;
+      editarOrden(row.dataset.paso, function (p) {
+        if (ordB.classList.contains("o-x")) { p.items.splice(i, 1); }
+        else { var j = i + (ordB.classList.contains("o-up") ? -1 : 1); if (j >= 0 && j < p.items.length) { var t = p.items[i]; p.items[i] = p.items[j]; p.items[j] = t; } }
+      });
+      return;
+    }
+    var qt = ev.target.closest(".qt"); if (qt) { ocultar(qt.closest(".it").dataset.id); return; }
     var cab = ev.target.closest(".cat-cab");
     if (cab) { var c = cab.parentNode, id = c.dataset.cat; abiertas[id] = !c.classList.contains("abierta"); c.classList.toggle("abierta", abiertas[id]); guardarLS("cg_cats_abiertas", abiertas); return; }
     var it = ev.target.closest(".it"); if (!it) { return; }
@@ -232,10 +349,38 @@
     if (ev.target.closest(".fav")) { e.fav = !e.fav; publicar(); if (sel === id2) { fichaCab(); } return; }
     if (ev.target.closest(".go")) { if (esEvento(e)) { lanzar(id2); } else if (e.on) { ocultar(id2); } else { mostrar(id2); } return; }
     seleccionar(id2);
+    if (esMovil()) { vistaMovil("editar"); }
   });
   $("#cats").addEventListener("keydown", function (ev) { var it = ev.target.closest(".it"); if (it && (ev.key === "Enter" || ev.key === " ")) { ev.preventDefault(); seleccionar(it.dataset.id); } });
   $("#qBuscar").addEventListener("input", function () { busqueda = this.value; dibujarLista(); });
   $$(".filtros button").forEach(function (b) { b.onclick = function () { filtro = b.dataset.f; $$(".filtros button").forEach(function (x) { x.classList.toggle("on", x === b); }); dibujarLista(); }; });
+
+  function agregarAPaso(pasoId) {
+    var opts = estado.elementos.filter(function (e) { return P[e.plantilla]; }).map(function (e) { return '<option value="' + esc(e.id) + '">' + esc(e.nombre) + ' — ' + esc(P[e.plantilla].nombre) + '</option>'; }).join("");
+    var c = modal("<h2>Agregar gráfica al paso</h2><p class='lead'>La gráfica se reutiliza (no se copia): si ya está en otro paso, es la misma.</p><div class='campo'><select id='agSel'>" + opts + "</select></div><div class='modal-pie'><button class='btn' data-r='0'>Cancelar</button><button class='btn prim' data-r='1'>Agregar</button></div>");
+    $("[data-r='0']", c).onclick = cerrarModal;
+    $("[data-r='1']", c).onclick = function () { var v = $("#agSel").value; cerrarModal(); editarOrden(pasoId, function (p) { p.items.push(v); }); };
+  }
+  function listaPendientes() {
+    var r = [];
+    estado.elementos.forEach(function (e) {
+      var pe = CG.pendientesDe(e); if (!pe.length) { return; }
+      var en = pasos().filter(function (p) { return p.items.indexOf(e.id) >= 0; }).map(function (p) { return p.n; });
+      r.push({e: e, pend: pe, pasos: en});
+    });
+    return r;
+  }
+  function pendientes() {
+    var n = 0; listaPendientes().forEach(function (x) { n += x.pend.length; });
+    var b = $("#pPend"); b.hidden = !n; $("span", b).textContent = n + (n === 1 ? " pendiente" : " pendientes");
+  }
+  $("#pPend").onclick = function () {
+    var l = listaPendientes();
+    var c = modal("<h2>Recursos pendientes</h2><p class='lead'>Son marcadores de trabajo: <b>no son archivos reales</b> y nunca aparecen en pantalla. Complétalos cuando producción los entregue.</p>" +
+      "<div class='pend-lista'>" + l.map(function (x) { return "<button class='pend-it' data-id='" + esc(x.e.id) + "'><span class='pn'>" + (x.pasos.length ? esc(x.pasos.join(", ")) : "—") + "</span><span><b>" + esc(x.e.nombre) + "</b><small>" + esc(x.pend.join(" · ")) + "</small></span></button>"; }).join("") + "</div>" +
+      "<p class='nota-m'>Nombre del conductor, conductor del noticiero y número telefónico se completan de una vez en <b>Ajustes → Datos del programa</b>.</p>", {ancho: true});
+    $$(".pend-it", c).forEach(function (b) { b.onclick = function () { cerrarModal(); seleccionar(b.dataset.id); if (esMovil()) { vistaMovil("editar"); } }; });
+  };
 
   /* ------------------------------------------------------------------ EDITOR */
   function seleccionar(id) {
@@ -251,7 +396,8 @@
     var e = el(sel); if (!e) { return; }
     var p = P[e.plantilla], c = CG.CATEGORIAS.filter(function (x) { return x.id === p.cat; })[0];
     $("#fNombre").value = e.nombre;
-    $("#fTipo").innerHTML = '<svg><use href="#i-' + (p.icono || c.icono) + '"/></svg>' + esc(p.nombre) + " · " + esc(c.nombre);
+    var enPasos = pasos().filter(function (x) { return x.items.indexOf(e.id) >= 0; }).map(function (x) { return x.n; });
+    $("#fTipo").innerHTML = '<svg><use href="#i-' + (p.icono || c.icono) + '"/></svg>' + tipoEtiqueta(e) + esc(p.nombre) + (enPasos.length ? " · paso " + esc(enPasos.join(", ")) : " · " + esc(c.nombre));
     $("#fFav").classList.toggle("on", !!e.fav);
   }
   $("#fNombre").addEventListener("change", function () { var e = el(sel); if (e && this.value.trim()) { e.nombre = this.value.trim().slice(0, 60); publicar(); } });
@@ -281,7 +427,7 @@
     var e = el(sel), p = P[e.plantilla], d = borrador(sel), cont = $("#campos"), grupos = [], porG = {};
     p.campos.forEach(function (f) { var g = f.g || "Texto"; if (!porG[g]) { porG[g] = []; grupos.push(g); } porG[g].push(f); });
     cont.innerHTML = '<p class="desc-tpl">' + esc(p.desc || "") + '</p>';
-    var abiertosG = leerLS("cg_grupos_abiertos", {Texto: true, Video: true, Chroma: true, "Reproducción": true});
+    var abiertosG = Object.assign({Texto: true, Video: true, Chroma: true, "Reproducción": true, Llamadas: true, Respuesta: true, Marca: true}, leerLS("cg_grupos_abiertos", {}));
     grupos.forEach(function (g, gi) {
       var det = document.createElement("details"); det.className = "grupo"; det.open = abiertosG[g] !== undefined ? abiertosG[g] : gi === 0;
       det.innerHTML = "<summary><svg><use href='#i-flecha'/></svg>" + esc(g) + "</summary><div class='gc'></div>";
@@ -331,28 +477,52 @@
         break;
       case "toggle":
         w.innerHTML = '<label class="tog"><input type="checkbox" id="' + id + '"><span class="sw2"></span><span>' + esc(f.l) + '</span>' + (f.ayuda ? ' <span class="ay" title="' + esc(f.ayuda) + '">?</span>' : '') + '</label>';
-        var cb = $("input", w); cb.checked = !!v; cb.onchange = function () { cambio(f.k, cb.checked); };
+        var cb = $("input", w); cb.checked = !!v; cb.onchange = function () { cambio(f.k, cb.checked); if (f.k === "revelar") { var e = el(sel); if (e && e.on) { e.datos.revelar = cb.checked; publicar(); toast(cb.checked ? "Respuesta revelada en pantalla" : "Respuesta oculta", "ok"); } } };
         break;
       case "seg":
         w.innerHTML = lab + '<div class="seg" role="radiogroup">' + f.o.map(function (o) { return '<button type="button" data-v="' + esc(o[0]) + '" class="' + (String(v) === o[0] ? "on" : "") + '">' + esc(o[1]) + '</button>'; }).join("") + '</div>';
         $$(".seg button", w).forEach(function (b) { b.onclick = function () { $$(".seg button", w).forEach(function (x) { x.classList.toggle("on", x === b); }); cambio(f.k, b.dataset.v); }; });
         break;
       case "lista":
-        w.innerHTML = lab + '<div class="lista-items"></div><button type="button" class="btn mini" style="align-self:flex-start"><svg><use href="#i-mas"/></svg>Agregar mensaje</button>';
+        var subs = f.campos || [];
+        w.innerHTML = lab + '<div class="lista-items"></div><button type="button" class="btn mini" style="align-self:flex-start"><svg><use href="#i-mas"/></svg>Agregar</button>';
         var li = $(".lista-items", w);
         var pintar = function () {
           var arr = borrador(sel)[f.k] || [];
           li.innerHTML = "";
           arr.forEach(function (it, i) {
             var row = document.createElement("div"); row.className = "li";
-            row.innerHTML = '<input type="text" data-k="a" placeholder="Texto 1"><input type="color" data-k="ca" title="Color texto 1"><input type="text" data-k="b" placeholder="Texto 2 (opcional)"><input type="color" data-k="cb" title="Color texto 2"><button type="button" class="q" title="Quitar"><svg><use href="#i-basura"/></svg></button>';
+            row.style.gridTemplateColumns = subs.map(function (sf) { return sf.t === "color" ? "auto" : sf.ancho ? sf.ancho + "px" : "minmax(0,1fr)"; }).join(" ") + " auto";
+            row.innerHTML = subs.map(function (sf) { return sf.t === "color" ? '<input type="color" data-k="' + sf.k + '" title="' + esc(sf.l) + '">' : '<input type="text" data-k="' + sf.k + '" placeholder="' + esc(sf.ph || sf.l) + '" aria-label="' + esc(sf.l) + '">'; }).join("") +
+              '<button type="button" class="q" title="Quitar"><svg><use href="#i-basura"/></svg></button>';
             $$("[data-k]", row).forEach(function (x) { x.value = it[x.dataset.k] || (x.type === "color" ? "#000000" : ""); x.oninput = function () { arr[i][x.dataset.k] = x.value; cambio(f.k, arr); }; });
-            $(".q", row).onclick = function () { if (arr.length <= 1) { toast("Debe quedar al menos un mensaje", "err"); return; } arr.splice(i, 1); cambio(f.k, arr); pintar(); };
+            $(".q", row).onclick = function () { if (f.k === "mensajes" && arr.length <= 1) { toast("Debe quedar al menos un mensaje", "err"); return; } arr.splice(i, 1); cambio(f.k, arr); pintar(); };
             li.appendChild(row);
           });
+          if (!arr.length) { li.innerHTML = '<span class="nota">Vacío. Usa «Agregar».</span>'; }
         };
         pintar();
-        $("button.btn", w).onclick = function () { var arr = borrador(sel)[f.k] || []; arr.push(clon(f.nuevo)); cambio(f.k, arr); pintar(); var ins = $$(".li input[type=text]", li); if (ins.length) { ins[ins.length - 2].select(); } };
+        $("button.btn", w).onclick = function () { var arr = (borrador(sel)[f.k] || []).slice(); arr.push(clon(f.nuevo)); cambio(f.k, arr); pintar(); var ins = $$(".li input[type=text]", li); if (ins.length) { ins[ins.length - subs.filter(function (x) { return x.t !== "color"; }).length].focus(); } };
+        break;
+      case "select":
+        w.innerHTML = lab + '<select id="' + id + '">' + f.o.map(function (o) { return '<option value="' + esc(o[0]) + '">' + esc(o[1]) + '</option>'; }).join("") + '</select>';
+        var se = $("select", w); se.value = v == null ? "" : v; se.onchange = function () { cambio(f.k, se.value); };
+        break;
+      case "cupos":
+        w.innerHTML = lab + '<div class="cupos-ed"></div><span class="nota">Toca cada llamada para cambiar: libre → llamando → correcto → incorrecto. Si está al aire se actualiza al instante.</span>';
+        var ce = $(".cupos-ed", w), N = {libre: "Libre", llamando: "Llamando", correcto: "Correcto", incorrecto: "Incorrecto"};
+        var pintarC = function () {
+          var arr = borrador(sel)[f.k] || [];
+          ce.innerHTML = arr.map(function (c, i) { return '<button type="button" class="ce c-' + esc(c) + '" data-i="' + i + '"><b>' + (i + 1) + '</b><span>' + N[c] + '</span></button>'; }).join("");
+          $$("button", ce).forEach(function (b) {
+            b.onclick = function () {
+              var a2 = (borrador(sel)[f.k] || []).slice(), i = +b.dataset.i; a2[i] = CG.ESTADOS_CUPO[(CG.ESTADOS_CUPO.indexOf(a2[i]) + 1) % CG.ESTADOS_CUPO.length];
+              cambio(f.k, a2); pintarC();
+              var e = el(sel); if (e && e.on) { e.datos[f.k] = a2.slice(); publicar(); }
+            };
+          });
+        };
+        pintarC();
         break;
       case "imagen":
         w.innerHTML = lab + '<div class="img"><div class="miniat"></div><button type="button" class="btn mini" data-a="elegir"><svg><use href="#i-subir"/></svg>Elegir imagen</button><button type="button" class="btn mini" data-a="quitar">Quitar</button></div>';
@@ -397,6 +567,8 @@
     if (ev) { h += '<span class="chip">Se lanza una vez y se va sola</span>'; }
     else if (e.on) { h += '<span class="chip aire">AL AIRE</span>'; }
     else { h += '<span class="chip">No está al aire</span>'; }
+    var pe = CG.pendientesDe({datos: borrador(sel), pend: e.pend});
+    if (pe.length) { h += '<span class="chip pendc" title="Estos datos no aparecen en pantalla hasta completarlos">⚠ Falta: ' + esc(pe.join(", ")) + '</span>'; }
     if (cambios) { h += '<span class="chip cambios">● Cambios sin enviar</span><span class="chip desc" id="descartar" title="Volver a lo que está guardado">Descartar cambios</span>'; }
     else if (!ev) { h += '<span class="chip ok">' + (e.on ? "Vista previa = al aire" : "Sin cambios") + '</span>'; }
     $("#fEstado").innerHTML = h;
@@ -450,6 +622,18 @@
   $$(".tabs button").forEach(function (b) { b.onclick = function () { cambiarTab(b.dataset.tab); }; });
   cambiarTab(leerLS("cg_tab", "control"));
 
+  /* ------------------------------------------------------------------ celular: tres vistas con barra inferior */
+  var mqMovil = window.matchMedia("(max-width: 760px)");
+  function esMovil() { return mqMovil.matches; }
+  function vistaMovil(v) {
+    document.body.dataset.mv = v;
+    $$("#movNav button").forEach(function (b) { b.classList.toggle("on", b.dataset.mv === v); });
+    if (v === "ver") { pvw(); if (estado) { pgm(); } }
+    window.scrollTo(0, 0);
+  }
+  $$("#movNav button").forEach(function (b) { b.onclick = function () { vistaMovil(b.dataset.mv); }; });
+  vistaMovil("lista");
+
   /* ------------------------------------------------------------------ barra superior */
   $("#bCortina").onclick = function () {
     var c = estado.elementos.filter(function (e) { return e.plantilla === "cortina" && e.fav; })[0] || estado.elementos.filter(function (e) { return e.plantilla === "cortina"; })[0];
@@ -458,8 +642,9 @@
   };
   $("#bLimpiar").onclick = function () {
     var on = estado.elementos.filter(function (e) { return e.on; });
-    if (!on.length) { toast("No hay nada al aire"); return; }
+    estado.ev = (estado.ev || []).concat({id: CG.nuevoId(), tipo: "limpiar", t: Date.now()}).slice(-12);
     on.forEach(function (e) { e.on = false; }); publicar();
+    if (!on.length) { toast("Salida limpia (avisos y cortinas retirados)"); return; }
     toast("Se ocultaron " + on.length + " gráfica(s)", "", {txt: "Deshacer", fn: function () { on.forEach(function (e) { var x = el(e.id); if (x) { x.on = true; } }); publicar(); }});
   };
   $("#bNuevo").onclick = nuevaGrafica;
@@ -467,6 +652,8 @@
   $("#bAjustes").onclick = ajustes;
   $("#bAyuda").onclick = ayuda;
   document.addEventListener("keydown", function (e) {
+    var escribiendo = /input|textarea|select/i.test((document.activeElement || {}).tagName || "");
+    if (!escribiendo && $("#modal").hidden && estado && (e.key === "PageDown" || e.key === "PageUp")) { e.preventDefault(); moverPaso(e.key === "PageDown" ? 1 : -1); return; }
     if (e.key === "Escape" && !$("#modal").hidden) { cerrarModal(); return; }
     if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && sel && $("#modal").hidden) { e.preventDefault(); if (e.shiftKey) { ocultar(sel); } else { $("#aMostrar").click(); } }
   });
@@ -680,13 +867,32 @@
   /* ------------------------------------------------------------------ AJUSTES */
   function ajustes() {
     var A = estado.ajustes || {}, bib = (estado.biblioteca || []).filter(function (m) { return !m.incluido; });
+    var DP = estado.datosPrograma || {};
     var c = modal("<h2>Ajustes</h2><p class='lead'>Se aplican a todas las salidas de esta sala.</p>" +
+      "<h3 style='font-size:13px;margin:4px 0 6px'>Datos del programa</h3><p class='nota-m' style='margin-top:0'>Se copian a todos los GC y gráficas que los usan. Déjalos vacíos hasta que producción los confirme.</p>" +
+      "<div class='form-fila'><div class='campo'><label>Nombre del conductor</label><input type='text' class='dp' data-k='conductor' maxlength='60'></div>" +
+      "<div class='campo'><label>Conductor del noticiero</label><input type='text' class='dp' data-k='conductorNoticiero' maxlength='60'></div>" +
+      "<div class='campo'><label>Número telefónico del concurso</label><input type='text' class='dp' data-k='telefono' maxlength='30' inputmode='tel'></div></div>" +
+      "<div class='modal-pie' style='justify-content:flex-start;margin-top:0'><button class='btn prim' data-a='dp'>Aplicar datos</button></div>" +
       "<div class='form-fila'><div class='campo'><label>Logo del programa</label><div class='img'><div class='miniat' style='background-image:url(\"" + esc(estado.logo || "assets/logo.png") + "\")'></div><button class='btn mini' data-a='logo'><svg><use href='#i-subir'/></svg>Cambiar logo</button><button class='btn mini' data-a='logoReset'>Usar el original</button></div><span class='nota'>PNG con fondo transparente, idealmente 800 px o más.</span></div>" +
       "<div class='campo'><label>Velocidad de animaciones</label><div class='rango'><input type='range' min='50' max='160' step='5' value='" + (A.velocidad || 100) + "' class='vel'><span class='u velN' style='width:40px'>" + (A.velocidad || 100) + "%</span></div></div></div>" +
       "<h3 style='font-size:13px;margin:16px 0 6px'>Biblioteca de videos</h3>" +
       (bib.length ? "<div style='display:flex;flex-direction:column;gap:6px'>" + bib.map(function (m) { return "<div class='li' style='grid-template-columns:1fr auto auto'><span><b>" + esc(m.nombre) + "</b> <small style='color:var(--txt3)'>" + ({alfa: "transparente", chroma: "fondo verde", normal: "normal"}[m.modo] || "") + (m.local ? " · solo este equipo" : " · en la sala") + (m.tam ? " · " + (m.tam / 1048576).toFixed(1) + " MB" : "") + "</small></span><span></span><button class='q' data-borrar='" + esc(m.id) + "' title='Quitar de la biblioteca'><svg><use href='#i-basura'/></svg></button></div>"; }).join("") + "</div>" : "<p style='color:var(--txt3)'>Aún no subes videos. Usa <b>+ Nueva → Video</b>.</p>") +
-      "<h3 style='font-size:13px;margin:16px 0 6px'>Copia de seguridad</h3><div style='display:flex;gap:8px;flex-wrap:wrap'><button class='btn' data-a='exportar'>Descargar copia (.json)</button><button class='btn' data-a='importar'>Cargar copia…</button><button class='btn' data-a='ejemplos'>Agregar gráficas de ejemplo</button></div>" +
+      "<h3 style='font-size:13px;margin:16px 0 6px'>Copia de seguridad</h3><div style='display:flex;gap:8px;flex-wrap:wrap'><button class='btn' data-a='exportar'>Descargar copia (.json)</button><button class='btn' data-a='importar'>Cargar copia…</button><button class='btn' data-a='ejemplos'>Agregar gráficas de ejemplo</button><button class='btn' data-a='libreto'>Restaurar orden del libreto</button></div>" +
       "<div class='modal-pie'><button class='btn prim' data-a='cerrar'>Listo</button></div>");
+    $$(".dp", c).forEach(function (i) { i.value = DP[i.dataset.k] || ""; });
+    $("[data-a=dp]", c).onclick = function () {
+      var nd = {}, n = 0; $$(".dp", c).forEach(function (i) { nd[i.dataset.k] = i.value.trim(); });
+      estado.datosPrograma = nd;
+      estado.elementos.forEach(function (e) {
+        Object.keys(e.vinc || {}).forEach(function (campoK) {
+          var clave = e.vinc[campoK], val = nd[clave] || (e.pend && e.pend[campoK]) || "";
+          if (e.datos[campoK] !== val) { e.datos[campoK] = val; if (borr[e.id]) { borr[e.id][campoK] = val; } n++; }
+        });
+      });
+      publicar(); guardarBorr(); if (sel) { dibujarCampos(); }
+      toast(n ? "Datos aplicados en " + n + " gráfica(s)" : "Sin cambios", "ok");
+    };
     var vel = $(".vel", c); vel.oninput = function () { $(".velN", c).textContent = vel.value + "%"; };
     vel.onchange = function () { estado.ajustes = Object.assign({}, estado.ajustes, {velocidad: +vel.value}); publicar(); pvw(); };
     $("[data-a=logo]", c).onclick = function () { elegirImagen(function (u) { estado.logo = u; publicar(); pvw(); ajustes(); toast("Logo actualizado", "ok"); }); };
@@ -705,6 +911,11 @@
             e.elementos.forEach(function (x) { x.on = false; }); estado = normalizar(e); borr = {}; publicar(); seleccionar(null); toast("Copia cargada", "ok");
           });
         }).catch(function (e) { toast("No se pudo leer el archivo: " + e.message, "err"); });
+      });
+    };
+    $("[data-a=libreto]", c).onclick = function () {
+      confirmar("¿Restaurar el orden del libreto?", "La escaleta vuelve al orden original de «LIBRETO PROGRAMA V.2». No se borra ninguna gráfica ni sus textos.", "Restaurar").then(function (ok) {
+        if (!ok) { return; } CG.sembrarLibreto(estado, true); publicar(); toast("Orden del libreto restaurado", "ok");
       });
     };
     $("[data-a=ejemplos]", c).onclick = function () {
@@ -747,13 +958,14 @@
   /* ------------------------------------------------------------------ arranque */
   function normalizar(e) {
     e = e || {}; var ini = CG.estadoInicial();
-    if (!Array.isArray(e.elementos) || !e.elementos.length) { return ini; }
+    if (!Array.isArray(e.elementos) || !e.elementos.length) { CG.sembrarLibreto(ini); return ini; }
     e.elementos = e.elementos.filter(function (x) { return x && P[x.plantilla]; }).map(function (x) {
       x.datos = Object.assign(clon(P[x.plantilla].defaults), x.datos || {}); x.on = !!x.on; return x;
     });
     e.biblioteca = Array.isArray(e.biblioteca) ? e.biblioteca : [];
     ini.biblioteca.forEach(function (m) { if (!e.biblioteca.some(function (x) { return x.id === m.id; })) { e.biblioteca.unshift(m); } });
     e.ev = Array.isArray(e.ev) ? e.ev : []; e.ajustes = e.ajustes || {velocidad: 100}; e.logo = e.logo || "";
+    if (CG.sembrarLibreto(e)) { e._sembrado = true; }
     return e;
   }
   function guardarSala(s, t, nombre) {
@@ -773,7 +985,15 @@
     con.on("guardado", guardado);
     con.on("presencia", presencia);
     con.on("fin", finDe);
-    con.on("mensaje", function (t, d) { if (t === "fin") { finDe(d.id); } });
+    con.on("mensaje", function (t, d) {
+      if (t === "fin") { finDe(d.id); }
+      if (t === "latido" && d.id) { latidos[d.id] = Date.now(); }
+      if (t === "adios" && d.id) { delete latidos[d.id]; }
+    });
+    if (LOCAL) {
+      setTimeout(function () { if (con.avisar) { con.avisar("hola", {}); } }, 50);
+      setInterval(function () { var ahoraT = Date.now(), n = 0; Object.keys(latidos).forEach(function (k) { if (ahoraT - latidos[k] < 5500) { n++; } else { delete latidos[k]; } }); presencia({salidas: n, local: true}); }, 1000);
+    }
     con.on("errorSalida", function (m) { toast("La salida informa: " + m, "err"); });
     con.on("acceso", function (m) { modal("<h2>Sin permiso</h2><p class='lead'>" + esc(m) + "</p><div class='modal-pie'><a class='btn prim' href='index.html'>Ir al inicio</a></div>", {fijo: true}); });
     con.on("remoto", function (e) {
@@ -788,7 +1008,7 @@
       $("#salaNombre").textContent = r.nombre || (LOCAL ? "Modo local" : sala); document.title = (r.nombre || "Panel") + " · CM CG";
       if (!LOCAL) { outKey = r.outKey; guardarSala(sala, token, r.nombre); }
       borr = leerLS("cg_borr_" + sala, {}); Object.keys(borr).forEach(function (id) { if (!el(id)) { delete borr[id]; } });
-      if (nuevo) { publicar(); } else { pgm(); }
+      if (nuevo || estado._sembrado) { delete estado._sembrado; publicar(); if (!nuevo) { toast("Se agregó la escaleta del libreto a esta sala (tus gráficas anteriores siguen en Categorías)", "ok"); } } else { pgm(); }
       dibujarLista();
       var s = leerLS("cg_sel_" + sala, null); if (s && el(s)) { seleccionar(s); }
       if (!LOCAL && !nuevo) { /* nada */ }

@@ -10,6 +10,7 @@
      ?sala=XXXX&k=CLAVE  → sala remota      ?local=1 → mismo equipo (panel como dock de OBS)
      ?verde=1 → fondo verde chroma          ?w=1280&h=720 → otra resolución (el diseño se escala) -->
 <link rel="stylesheet" href="css/salida.css">
+<link rel="stylesheet" href="css/paquete.css">
 <style>
 #ayuda{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#0d0f14;color:#e9ecf2;font:16px/1.5 system-ui,sans-serif;padding:24px;text-align:center}
 #ayuda b{color:#ffb020}
@@ -23,6 +24,7 @@ body.debug #estadoRed{display:block}
 <div id="estadoRed"></div>
 <script src="js/config.js"></script>
 <script src="js/plantillas.js"></script>
+<script src="js/paquete.js"></script>
 <script src="js/chroma.js"></script>
 <script src="js/render.js"></script>
 <script src="js/conexion.js"></script>
@@ -72,6 +74,10 @@ body.debug #estadoRed{display:block}
     con = CG.Local(); red("local");
     con.on("estado", function (e) { salida.aplicar(e); });
     con.conectar().then(function (r) { if (r.estado) { salida.aplicar(r.estado); } });
+    /* latido: el panel sabe que esta salida está abierta (sin esto no muestra "al aire" como real) */
+    var latir = function () { con.avisar("latido", {id: CG.yo}); }; latir(); setInterval(latir, 2000);
+    con.on("mensaje", function (t) { if (t === "hola") { latir(); } });
+    addEventListener("pagehide", function () { con.avisar("adios", {id: CG.yo}); });
     return;
   }
 

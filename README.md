@@ -48,6 +48,71 @@ Otras ayudas: ▶ en cada fila muestra/oculta al instante · ★ favoritos · bu
 
 Cada plantilla tiene posición, tamaño, colores y animaciones editables. Los textos largos se achican solos para no salirse.
 
+### Escaleta del libreto (vista principal)
+
+El panel abre en la pestaña **Libreto**: las gráficas aparecen en el orden de «LIBRETO PROGRAMA V.2», en **32 pasos** repartidos en **Bloque 1** y **Bloque 2**. Cada fila muestra:
+
+- el número (`05.3` = paso 5, recurso 3) y el nombre;
+- el **tipo** (GC, CORTINA, FONDO, IDENT., VTR, MENCIÓN, CONCURSO, PREGUNTA, PLACA, PAUSA, CIERRE…) y un icono con el color de la sección;
+- el estado (**AIRE**, o **PROG.** si está programada pero no hay ninguna salida conectada);
+- ▶ **Mostrar** y ■ **Retirar**;
+- ⚠ si le falta un dato o archivo.
+
+Debajo del título de cada paso va la referencia del libreto (música, cámaras, frase clave). Las duraciones son solo informativas: **nada se dispara solo**.
+
+- **AHORA / Sigue**: arriba de la lista. ◀ ▶ (o las teclas <kbd>Av Pág</kbd> / <kbd>Re Pág</kbd>) cambian el paso actual. Tocar el título de un paso también lo marca. El paso actual se comparte con todos los paneles conectados.
+- **Ajustar orden** (al final de la lista): subir/bajar, quitar o agregar gráficas a un paso. La lista indica «Orden modificado»; **Ajustes → Restaurar orden del libreto** vuelve al original sin borrar textos.
+- La pestaña **Categorías** sigue mostrando todas las gráficas por tipo (incluidas las de la versión anterior).
+
+### Reglas al aire
+
+- Dos gráficas de la **misma zona** no se superponen: un GC de nombre reemplaza al anterior; una placa a pantalla completa reemplaza a otra; un fondo reemplaza a otro; un identificador reemplaza al de la misma esquina.
+- **Cierre del programa** retira todo lo demás.
+- **Limpiar salida** retira todas las gráficas, avisos y cortinas sin recargar la salida ni cortar la conexión (con «Deshacer»).
+- Si no hay ninguna salida conectada, el panel lo dice («Sin salida», monitor «PROGRAMA», filas «PROG.»): no finge que algo está en pantalla.
+
+### Gráficas agregadas para el libreto (estética de los scripts)
+
+Las gráficas que ya existían (GC Noticiero, cinta de invitado, barra del concurso, participante, temporizador, zócalo, etiqueta, placas, fondos, logo, EN VIVO, avisos y cortinas de salsa) **no se modificaron**. Se agregaron solo las que faltaban, copiando la paleta, tipografías (Impact/Arial) y animaciones de los scripts de After Effects (`COMPLETOS_MOJADOS_MASTER.jsx`, `GRAFICAS_PARTE_DOS.jsx`) y de los GC de referencia en video:
+
+| Gráfica | Referencia |
+|---|---|
+| **GC persona** (conductor, invitado, periodista…) | Videos `CONDUCTOR`, `Invitado1`, `CM_GC_GUEST_03`, `Felipe_Jimenez`: botella de mostaza, etiqueta roja/naranja, nombre en caja crema y cargo en caja dorada. Estilo «Noticiero» como `Presentador2` (barra roja, caja azul, bajada amarilla). |
+| **GC Último minuto** | Video `GC_ULTIMO_MINUTO_10S`: banda roja con punto, titular en barra blanca, filete mostaza, cita y salpicadura. |
+| **Logo Noticiero Mojado** (esquina) | «NOTICIERO» blanco / «MOJADO» rojo con contorno, como en el mismo video. |
+| **Ticker Noticiero** | Video `TICKER_NOTICIERO_20S`. |
+| **Intro Completos Mojados** | `INTRO_COMPLETOS_MOJADOS_20S`: TALCA + mapa del Maule, arcos de salsa, el completo se arma con los conductores, título y banner. |
+| **Intro Noticiero Mojado** | `NOTICIERO_MOJADO_INTRO`: fondo azul con globo y anillos, barras, EN VIVO, NOTICIERO / MOJADO, DESDE TALCA y titular. |
+| **Transiciones** (se lanzan y se van solas) | `PASE_NOTICIERO`, `TRANSICION_NOTA`, `CIERRE_NOTICIERO`, `REGRESO_COMPLETOS`, `TRANSICION_VTR_01/02/03`, `INTRO_BLOQUE_2`, `TRANSICION_PINA_PAPA`, con sus barridos de salsa, mancha de salsa y salpicaduras. |
+| **Cierre del programa** | `CORTINA_CIERRE_10S`. Al mostrarlo se retira todo lo demás. |
+| **Mención comercial, concurso telefónico, pregunta/trivia, marcador** | No tienen script: usan el estilo de los avisos del programa (tarjeta blanca, borde café, cabecera de color con Impact y goteo de salsa). |
+| **Fondos «VTR» y «Bloque 2 (vino)»** | `BG_VTR` y `BG_BLOQUE_2` del script, agregados como opciones de Fondo y Placa. |
+
+Todo se dibuja con HTML, CSS y SVG (no son videos). Cada gráfica tiene **velocidad de animación** ajustable. Si el equipo no tiene Impact (Mac, celulares) se usa **Anton** (licencia SIL OFL, incluida en `assets/fuentes`).
+
+### Recursos pendientes
+
+Lo que el libreto no entrega queda como marcador **PENDIENTE_…**. Estos marcadores no son archivos reales y **nunca se dibujan en pantalla**: si se muestra la gráfica igual, ese texto queda en blanco. El botón amarillo **«N pendientes»** de la barra superior los lista.
+
+| Marcador | Dónde se completa |
+|---|---|
+| `PENDIENTE_NOMBRE_CONDUCTOR`, `PENDIENTE_NOMBRE_CONDUCTOR_NOTICIERO`, `PENDIENTE_NUMERO_TELEFONICO` | **Ajustes → Datos del programa** (se copian a todas sus gráficas) |
+| `PENDIENTE_LOGO_MARY_MECHADAS`, `PENDIENTE_LOGO_RAYO_MAULINO` | Campo «Logo de la marca» de cada mención (mientras tanto se muestra el nombre de la marca en tipografía, no un logo inventado) |
+| `PENDIENTE_VIDEO_INTRO`, `PENDIENTE_VTR_JUEGOS`, `PENDIENTE_VTR_PERSONAJE_1`, `PENDIENTE_VTR_PERSONAJE_2`, `PENDIENTE_VTR_CONCURSO`, `PENDIENTE_VTR_PINAPAPA`, `PENDIENTE_VIDEOCLIP_PINAPAPA`, `PENDIENTE_APOYO_NOTA_1/2` | Al tocar ▶ en la fila se abre la subida del video |
+| `PENDIENTE_NOMBRE_PEATON`, `PENDIENTE_PERSONAJE_2`, `PENDIENTE_NOMBRE_PARTICIPANTE`, `PENDIENTE_PARTICIPANTES_Y_PUNTAJES`, `PENDIENTE_PREGUNTA_TRIVIA` | En el editor de esa gráfica |
+
+El logo del programa (`assets/logo.png`) se recortó de un cuadro de video y es de baja resolución: conviene reemplazarlo por el original en **Ajustes → Logo del programa**.
+
+### En el celular
+
+Con una pantalla angosta, el panel cambia a una barra inferior con tres vistas:
+
+- **Escaleta**: los pasos, con botones grandes ▶ y ■.
+- **Editar**: el editor de la gráfica elegida.
+- **Ver**: vista previa y programa.
+
+Las ventanas emergentes se abren desde abajo y los campos usan letra de 16 px para que el teléfono no haga zoom.
+
 ---
 
 ## 2. Videos propios (pantalla verde o transparencia)

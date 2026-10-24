@@ -47,14 +47,21 @@
       c._m = p.montar ? p.montar(c, el.datos, lctx) : null;
       if (c.classList.contains("entra")) { setTimeout(function () { c.classList.remove("entra"); }, 2600); }
     }
+    /* velocidad de animación: la del elemento × la general (afecta entradas, salidas y animaciones continuas) */
+    function ritmo(el) { return Math.max(0.25, ((+(el.datos && el.datos.vel) || 100) / 100) * (CG.velocidad || 1)); }
+    function aplicarRitmo(nodo, r) {
+      if (Math.abs(r - 1) < 0.01 || !nodo.getAnimations) { return; }
+      var f = function () { try { nodo.getAnimations({subtree: true}).forEach(function (a) { a.playbackRate = r; }); } catch (e) {} };
+      f(); requestAnimationFrame(f);
+    }
     function desmontar(c) { try { if (c._m && c._m.destruir) { c._m.destruir(); } } catch (e) {} c.remove(); }
 
     function entrar(el) {
       var p = P[el.plantilla], capa = document.createElement("div");
       capa.className = "el"; capa.style.zIndex = p.capa || 50; capa.dataset.id = el.id; capa.vivo = true;
       var c = cuerpo(el, true); capa.appendChild(c); stage.appendChild(capa);
-      capas[el.id] = {capa: capa, c: c, firma: firma(el), plantilla: el.plantilla};
-      montar(capa, c, el);
+      capas[el.id] = {capa: capa, c: c, firma: firma(el), plantilla: el.plantilla, ritmo: ritmo(el)};
+      montar(capa, c, el); aplicarRitmo(c, capas[el.id].ritmo);
       salpicaduraDe(el);
     }
     function cambiar(el) {
@@ -63,8 +70,8 @@
       /* cambió el contenido estando al aire: fundido cruzado sin repetir la entrada */
       var vieja = r.c, nueva = cuerpo(el, false);
       nueva.classList.add("swap-in"); vieja.classList.add("swap-out");
-      r.capa.appendChild(nueva); r.c = nueva; r.firma = f;
-      montar(r.capa, nueva, el);
+      r.capa.appendChild(nueva); r.c = nueva; r.firma = f; r.ritmo = ritmo(el);
+      montar(r.capa, nueva, el); aplicarRitmo(nueva, r.ritmo);
       setTimeout(function () { desmontar(vieja); nueva.classList.remove("swap-in"); }, 420);
     }
     function salir(id) {
@@ -72,7 +79,8 @@
       delete capas[id]; r.capa.vivo = false;
       var p = P[r.plantilla]; r.c.classList.remove("entra"); r.c.classList.add("sale");
       if (r.c._m && r.c._m.saliendo) { r.c._m.saliendo(); }
-      setTimeout(function () { desmontar(r.c); r.capa.remove(); }, (p.salidaMs || 600) + 60);
+      aplicarRitmo(r.c, r.ritmo || 1);
+      setTimeout(function () { desmontar(r.c); r.capa.remove(); }, (p.salidaMs || 600) / (r.ritmo || 1) + 60);
     }
 
     function aplicar(st) {
@@ -96,6 +104,8 @@
     function evento(e) {
       if (e.tipo === "aviso") { aviso(e.datos || {}); }
       else if (e.tipo === "cortina") { cortina((e.datos && e.datos.estilo) || "bandas"); }
+      else if (P[e.tipo] && P[e.tipo].lanzar) { P[e.tipo].lanzar(cajaCortina, e.datos || {}, ctx); }
+      else if (e.tipo === "limpiar") { if (P.transicion && P.transicion.cancelar) { P.transicion.cancelar(); } cajaAvisos.innerHTML = ""; cajaCortina.className = "capa"; cajaCortina.innerHTML = ""; cajaSalp.innerHTML = ""; }
     }
     function limpiarTodo() { Object.keys(capas).forEach(salir); }
 
