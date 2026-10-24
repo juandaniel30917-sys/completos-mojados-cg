@@ -545,3 +545,100 @@ body.bot-arrastrando,body.bot-arrastrando *{cursor:grabbing!important;user-selec
   body.bot-editando .bot-grid{padding-bottom:140px}
   #movNav button span{font-size:10.5px}
 }
+
+/* =================== CONFIGURACIÓN COMPLETA =================== */
+#modal.config .caja{width:min(1080px,100%);height:min(820px,calc(100vh - 32px));display:flex;flex-direction:column;padding:0;overflow:hidden}
+#modal.config .cerrar{position:absolute;right:14px;top:14px;margin:0;float:none}
+.cfg{display:flex;flex-direction:column;min-height:0;height:100%}
+.cfg-cab{padding:18px 22px 6px}
+.cfg-cab .lead{margin:0}
+.cfg-tabs{display:flex;gap:4px;padding:8px 22px 0;border-bottom:1px solid var(--borde);overflow-x:auto;flex:none}
+.cfg-tabs button{border:0;background:none;color:var(--txt2);font-weight:800;font-size:13.5px;padding:10px 14px;border-radius:9px 9px 0 0;white-space:nowrap;border-bottom:3px solid transparent}
+.cfg-tabs button:hover{color:var(--txt);background:var(--panel2)}
+.cfg-tabs button.on{color:var(--txt);border-bottom-color:var(--acento);background:var(--panel2)}
+.cfg-cuerpo{flex:1;min-height:0;overflow:auto;padding:16px 22px 22px;display:flex;flex-direction:column;gap:10px}
+.cfg-barra{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.cfg-bus{flex:1 1 220px;display:flex;align-items:center;gap:8px;background:var(--fondo);border:1px solid var(--borde2);border-radius:9px;padding:0 10px;height:38px}
+.cfg-bus input{flex:1;border:0;background:none;outline:none;font-size:14px;min-width:0}
+.cfg-info{color:var(--txt2);font-size:12.5px}
+.nota-m{color:var(--txt2);font-size:12.5px;margin:0}
+.cfg-lista{display:flex;flex-direction:column;border:1px solid var(--borde);border-radius:10px;overflow:hidden}
+.cfg-fila{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--borde);background:var(--panel);min-height:52px}
+.cfg-fila:last-child{border-bottom:0}
+.cfg-fila.activa{background:color-mix(in srgb,var(--acento) 7%,var(--panel))}
+.cfg-fila.aire{box-shadow:inset 3px 0 0 var(--pgm)}
+.cfg-nom{flex:1;min-width:0;display:flex;flex-direction:column}
+.cfg-nom b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cfg-nom small{color:var(--txt3);font-size:10.5px;font-weight:800;letter-spacing:.05em}
+.cfg-nom input{background:transparent;border:1px solid transparent;border-radius:6px;padding:4px 6px;margin-left:-7px;font-weight:700;font-size:13.5px;min-width:0}
+.cfg-nom input:hover{border-color:var(--borde2)}
+.cfg-nom input:focus{border-color:var(--acento);background:var(--fondo);outline:none}
+.cfg-fila select,.cfg-fila input[type=number]{height:34px;background:var(--fondo);border:1px solid var(--borde2);border-radius:7px;padding:0 8px;max-width:230px}
+.cfg-color{width:22px;height:22px;border-radius:6px;flex:none;border:2px solid rgba(255,255,255,.2)}
+.cfg-vacio{color:var(--txt3);font-size:12px;font-style:italic}
+.cfg-tr{display:flex;flex-direction:column;gap:2px;flex:0 1 210px;min-width:0}
+.cfg-tr small{font-size:10px;font-weight:800;color:var(--txt3);letter-spacing:.06em;text-transform:uppercase}
+.cfg-tr select{width:100%}
+.cfg-tr-na i{color:var(--txt3);font-size:12px;height:34px;display:flex;align-items:center}
+.cfg-corte{flex:0 0 90px}
+.cfg-acc{display:flex;gap:4px;flex:none}
+.cfg-tipo{font-size:10px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;padding:4px 8px;border-radius:6px;background:var(--panel3);flex:none;width:72px;text-align:center}
+.cfg-tipo.t-cortina{background:#5a2440;color:#ffc6de}
+.cfg-tipo.t-transicion{background:#4a3a10;color:#ffe08a}
+.cfg-tipo.t-video{background:#173458;color:#a9d0ff}
+.sw-on{position:relative;width:42px;height:24px;flex:none;cursor:pointer}
+.sw-on input{position:absolute;opacity:0;inset:0;cursor:pointer;margin:0}
+.sw-on i{position:absolute;inset:0;border-radius:20px;background:var(--panel3);border:1px solid var(--borde2);transition:background var(--rapido)}
+.sw-on i::after{content:"";position:absolute;left:3px;top:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform var(--rapido)}
+.sw-on input:checked+i{background:var(--pvw);border-color:var(--pvw)}
+.sw-on input:checked+i::after{transform:translateX(18px)}
+.cfgCap.esperando{border-color:var(--amar);animation:btAire 1s infinite}
+.cfg-crear,.cfg-modos{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.cfg-card{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;padding:14px;border-radius:12px;border:1px solid var(--borde2);background:var(--panel2);transition:border-color var(--rapido),transform var(--rapido)}
+.cfg-card:hover{border-color:var(--acento);transform:translateY(-2px)}
+.cfg-card span{font-size:26px}
+.cfg-card b{font-size:14px}
+.cfg-card small{color:var(--txt2);font-size:12px}
+.cfg-card.on{border-color:var(--acento);background:color-mix(in srgb,var(--acento) 14%,var(--panel2));box-shadow:0 0 0 2px var(--acento) inset}
+.cfg-h3{font-size:14px;margin:12px 0 0}
+.bi-trs{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.bi-trs label{display:flex;flex-direction:column;gap:3px;min-width:0}
+.bi-trs small{font-size:10px;font-weight:800;color:var(--txt3);letter-spacing:.06em;text-transform:uppercase}
+.bi-trs select{height:36px;background:var(--fondo);border:1px solid var(--borde2);border-radius:8px;padding:0 6px;width:100%}
+
+/* =================== MODO BOTONERA (tablet / celular) =================== */
+.bot-comp{display:none}
+body.modo-botonera .bot-comp{display:inline-flex}
+body.modo-botonera .tabs,body.modo-botonera #movNav{display:none!important}
+body.modo-botonera #main{grid-template-columns:minmax(0,1fr)!important}
+body.modo-botonera #monitores{display:none!important}
+body.modo-botonera .bt{grid-auto-rows:auto}
+body.modo-botonera .bot-grid{grid-auto-rows:minmax(120px,auto);gap:12px}
+
+@media (max-width:1100px){
+  .cfg-fila.cfg-g{flex-wrap:wrap}
+  .cfg-g .cfg-nom{flex:1 1 100%}
+  .cfg-g .bi-num{display:none}
+  .cfg-g .cfg-tr{flex:1 1 40%}
+}
+@media (max-width:760px){
+  #modal.config .caja{height:calc(100vh - 20px);border-radius:16px 16px 0 0}
+  .cfg-cab{padding:14px 16px 4px}
+  .cfg-tabs{padding:6px 10px 0}
+  .cfg-tabs button{padding:9px 10px;font-size:12.5px}
+  .cfg-cuerpo{padding:12px}
+  .cfg-crear,.cfg-modos{grid-template-columns:1fr}
+  .cfg-fila{flex-wrap:wrap}
+  .cfg-fila .cfg-nom{flex:1 1 60%}
+  .cfg-t .cfg-tr,.cfg-g .cfg-tr{flex:1 1 40%}
+  .cfg-fila select{max-width:none;flex:1}
+  .bot-tit{display:none}
+  body.modo-botonera #main{height:calc(100% - 98px)!important}
+  .bot-barra .btn.mini{height:34px}
+}
+@media (max-width:760px){
+  #bBotAyuda{display:none}
+  .bot-barra{gap:6px}
+  .bot-barra .btn{flex:1 1 auto;padding:0 8px;font-size:12px;height:36px}
+  .bot-barra .bot-edit{font-size:13px}
+}

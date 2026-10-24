@@ -252,6 +252,8 @@ async def main():
         await pc.goto(control_url); await pc.wait_for_timeout(1500)
         if await pc.is_visible("#modal"):
             await pc.click("#modal .cerrar")
+        check("El celular abre la sala como botonera", await pc.is_visible("#botGrid"))
+        await pc.click("#bModoComp"); await pc.wait_for_timeout(300)
         await pc.click('.vistas [data-vista=categorias]'); await pc.wait_for_timeout(200)
         if not await pc.is_visible('.it:has-text("Logo esquina")'):
             await pc.click(".cat[data-cat=logos] .cat-cab"); await pc.wait_for_timeout(400)
