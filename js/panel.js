@@ -44,7 +44,7 @@
   var alCerrarModal = null;
   function modal(html, op) {
     op = op || {};
-    var m = $("#modal"); m.className = op.ancho ? "ancho" : ""; m.hidden = false;
+    var m = $("#modal"); m.className = (op.ancho ? "ancho" : "") + (op.clase ? " " + op.clase : ""); m.hidden = false;
     $(".cont", m).innerHTML = html; alCerrarModal = op.alCerrar || null;
     $(".cerrar", m).hidden = !!op.fijo;
     var f = $("input,button.prim", $(".cont", m)); if (f && !op.sinFoco) { setTimeout(function () { f.focus(); }, 50); }
@@ -112,8 +112,37 @@
     RUNTIME.forEach(function (k) { if (e.datos[k] !== undefined) { d[k] = e.datos[k]; } else { delete d[k]; } });
     return d;
   }
-  function mostrar(id, silencio, confirmado, guardado) {
-    var e = el(id); if (!e) { return; }
+  /* ---------- transición opcional por gráfica (e.tr = {entra, sale}) ---------- */
+  function esTransicion(e) { return !!e && (e.plantilla === "cortina" || e.plantilla === "transicion" || (e.plantilla === "video" && (e.tipo === "TRANSICION" || e.datos.esTrans))); }
+  function transiciones() { return estado.elementos.filter(esTransicion); }
+  function corteDe(t) {
+    if (t.corteS != null && t.corteS !== "" && !isNaN(+t.corteS)) { return Math.max(0, +t.corteS); }
+    var gl = ((estado.ajustes || {}).velocidad || 100) / 100;
+    if (t.plantilla === "cortina") { return 0.75 / gl; }
+    if (t.plantilla === "transicion") { var es = (CG.ESCENAS || {})[t.datos.escena] || {}, v = ((+t.datos.vel || 100) / 100) * gl; return (es.corte || (es.dur || 2) * 0.4) / v; }
+    var m = (estado.biblioteca || []).filter(function (x) { return x.id === t.datos.media; })[0];
+    return m && m.dur ? m.dur / 2 : 1;
+  }
+  function tipoTrans(t) { return t.plantilla === "cortina" ? "Cortina" : t.plantilla === "transicion" ? "Animada" : "Video"; }
+  /* lanza la transición y devuelve los milisegundos hasta el punto donde la pantalla queda tapada */
+  function pasarTrans(trId) {
+    var t = el(trId); if (!t) { return -1; }
+    if (t.plantilla === "video" && !t.datos.media) { toast("La transición «" + t.nombre + "» no tiene video. Se omite.", "err"); return -1; }
+    if (esEvento(t)) { lanzar(t.id, true, true); }
+    else if (t.on) { t.datos.cmd = {id: CG.nuevoId(), a: "reiniciar"}; publicar(); }
+    else { t.on = true; t.datos.cmd = null; publicar(); }
+    return Math.round(corteDe(t) * 1000);
+  }
+  var esperando = {};
+  function mostrar(id, silencio, confirmado, guardado, sinTrans) {
+    var e = el(id); if (!e || (esperando[id] && !sinTrans)) { return; }
+    if (!sinTrans && e.tr && e.tr.entra && e.tr.entra !== id && !e.on && el(e.tr.entra)) {
+      var f0 = guardado ? e.datos : borrador(id);
+      if (!(e.plantilla === "video" && !f0.media)) {
+        var ms = pasarTrans(e.tr.entra);
+        if (ms >= 0) { esperando[id] = 1; setTimeout(function () { delete esperando[id]; mostrar(id, true, true, guardado, true); }, ms); if (!silencio) { flash($("#aMostrar")); } return; }
+      }
+    }
     var fuente = guardado ? e.datos : borrador(id);
     if (guardado && e.plantilla === "video" && !fuente.media) { toast("«" + e.nombre + "» no tiene video todavía. Súbelo desde Control.", "err"); return false; }
     if (guardado && CG.pendientesDe({datos: fuente, pend: e.pend}).length) { toast("«" + e.nombre + "» tiene datos pendientes (salen en blanco).", "err"); confirmado = true; }
@@ -141,21 +170,32 @@
     publicar(); guardarBorr();
     if (!silencio) { flash($("#aMostrar")); }
   }
-  function ocultar(id) { var e = el(id); if (!e || !e.on) { return; } e.on = false; publicar(); }
+  function ocultar(id, sinTrans) {
+    var e = el(id); if (!e || !e.on || esperando[id]) { return; }
+    if (!sinTrans && e.tr && e.tr.sale && e.tr.sale !== id && el(e.tr.sale)) {
+      var ms = pasarTrans(e.tr.sale);
+      if (ms >= 0) { esperando[id] = 1; setTimeout(function () { delete esperando[id]; var x = el(id); if (x && x.on) { x.on = false; publicar(); } }, ms); return; }
+    }
+    e.on = false; publicar();
+  }
   function guardarElemento(id) {
     var e = el(id); if (!e) { return; }
     e.datos = datosParaAire(e); borr[id] = clon(e.datos); publicar(); guardarBorr();
     toast(e.on ? "Actualizado al aire" : "Guardado (no está al aire)", "ok");
   }
-  function lanzar(id, guardado) {
+  function lanzar(id, guardado, sinAviso) {
     var e = el(id); if (!e) { return; }
+    if (!sinAviso && e.tr && e.tr.entra && e.tr.entra !== id && el(e.tr.entra)) {
+      var ms = pasarTrans(e.tr.entra);
+      if (ms >= 0) { if (!guardado) { e.datos = clon(borrador(id)); } setTimeout(function () { lanzar(id, true, true); }, ms); return; }
+    }
     if (salidas === 0) { toast("Ojo: no hay ninguna salida conectada, nadie verá esta cortina.", "err"); }
     if (!guardado) { e.datos = clon(borrador(id)); }
     var ev = {id: CG.nuevoId(), tipo: e.plantilla, datos: clon(e.datos), t: Date.now()};
     estado.ev = (estado.ev || []).concat(ev).slice(-12);
     publicar(); guardarBorr();
     flash($("#aMostrar"));
-    toast((/cortina|transicion/.test(e.plantilla) ? "Transición" : "Aviso") + " lanzada al aire", "ok");
+    if (!sinAviso) { toast((/cortina|transicion/.test(e.plantilla) ? "Transición" : "Aviso") + " lanzada al aire", "ok"); }
   }
   function flash(b) { if (!b) { return; } b.classList.remove("flash"); void b.offsetWidth; b.classList.add("flash"); }
   function comando(id, a) {
@@ -640,6 +680,19 @@
   $$("#movNav button").forEach(function (b) { b.onclick = function () { vistaMovil(b.dataset.mv); }; });
   vistaMovil("lista");
 
+  /* ------------------------------------------------------------------ modo por equipo: tablet/celular = botonera, computador = completo */
+  function tactil() { return window.matchMedia("(pointer: coarse)").matches && !window.matchMedia("(pointer: fine)").matches; }
+  function modoDisp(m) {
+    if (m) { guardarLS("cg_disp", m); }
+    var v = leerLS("cg_disp", "auto"), bot = v === "botonera" || (v === "auto" && tactil());
+    var antes = document.body.classList.contains("modo-botonera");
+    document.body.classList.toggle("modo-botonera", bot);
+    if (bot) { cambiarTab("boton"); if (esMovil()) { vistaMovil("boton"); } }
+    else if (antes) { cambiarTab("visual"); if (esMovil()) { vistaMovil("lista"); } }
+    if (m && bot !== antes) { toast(bot ? "Este equipo queda como botonera" : "Este equipo muestra el panel completo", "ok"); }
+  }
+  modoDisp();
+
   /* ------------------------------------------------------------------ barra superior */
   $("#bCortina").onclick = function () {
     var c = estado.elementos.filter(function (e) { return e.plantilla === "cortina" && e.fav; })[0] || estado.elementos.filter(function (e) { return e.plantilla === "cortina"; })[0];
@@ -655,7 +708,7 @@
   };
   $("#bNuevo").onclick = nuevaGrafica;
   $("#bRemoto").onclick = remoto;
-  $("#bAjustes").onclick = ajustes;
+  $("#bAjustes").onclick = function () { config(); };
   $("#bAyuda").onclick = ayuda;
   document.addEventListener("keydown", function (e) {
     var escribiendo = /input|textarea|select/i.test((document.activeElement || {}).tagName || "");
@@ -875,7 +928,7 @@
   function ajustes() {
     var A = estado.ajustes || {}, bib = (estado.biblioteca || []).filter(function (m) { return !m.incluido; });
     var DP = estado.datosPrograma || {};
-    var c = modal("<h2>Ajustes</h2><p class='lead'>Se aplican a todas las salidas de esta sala.</p>" +
+    var c = modal("<button class='btn mini' id='ajVolver' style='margin-bottom:10px'>← Configuración</button><h2>Ajustes generales</h2><p class='lead'>Se aplican a todas las salidas de esta sala.</p>" +
       "<h3 style='font-size:13px;margin:4px 0 6px'>Datos del programa</h3><p class='nota-m' style='margin-top:0'>Se copian a todos los GC y gráficas que los usan. Déjalos vacíos hasta que producción los confirme.</p>" +
       "<div class='form-fila'><div class='campo'><label>Nombre del conductor</label><input type='text' class='dp' data-k='conductor' maxlength='60'></div>" +
       "<div class='campo'><label>Conductor del noticiero</label><input type='text' class='dp' data-k='conductorNoticiero' maxlength='60'></div>" +
@@ -887,6 +940,7 @@
       (bib.length ? "<div style='display:flex;flex-direction:column;gap:6px'>" + bib.map(function (m) { return "<div class='li' style='grid-template-columns:1fr auto auto'><span><b>" + esc(m.nombre) + "</b> <small style='color:var(--txt3)'>" + ({alfa: "transparente", chroma: "fondo verde", normal: "normal"}[m.modo] || "") + (m.local ? " · solo este equipo" : " · en la sala") + (m.tam ? " · " + (m.tam / 1048576).toFixed(1) + " MB" : "") + "</small></span><span></span><button class='q' data-borrar='" + esc(m.id) + "' title='Quitar de la biblioteca'><svg><use href='#i-basura'/></svg></button></div>"; }).join("") + "</div>" : "<p style='color:var(--txt3)'>Aún no subes videos. Usa <b>+ Nueva → Video</b>.</p>") +
       "<h3 style='font-size:13px;margin:16px 0 6px'>Copia de seguridad</h3><div style='display:flex;gap:8px;flex-wrap:wrap'><button class='btn' data-a='exportar'>Descargar copia (.json)</button><button class='btn' data-a='importar'>Cargar copia…</button><button class='btn' data-a='ejemplos'>Agregar gráficas de ejemplo</button><button class='btn' data-a='libreto'>Restaurar orden del libreto</button></div>" +
       "<div class='modal-pie'><button class='btn prim' data-a='cerrar'>Listo</button></div>");
+    $("#ajVolver", c).onclick = function () { config(); };
     $$(".dp", c).forEach(function (i) { i.value = DP[i.dataset.k] || ""; });
     $("[data-a=dp]", c).onclick = function () {
       var nd = {}, n = 0; $$(".dp", c).forEach(function (i) { nd[i.dataset.k] = i.value.trim(); });
@@ -944,6 +998,175 @@
     });
   }
 
+  /* ======================= CONFIGURACIÓN COMPLETA ======================= */
+  var cfgTab = "botonera", cfgFiltro = "";
+  function ordenLibreto() {
+    var u = {}; pasos().forEach(function (p) { p.items.forEach(function (id) { u[id] = u[id] || p.n; }); });
+    return {num: u, lista: estado.elementos.filter(function (e) { return P[e.plantilla]; }).slice().sort(function (a, c) { return (u[a.id] || "99").localeCompare(u[c.id] || "99"); })};
+  }
+  function opcionesTrans(actual, idPropio) {
+    return '<option value="">Sin transición (directo)</option>' + transiciones().filter(function (t) { return t.id !== idPropio; }).map(function (t) { return '<option value="' + esc(t.id) + '"' + (t.id === actual ? " selected" : "") + '>' + esc(tipoTrans(t) + " · " + t.nombre) + '</option>'; }).join("");
+  }
+  function botonDe(id) { return botones().filter(function (b) { return b.el === id || (b.esp && ":" + b.esp === id); })[0]; }
+  function config(tab) {
+    if (tab) { cfgTab = tab; }
+    var tabs = [["botonera", "🎛️ Botonera"], ["graficas", "🖼️ Gráficas"], ["trans", "✨ Transiciones"], ["disp", "📱 Dispositivo"], ["general", "⚙️ General"]];
+    var c = modal("<div class='cfg'><div class='cfg-cab'><h2>Configuración</h2><p class='lead'>Todo se guarda solo y se aplica a todos los equipos de la sala.</p></div>" +
+      "<nav class='cfg-tabs'>" + tabs.map(function (t) { return "<button data-t='" + t[0] + "' class='" + (t[0] === cfgTab ? "on" : "") + "'>" + t[1] + "</button>"; }).join("") + "</nav>" +
+      "<div class='cfg-cuerpo' id='cfgCuerpo'></div></div>", {clase: "config"});
+    $$(".cfg-tabs button", c).forEach(function (b) { b.onclick = function () { if (b.dataset.t === "general") { ajustes(); return; } cfgTab = b.dataset.t; cfgFiltro = ""; config(); }; });
+    var cu = $("#cfgCuerpo", c);
+    if (cfgTab === "botonera") { cfgBotonera(cu); } else if (cfgTab === "graficas") { cfgGraficas(cu); } else if (cfgTab === "trans") { cfgTrans(cu); } else { cfgDisp(cu); }
+  }
+  function buscador(cu, alFiltrar) {
+    var i = $(".cfg-bus input", cu); if (!i) { return; }
+    i.value = cfgFiltro;
+    var f = function () { cfgFiltro = i.value; var q = cfgFiltro.trim().toLowerCase(); $$(".cfg-fila[data-q]", cu).forEach(function (r) { r.hidden = q && r.dataset.q.indexOf(q) < 0; }); if (alFiltrar) { alFiltrar(); } };
+    i.oninput = f; f();
+  }
+  /* ---- pestaña Botonera: qué gráfica va en la botonera y con qué tecla ---- */
+  function cfgBotonera(cu) {
+    var o = ordenLibreto(), dueno = {}; botones().forEach(function (b) { if (b.tecla) { dueno[b.tecla] = b; } });
+    var filas = Object.keys(ESPECIALES).map(function (k) { return {v: ":" + k, nom: ESPECIALES[k], tipo: "ACCIÓN", num: "⚡"}; })
+      .concat(o.lista.map(function (e) { return {v: e.id, nom: e.nombre, tipo: (CG.TIPOS[CG.tipoDe(e)] || "").toUpperCase(), num: o.num[e.id] || "·"}; }));
+    var nB = botones().length;
+    cu.innerHTML = "<div class='cfg-barra'><label class='cfg-bus'><svg><use href='#i-buscar'/></svg><input type='search' placeholder='Buscar gráfica…'></label>" +
+      "<span class='cfg-info'><b>" + nB + "</b> en la botonera</span><button class='btn prim' id='cfgVerBot'>Abrir botonera para ordenar →</button></div>" +
+      "<p class='nota-m'>Activa el interruptor para que la gráfica tenga su botón. Elige la tecla: F13–F24 o la que mande tu teclado (⌨️). Para cambiar texto o color usa la botonera en modo edición.</p>" +
+      "<div class='cfg-lista'>" + filas.map(function (f) {
+        var b = botonDe(f.v), teclas = TECLAS_F.slice(); if (b && b.tecla && teclas.indexOf(b.tecla) < 0) { teclas.push(b.tecla); }
+        return "<div class='cfg-fila" + (b ? " activa" : "") + "' data-v='" + esc(f.v) + "' data-q='" + esc((f.nom + " " + f.tipo).toLowerCase()) + "'>" +
+          "<label class='sw-on'><input type='checkbox' class='cfgOn'" + (b ? " checked" : "") + "><i></i></label>" +
+          "<span class='bi-num'>" + esc(f.num) + "</span><span class='cfg-nom'><b>" + esc(f.nom) + "</b><small>" + esc(f.tipo) + "</small></span>" +
+          (b ? "<span class='cfg-color' style='background:" + esc(b.color || "#3A3F4E") + "'></span><select class='cfgTec'><option value=''>Sin tecla</option>" + teclas.map(function (k) { var d = dueno[k]; return "<option value='" + esc(k) + "'" + (b.tecla === k ? " selected" : "") + ">" + esc(nombreTecla(k)) + (d && d !== b ? " · ocupa " + esc((d.etiqueta || estadoBoton(d).txt).slice(0, 14)) : "") + "</option>"; }).join("") + "</select><button class='btn mini cfgCap' title='Presionar una tecla del teclado'>⌨️</button>" : "<span class='cfg-vacio'>sin botón</span>") +
+          "</div>";
+      }).join("") + "</div>";
+    buscador(cu);
+    $("#cfgVerBot", cu).onclick = function () { cerrarModal(); if (esMovil()) { vistaMovil("boton"); } else { cambiarTab("boton"); } editarBotonera = true; dibujarBotonera(); pintarInsp(); };
+    $$(".cfg-fila", cu).forEach(function (r) {
+      var v = r.dataset.v;
+      $(".cfgOn", r).onchange = function () {
+        if (this.checked) {
+          var e = v.charAt(0) === ":" ? null : el(v), nb = nuevoBoton({el: e ? v : "", esp: e ? "" : v.slice(1), color: COLORES_B[botones().length % COLORES_B.length]});
+          nb.tecla = TECLAS_F.filter(function (k) { return !botones().some(function (x) { return x.tecla === k; }); })[0] || "";
+          botones().push(nb); toast("Botón agregado" + (nb.tecla ? " con la tecla " + nb.tecla : ""), "ok");
+        } else {
+          estado.botonera.botones = botones().filter(function (b) { return !(b.el === v || (b.esp && ":" + b.esp === v)); });
+        }
+        cambioBot(false); config();
+      };
+      var st = $(".cfgTec", r);
+      if (st) {
+        st.onchange = function () { asignarTecla(botonDe(v), st.value); config(); };
+        $(".cfgCap", r).onclick = function () {
+          var bt = this; bt.textContent = "…"; bt.classList.add("esperando"); capturando = true; toast("Presiona la tecla ahora (Esc cancela)");
+          var f = function (ev) {
+            ev.preventDefault(); ev.stopPropagation(); document.removeEventListener("keydown", f, true); capturando = null;
+            if (ev.key === "Escape" || /^(Tab|Enter|Shift|Control|Alt|Meta|CapsLock)$/.test(ev.key)) { config(); return; }
+            asignarTecla(botonDe(v), ev.key); config();
+          };
+          document.addEventListener("keydown", f, true);
+        };
+      }
+    });
+  }
+  /* ---- pestaña Gráficas: todas, con nombre, transición de entrada/salida, editar, duplicar, eliminar ---- */
+  function cfgGraficas(cu) {
+    var o = ordenLibreto();
+    cu.innerHTML = "<div class='cfg-barra'><label class='cfg-bus'><svg><use href='#i-buscar'/></svg><input type='search' placeholder='Buscar gráfica…'></label>" +
+      "<span class='cfg-info'><b>" + o.lista.length + "</b> gráficas</span><button class='btn prim' id='cfgNueva'><svg><use href='#i-mas'/></svg>Nueva gráfica</button></div>" +
+      "<p class='nota-m'>En <b>Entra con</b> y <b>Sale con</b> eliges si la gráfica aparece directo o detrás de una transición (cortina, transición animada o un video tuyo). La gráfica cambia justo cuando la transición tapa la pantalla.</p>" +
+      "<div class='cfg-lista'>" + o.lista.map(function (e) {
+        var tr = e.tr || {}, esT = esTransicion(e);
+        return "<div class='cfg-fila cfg-g" + (e.on ? " aire" : "") + "' data-id='" + esc(e.id) + "' data-q='" + esc((e.nombre + " " + CG.tipoDe(e)).toLowerCase()) + "'>" +
+          "<span class='bi-num'>" + esc(o.num[e.id] || "·") + "</span>" +
+          "<span class='cfg-nom'><input type='text' class='cfgNom' value='" + esc(e.nombre) + "' maxlength='60'><small>" + esc((CG.TIPOS[CG.tipoDe(e)] || "").toUpperCase()) + (e.on ? " · <b class='c-pgm'>AL AIRE</b>" : "") + "</small></span>" +
+          "<label class='cfg-tr'><small>Entra con</small><select class='cfgEntra'>" + opcionesTrans(tr.entra, e.id) + "</select></label>" +
+          (esEvento(e) ? "<span class='cfg-tr cfg-tr-na'><small>Sale con</small><i>se va sola</i></span>" : "<label class='cfg-tr'><small>Sale con</small><select class='cfgSale'>" + opcionesTrans(tr.sale, e.id) + "</select></label>") +
+          "<span class='cfg-acc'><button class='btn mini cfgEd' title='Editar textos y colores'>Editar</button><button class='btn mini ico cfgDup' title='Duplicar'><svg><use href='#i-copiar'/></svg></button><button class='btn mini ico peligro cfgDel' title='Eliminar'><svg><use href='#i-basura'/></svg></button></span>" +
+          (esT ? "" : "") + "</div>";
+      }).join("") + "</div>";
+    buscador(cu);
+    $("#cfgNueva", cu).onclick = nuevaGrafica;
+    $$(".cfg-g", cu).forEach(function (r) {
+      var id = r.dataset.id, e = el(id);
+      $(".cfgNom", r).onchange = function () { var v = this.value.trim(); if (v) { e.nombre = v; publicar(); } };
+      $(".cfgEntra", r).onchange = function () { e.tr = Object.assign({}, e.tr, {entra: this.value}); publicar(); toast(this.value ? "Entrará con «" + el(this.value).nombre + "»" : "Entrará directo", "ok"); };
+      if ($(".cfgSale", r)) { $(".cfgSale", r).onchange = function () { e.tr = Object.assign({}, e.tr, {sale: this.value}); publicar(); toast(this.value ? "Saldrá con «" + el(this.value).nombre + "»" : "Saldrá directo", "ok"); }; }
+      $(".cfgEd", r).onclick = function () { cerrarModal(); if (document.body.classList.contains("modo-botonera")) { modoDisp("completo"); } if (esMovil()) { seleccionar(id); vistaMovil("editar"); } else { if (document.body.classList.contains("tab-boton")) { cambiarTab("visual"); } seleccionar(id); } };
+      $(".cfgDup", r).onclick = function () { var c2 = clon(e); c2.id = CG.nuevoId(); c2.on = false; c2.nombre = e.nombre + " (copia)"; estado.elementos.splice(estado.elementos.indexOf(e) + 1, 0, c2); publicar(); config(); toast("Gráfica duplicada", "ok"); };
+      $(".cfgDel", r).onclick = function () {
+        confirmar("¿Eliminar «" + e.nombre + "»?", "Se quita de la sala, de la escaleta y de la botonera.", "Eliminar", true).then(function (ok) {
+          if (!ok) { config(); return; }
+          estado.elementos = estado.elementos.filter(function (x) { return x !== e; });
+          pasos().forEach(function (p) { p.items = p.items.filter(function (x) { return x !== id; }); });
+          if (estado.botonera) { estado.botonera.botones = botones().filter(function (b) { return b.el !== id; }); }
+          estado.elementos.forEach(function (x) { if (x.tr) { if (x.tr.entra === id) { x.tr.entra = ""; } if (x.tr.sale === id) { x.tr.sale = ""; } } });
+          if (sel === id) { seleccionar(null); }
+          publicar(); config(); toast("Gráfica eliminada", "ok");
+        });
+      };
+    });
+  }
+  /* ---- pestaña Transiciones: cortinas, transiciones animadas y videos (MP4/WebM) propios ---- */
+  function cfgTrans(cu) {
+    var ts = transiciones();
+    var usos = function (t) { return estado.elementos.filter(function (e) { return e.tr && (e.tr.entra === t.id || e.tr.sale === t.id); }).length; };
+    cu.innerHTML = "<div class='cfg-crear'>" +
+      "<button class='cfg-card' id='cfgSubirT'><span>🎬</span><b>Subir video o .webm</b><small>Tu transición hecha en After Effects u otro programa. WebM con transparencia o MP4 con fondo verde.</small></button>" +
+      "<button class='cfg-card' id='cfgNuevaCort'><span>🌭</span><b>Nueva cortina de salsa</b><small>Bandas o círculos de ketchup, mayo y mostaza. Se crea aquí mismo.</small></button>" +
+      "<button class='cfg-card' id='cfgNuevaAnim'><span>✨</span><b>Nueva transición animada</b><small>Las del script (pase noticiero, VTR, bloque 2, Piña Papá…) con tus textos.</small></button></div>" +
+      "<p class='nota-m'><b>Corte</b>: segundo en que la transición tapa la pantalla; ahí entra o sale la gráfica. Déjalo vacío para usar el automático.</p>" +
+      "<div class='cfg-lista'>" + ts.map(function (t) {
+        var auto = Math.round(corteDe(Object.assign({}, t, {corteS: null})) * 10) / 10, sinVideo = t.plantilla === "video" && !t.datos.media;
+        return "<div class='cfg-fila cfg-t' data-id='" + esc(t.id) + "'><span class='cfg-tipo t-" + t.plantilla + "'>" + esc(tipoTrans(t)) + "</span>" +
+          "<span class='cfg-nom'><input type='text' class='cfgNom' value='" + esc(t.nombre) + "' maxlength='60'><small>" + (sinVideo ? "<b style='color:var(--amar)'>⚠ falta el video</b> · " : "") + "usada por " + usos(t) + " gráfica(s)</small></span>" +
+          "<label class='cfg-tr cfg-corte'><small>Corte (s)</small><input type='number' min='0' max='30' step='0.1' class='cfgCorte' placeholder='" + auto + "' value='" + (t.corteS != null && t.corteS !== "" ? esc(t.corteS) : "") + "'></label>" +
+          "<span class='cfg-acc'>" + (t.plantilla === "video" ? "<button class='btn mini cfgVid'>" + (sinVideo ? "Subir video" : "Cambiar video") + "</button>" : "") + "<button class='btn mini cfgProbar' title='Ver en la vista previa'>▶ Probar</button><button class='btn mini cfgEd'>Editar</button><button class='btn mini ico peligro cfgDel' title='Eliminar'><svg><use href='#i-basura'/></svg></button></span></div>";
+      }).join("") + "</div>";
+    function crear(pl, nombre, datos) {
+      var e = CG.crearElemento(pl, {nombre: nombre, datos: datos || {}}); estado.elementos.push(e); publicar(); config(); toast("Creada «" + nombre + "». Ya puedes elegirla en Gráficas → Entra con / Sale con.", "ok"); return e;
+    }
+    $("#cfgNuevaCort", cu).onclick = function () { crear("cortina", "Cortina " + (estado.elementos.filter(function (x) { return x.plantilla === "cortina"; }).length + 1)); };
+    $("#cfgNuevaAnim", cu).onclick = function () { crear("transicion", "Transición animada " + (estado.elementos.filter(function (x) { return x.plantilla === "transicion"; }).length + 1)); };
+    $("#cfgSubirT", cu).onclick = function () {
+      abrirSubida(function (m) {
+        var b2 = (estado.biblioteca || []).filter(function (x) { return x.id === m.id; })[0];
+        var e = CG.crearElemento("video", {nombre: (b2 && b2.nombre) || "Transición", datos: Object.assign({media: m.id, modo: m.modo, audio: false, bucle: false, ocultarAlFinal: true, entrada: "corte", salida: "corte", esTrans: true}, m.chroma || {})});
+        e.tipo = "TRANSICION"; estado.elementos.push(e); cfgTab = "trans"; setTimeout(function () { config(); }, 50);
+      });
+    };
+    $$(".cfg-t", cu).forEach(function (r) {
+      var id = r.dataset.id, t = el(id);
+      $(".cfgNom", r).onchange = function () { var v = this.value.trim(); if (v) { t.nombre = v; publicar(); } };
+      $(".cfgCorte", r).onchange = function () { t.corteS = this.value === "" ? null : +this.value; publicar(); };
+      if ($(".cfgVid", r)) { $(".cfgVid", r).onclick = function () { abrirSubida(function (m) { t.datos.media = m.id; t.datos.modo = m.modo; if (m.chroma) { Object.assign(t.datos, m.chroma); } t.datos.esTrans = true; if (borr[id]) { delete borr[id]; } cfgTab = "trans"; setTimeout(function () { config(); }, 50); }); }; }
+      $(".cfgProbar", r).onclick = function () { cerrarModal(); if (document.body.classList.contains("modo-botonera")) { modoDisp("completo"); } if (esMovil()) { vistaMovil("ver"); } else { cambiarTab("visual"); } seleccionar(id); setTimeout(function () { $("#aPrevia").click(); }, 300); };
+      $(".cfgEd", r).onclick = function () { cerrarModal(); if (document.body.classList.contains("modo-botonera")) { modoDisp("completo"); } if (document.body.classList.contains("tab-boton")) { cambiarTab("visual"); } seleccionar(id); if (esMovil()) { vistaMovil("editar"); } };
+      $(".cfgDel", r).onclick = function () {
+        confirmar("¿Eliminar «" + t.nombre + "»?", "Las gráficas que entraban o salían con ella pasarán a hacerlo directo.", "Eliminar", true).then(function (ok) {
+          if (!ok) { config(); return; }
+          estado.elementos = estado.elementos.filter(function (x) { return x !== t; });
+          estado.elementos.forEach(function (x) { if (x.tr) { if (x.tr.entra === id) { x.tr.entra = ""; } if (x.tr.sale === id) { x.tr.sale = ""; } } });
+          pasos().forEach(function (p) { p.items = p.items.filter(function (x) { return x !== id; }); });
+          if (estado.botonera) { estado.botonera.botones = botones().filter(function (b) { return b.el !== id; }); }
+          if (sel === id) { seleccionar(null); }
+          publicar(); config();
+        });
+      };
+    });
+  }
+  /* ---- pestaña Dispositivo ---- */
+  function cfgDisp(cu) {
+    var m = leerLS("cg_disp", "auto"), auto = tactil() ? "solo la botonera" : "el panel completo";
+    cu.innerHTML = "<p class='nota-m'>Esto se elige <b>en cada equipo</b>: así la tablet o el celular quedan como botonera y el computador con el panel visual completo.</p>" +
+      "<div class='cfg-modos'>" +
+      "<button class='cfg-card" + (m === "auto" ? " on" : "") + "' data-m='auto'><span>🪄</span><b>Automático</b><small>Celular y tablet: solo botonera. Computador: panel completo. En este equipo: <b>" + auto + "</b>.</small></button>" +
+      "<button class='cfg-card" + (m === "botonera" ? " on" : "") + "' data-m='botonera'><span>🎛️</span><b>Solo botonera</b><small>Pantalla completa con los botones grandes. Ideal para tablet al lado del switcher.</small></button>" +
+      "<button class='cfg-card" + (m === "completo" ? " on" : "") + "' data-m='completo'><span>🖥️</span><b>Panel completo</b><small>Control, vista previa, al aire y botonera. Ideal para el computador.</small></button></div>" +
+      "<h3 class='cfg-h3'>Usar la tablet o el celular como botonera</h3><ol class='pasos'><li>En este computador toca <b>Remoto</b> y escanea el código del <b>panel de control</b> con la tablet o el celular.</li><li>Se abre directo como botonera. Los cambios de cualquier equipo se ven en todos.</li><li>El teclado externo con F13–F24 funciona en el equipo donde está conectado.</li></ol>";
+    $$(".cfg-modos .cfg-card", cu).forEach(function (b) { b.onclick = function () { modoDisp(b.dataset.m); config(); }; });
+  }
   /* ------------------------------------------------------------------ AYUDA */
   function ayuda() {
     modal("<h2>Cómo se usa</h2><p class='lead'>Tres pasos: elegir, revisar, mostrar.</p>" +
@@ -1007,7 +1230,7 @@
     con.on("remoto", function (e) {
       estado = normalizar(e);
       Object.keys(borr).forEach(function (id) { if (!el(id)) { delete borr[id]; } });
-      dibujarLista(); pgm(); dibujarBotonera(); if (sel && !el(sel)) { seleccionar(null); } else if (sel) { fichaCab(); estadoFicha(); extras(); }
+      dibujarLista(); pgm(); dibujarBotonera(); if (editarBotonera && !(document.activeElement && document.activeElement.closest("#botInsp"))) { pintarInsp(); } if (sel && !el(sel)) { seleccionar(null); } else if (sel) { fichaCab(); estadoFicha(); extras(); }
       toast("Otro panel hizo cambios", "");
     });
     con.conectar().then(function (r) {
@@ -1062,21 +1285,125 @@
     var p = P[e.plantilla], pend = CG.pendientesDe(e);
     return {on: e.on, ev: !!p.evento, pend: pend.length > 0, falta: e.plantilla === "video" && !e.datos.media, txt: e.nombre, tipo: (CG.TIPOS[CG.tipoDe(e)] || "").toUpperCase(), e: e};
   }
+  var selB = -1, filtroBot = "";
   function dibujarBotonera() {
     var cont = $("#botGrid"); if (!cont || !estado) { return; }
     var bo = estado.botonera || {columnas: 4};
     cont.style.setProperty("--cols", bo.columnas || 4);
     document.body.classList.toggle("bot-editando", editarBotonera);
-    $("#bEditBot").textContent = editarBotonera ? "Listo" : "Editar botonera";
-    $("#botCols").value = String(bo.columnas || 4);
+    $("#bEditBot").innerHTML = editarBotonera ? "✓ Listo" : "✏️ Editar botones";
+    $("#bEditBot").classList.toggle("listo", editarBotonera);
+    $("#botTam").textContent = bo.columnas || 4;
+    $("#botNota").innerHTML = editarBotonera ? "<b>Modo edición:</b> toca un botón para cambiarlo · arrástralo para moverlo · todo se guarda solo" : "Toca un botón para sacar su gráfica al aire · o usa su tecla";
+    if (selB >= botones().length) { selB = -1; }
     cont.innerHTML = botones().map(function (b, i) {
       var s2 = estadoBoton(b), col = b.color || "#3A3F4E";
-      return '<button class="bt' + (s2.on ? " on" : "") + (s2.ev ? " ev" : "") + (s2.falta ? " falta" : "") + (b.esp ? " esp" : "") + '" data-i="' + i + '" style="--c:' + esc(col) + '" title="' + esc(s2.txt) + '">' +
+      return '<button class="bt' + (s2.on ? " on" : "") + (s2.ev ? " ev" : "") + (s2.falta ? " falta" : "") + (b.esp ? " esp" : "") + (editarBotonera && i === selB ? " sel" : "") + '" data-i="' + i + '" style="--c:' + esc(col) + '" title="' + esc(s2.txt) + '">' +
         '<span class="bt-tec">' + esc(nombreTecla(b.tecla)) + '</span>' + (s2.pend || s2.falta ? '<span class="bt-pend" title="Tiene datos o archivos pendientes">⚠</span>' : '') +
-        '<span class="bt-et">' + esc(b.etiqueta || s2.txt) + '</span><span class="bt-sub">' + esc(s2.tipo) + (s2.ev ? " · se lanza" : s2.on ? (salidas === 0 ? " · PROG." : " · AL AIRE") : "") + '</span>' +
-        (editarBotonera ? '<span class="bt-ord"><i data-m="-1">◀</i><i data-m="1">▶</i></span>' : '') + '</button>';
-    }).join("") + (editarBotonera ? '<button class="bt bt-mas" id="btMas"><span class="bt-et">+ BOTÓN</span><span class="bt-sub">agregar</span></button>' : '');
-    if (!botones().length && !editarBotonera) { cont.innerHTML = '<div class="lista-vacia">No hay botones. Toca «Editar botonera» para agregarlos.</div>'; }
+        '<span class="bt-et">' + esc(b.etiqueta || s2.txt) + '</span><span class="bt-sub">' + (s2.e && s2.e.tr && (s2.e.tr.entra || s2.e.tr.sale) ? '<span title="Entra o sale con transición">✨ </span>' : '') + esc(s2.tipo) + (s2.ev ? " · se lanza" : s2.on ? (salidas === 0 ? " · PROG." : " · AL AIRE") : "") + '</span>' +
+        (editarBotonera ? '<span class="bt-asa" title="Arrastrar para mover">⠿</span>' : '') + '</button>';
+    }).join("") + (editarBotonera ? '<button class="bt bt-mas" id="btMas"><span class="bt-mas-ico">+</span><span class="bt-sub">AGREGAR BOTÓN</span></button>' : '');
+    if (!botones().length && !editarBotonera) { cont.innerHTML = '<div class="lista-vacia">No hay botones. Toca «Editar botones» para agregarlos.</div>'; }
+  }
+  /* guarda y redibuja sin perder lo que se está escribiendo en el panel lateral */
+  var tGuardarBot = null;
+  function cambioBot(insp, lento) {
+    dibujarBotonera(); if (insp) { pintarInsp(); }
+    clearTimeout(tGuardarBot);
+    if (lento) { tGuardarBot = setTimeout(function () { con.publicar(estado); }, 350); } else { con.publicar(estado); }
+  }
+  function opcionesBot() {
+    var usados = {}; pasos().forEach(function (p) { p.items.forEach(function (id) { usados[id] = usados[id] || p.n; }); });
+    var acc = Object.keys(ESPECIALES).map(function (k) { return {v: ":" + k, nom: ESPECIALES[k], tipo: "ACCIÓN", num: "⚡"}; });
+    var gr = estado.elementos.filter(function (e) { return P[e.plantilla]; }).slice().sort(function (a, c) { return (usados[a.id] || "99").localeCompare(usados[c.id] || "99"); })
+      .map(function (e) { return {v: e.id, nom: e.nombre, tipo: (CG.TIPOS[CG.tipoDe(e)] || "").toUpperCase(), num: usados[e.id] || "·"}; });
+    return acc.concat(gr);
+  }
+  function pintarInsp() {
+    var a = $("#botInsp"); if (!a) { return; }
+    a.hidden = !editarBotonera; if (!editarBotonera) { return; }
+    var b = botones()[selB];
+    if (!b) {
+      a.innerHTML = '<div class="bi-vacio"><div class="bi-ilus">👆</div><b>Toca un botón para editarlo</b><p>Puedes cambiar qué gráfica saca, su texto, su color y su tecla. Los cambios se ven al instante.</p><p>Para ordenarlos, <b>arrástralos</b> en la grilla.</p><button class="btn prim grande" id="biNuevo">+ Agregar botón</button></div>';
+      $("#biNuevo").onclick = agregarBoton; return;
+    }
+    var v = b.esp ? ":" + b.esp : b.el, s2 = estadoBoton(b), ops = opcionesBot();
+    var dueno = {}; botones().forEach(function (x, j) { if (x.tecla) { dueno[x.tecla] = j; } });
+    var teclas = TECLAS_F.slice(); if (b.tecla && teclas.indexOf(b.tecla) < 0) { teclas.push(b.tecla); }
+    var mostrarAcc = !b.esp && !s2.ev;
+    a.innerHTML =
+      '<div class="bi-cab"><span class="bi-prev" style="--c:' + esc(b.color || "#3A3F4E") + '">' + esc(nombreTecla(b.tecla) || "—") + '</span><div><small>BOTÓN ' + (selB + 1) + ' DE ' + botones().length + '</small><b>' + esc(b.etiqueta || s2.txt) + '</b></div><button class="btn ico" id="biCerrar" title="Cerrar">✕</button></div>' +
+      '<div class="bi-sec"><label class="bi-tit"><span>1</span>¿Qué gráfica saca?</label>' +
+        '<input type="search" id="biBus" placeholder="Buscar gráfica…" value="' + esc(filtroBot) + '"><div class="bi-ops" id="biOps">' +
+        ops.map(function (o) { return '<button class="bi-op' + (o.v === v ? " on" : "") + '" data-v="' + esc(o.v) + '"><span class="bi-num">' + esc(o.num) + '</span><span class="bi-nom">' + esc(o.nom) + '</span><span class="bi-tipo">' + esc(o.tipo) + '</span></button>'; }).join("") + '</div></div>' +
+      '<div class="bi-sec"><label class="bi-tit" for="biEt"><span>2</span>Texto del botón</label><input type="text" id="biEt" maxlength="28" value="' + esc(b.etiqueta || "") + '" placeholder="' + esc(s2.txt.toUpperCase()) + '"><span class="nota">Si lo dejas vacío usa el nombre de la gráfica.</span></div>' +
+      '<div class="bi-sec"><label class="bi-tit"><span>3</span>Color</label><div class="bi-cols">' + COLORES_B.map(function (x) { return '<button class="bi-col' + (x === b.color ? " on" : "") + '" data-c="' + x + '" style="background:' + x + '"></button>'; }).join("") +
+        '<label class="bi-col bi-col-mas" title="Otro color"><input type="color" id="biColor" value="' + esc(b.color || "#3A3F4E") + '">+</label></div></div>' +
+      '<div class="bi-sec"><label class="bi-tit"><span>4</span>Tecla</label><div class="bi-teclas">' +
+        teclas.map(function (k) { var j = dueno[k], otro = j != null && j !== selB ? botones()[j] : null; return '<button class="bi-tecla' + (b.tecla === k ? " on" : "") + (otro ? " usada" : "") + '" data-k="' + esc(k) + '" title="' + (otro ? "La usa «" + esc(otro.etiqueta || estadoBoton(otro).txt) + "»: se le quitará" : "Libre") + '"><b>' + esc(nombreTecla(k)) + '</b><small>' + (b.tecla === k ? "este botón" : otro ? esc(otro.etiqueta || estadoBoton(otro).txt) : "libre") + '</small></button>'; }).join("") +
+        '<button class="bi-tecla' + (!b.tecla ? " on" : "") + '" data-k=""><b>—</b><small>sin tecla</small></button></div>' +
+        '<button class="btn bi-cap" id="biCap">⌨️ Presionar una tecla del teclado</button></div>' +
+      (mostrarAcc ? '<div class="bi-sec"><label class="bi-tit"><span>5</span>Al presionar</label><div class="seg bi-acc" id="biAcc">' + [["alternar", "Muestra / oculta"], ["mostrar", "Solo muestra"], ["ocultar", "Solo oculta"]].map(function (x) { return '<button data-v="' + x[0] + '" class="' + ((b.accion || "alternar") === x[0] ? "on" : "") + '">' + x[1] + '</button>'; }).join("") + '</div></div>' : '') +
+      (s2.e ? '<div class="bi-sec"><label class="bi-tit"><span>' + (mostrarAcc ? 6 : 5) + '</span>Transición</label><div class="bi-trs"><label><small>Entra con</small><select id="biTrE">' + opcionesTrans((s2.e.tr || {}).entra, s2.e.id) + '</select></label>' +
+        (s2.ev ? '' : '<label><small>Sale con</small><select id="biTrS">' + opcionesTrans((s2.e.tr || {}).sale, s2.e.id) + '</select></label>') + '</div><span class="nota">Crea o sube transiciones en Configuración → Transiciones.</span></div>' : '') +
+      '<div class="bi-pie"><button class="btn" id="biIzq" title="Mover a la izquierda">◀</button><button class="btn" id="biDer" title="Mover a la derecha">▶</button><button class="btn" id="biDup">Duplicar</button><button class="btn peligro" id="biDel">Eliminar</button></div>';
+    var on = $(".bi-op.on", a); if (on && !filtroBot) { on.scrollIntoView({block: "nearest"}); }
+    filtrarOps();
+    $("#biCerrar").onclick = function () { selB = -1; cambioBot(true); };
+    $("#biBus").oninput = function () { filtroBot = this.value; filtrarOps(); };
+    $("#biOps").onclick = function (ev) {
+      var o = ev.target.closest(".bi-op"); if (!o) { return; }
+      var nv = o.dataset.v; b.el = nv.charAt(0) === ":" ? "" : nv; b.esp = nv.charAt(0) === ":" ? nv.slice(1) : ""; b.etiqueta = ""; filtroBot = "";
+      cambioBot(true);
+    };
+    $("#biEt").oninput = function () { b.etiqueta = this.value.toUpperCase(); $(".bi-cab b", a).textContent = b.etiqueta || estadoBoton(b).txt; cambioBot(false, true); };
+    $$(".bi-col[data-c]", a).forEach(function (x) { x.onclick = function () { b.color = x.dataset.c; cambioBot(true); }; });
+    $("#biColor").oninput = function () { b.color = this.value; cambioBot(false, true); $(".bi-prev", a).style.setProperty("--c", b.color); };
+    $$(".bi-tecla", a).forEach(function (x) { x.onclick = function () { asignarTecla(b, x.dataset.k); }; });
+    $("#biCap").onclick = function () {
+      var bt = this; bt.textContent = "Presiona la tecla ahora… (Esc cancela)"; bt.classList.add("esperando"); capturando = true;
+      var f = function (ev) {
+        ev.preventDefault(); ev.stopPropagation(); document.removeEventListener("keydown", f, true); capturando = null;
+        if (ev.key === "Escape") { pintarInsp(); return; }
+        if (/^(Tab|Enter|Shift|Control|Alt|Meta|CapsLock)$/.test(ev.key)) { toast("Esa tecla no se puede usar. Prueba otra.", "err"); pintarInsp(); return; }
+        asignarTecla(b, ev.key);
+      };
+      document.addEventListener("keydown", f, true);
+    };
+    if ($("#biAcc")) { $$("#biAcc button", a).forEach(function (x) { x.onclick = function () { b.accion = x.dataset.v; cambioBot(true); }; }); }
+    if ($("#biTrE")) { $("#biTrE").onchange = function () { s2.e.tr = Object.assign({}, s2.e.tr, {entra: this.value}); cambioBot(true); }; }
+    if ($("#biTrS")) { $("#biTrS").onchange = function () { s2.e.tr = Object.assign({}, s2.e.tr, {sale: this.value}); cambioBot(true); }; }
+    $("#biIzq").onclick = function () { moverBoton(selB, selB - 1); };
+    $("#biDer").onclick = function () { moverBoton(selB, selB + 1); };
+    $("#biDup").onclick = function () { var c = nuevoBoton(clon(b)); c.id = nuevoBoton({}).id; c.tecla = ""; botones().splice(selB + 1, 0, c); selB++; cambioBot(true); toast("Botón duplicado (sin tecla)", "ok"); };
+    $("#biDel").onclick = function () {
+      var quit = botones().splice(selB, 1)[0], pos = selB; selB = -1; cambioBot(true);
+      toast("Botón eliminado", "", {txt: "Deshacer", fn: function () { botones().splice(pos, 0, quit); selB = pos; cambioBot(true); }});
+    };
+  }
+  function filtrarOps() {
+    var q = filtroBot.trim().toLowerCase();
+    $$("#biOps .bi-op").forEach(function (o) { o.hidden = q && o.textContent.toLowerCase().indexOf(q) < 0; });
+  }
+  function asignarTecla(b, k) {
+    var quitado = null;
+    if (k) { botones().forEach(function (x) { if (x !== b && x.tecla === k) { x.tecla = ""; quitado = x; } }); }
+    b.tecla = k || "";
+    cambioBot(true);
+    if (quitado) { toast("Tecla " + nombreTecla(k) + " movida desde «" + (quitado.etiqueta || estadoBoton(quitado).txt) + "»", "ok"); }
+  }
+  function moverBoton(i, j) {
+    var bs = botones(); if (j < 0 || j >= bs.length || i === j) { return; }
+    var x = bs.splice(i, 1)[0]; bs.splice(j, 0, x); selB = j; cambioBot(true);
+  }
+  function agregarBoton() {
+    var b = nuevoBoton({color: COLORES_B[botones().length % COLORES_B.length]});
+    var libre = TECLAS_F.filter(function (k) { return !botones().some(function (x) { return x.tecla === k; }); })[0];
+    b.tecla = libre || "";
+    var g = estado.elementos.filter(function (e) { return P[e.plantilla] && !botones().some(function (x) { return x.el === e.id; }); })[0];
+    b.el = g ? g.id : ""; if (!g) { b.esp = "limpiar"; }
+    botones().push(b); selB = botones().length - 1; filtroBot = ""; cambioBot(true);
+    setTimeout(function () { var s = $("#biBus"); if (s && !esMovil()) { s.focus(); } var n = $('#botGrid .bt[data-i="' + selB + '"]'); if (n) { n.scrollIntoView({block: "nearest"}); } }, 30);
   }
   function disparar(b, nodo) {
     if (!b) { return; }
@@ -1097,77 +1424,63 @@
     var i = -1; botones().forEach(function (b, j) { if (i < 0 && b.tecla && b.tecla === ev.key) { i = j; } });
     if (i < 0) { return false; }
     ev.preventDefault();
+    if (editarBotonera) { selB = i; dibujarBotonera(); pintarInsp(); return true; }
     disparar(botones()[i], $('#botGrid .bt[data-i="' + i + '"]'));
     return true;
   }
+  /* clic normal = disparar; en edición: tocar = editar, arrastrar = mover (mouse en todo el botón, dedo desde ⠿) */
+  var arr = null;
   $("#botGrid").addEventListener("click", function (ev) {
     var t = ev.target.closest(".bt"); if (!t) { return; }
-    if (t.id === "btMas") { configBoton(-1); return; }
-    var i = +t.dataset.i, m = ev.target.closest(".bt-ord i");
-    if (m) { var j = i + (+m.dataset.m), bs = botones(); if (j >= 0 && j < bs.length) { var x = bs[i]; bs[i] = bs[j]; bs[j] = x; publicar(); } return; }
-    if (editarBotonera) { configBoton(i); } else { disparar(botones()[i], t); }
+    if (t.id === "btMas") { agregarBoton(); return; }
+    if (editarBotonera) { if (arr && arr.movido) { return; } selB = +t.dataset.i; filtroBot = ""; dibujarBotonera(); pintarInsp(); if (esMovil()) { $("#botInsp").scrollTop = 0; } return; }
+    disparar(botones()[+t.dataset.i], t);
   });
-  $("#bEditBot").onclick = function () { editarBotonera = !editarBotonera; dibujarBotonera(); };
-  $("#botCols").onchange = function () { estado.botonera.columnas = +this.value; publicar(); };
+  $("#botGrid").addEventListener("pointerdown", function (ev) {
+    if (!editarBotonera || ev.button > 0) { return; }
+    var t = ev.target.closest(".bt[data-i]"); if (!t) { return; }
+    if (ev.pointerType !== "mouse" && !ev.target.closest(".bt-asa")) { return; }
+    arr = {i: +t.dataset.i, x: ev.clientX, y: ev.clientY, movido: false, fant: null};
+    if (ev.pointerType !== "mouse") { ev.preventDefault(); }
+  });
+  addEventListener("pointermove", function (ev) {
+    if (!arr) { return; }
+    if (!arr.movido) {
+      if (Math.abs(ev.clientX - arr.x) + Math.abs(ev.clientY - arr.y) < 8) { return; }
+      arr.movido = true; document.body.classList.add("bot-arrastrando");
+      var src = $('#botGrid .bt[data-i="' + arr.i + '"]'), r = src.getBoundingClientRect();
+      arr.fant = src.cloneNode(true); arr.fant.classList.add("bt-fantasma"); arr.fant.style.width = r.width + "px"; arr.fant.style.height = r.height + "px";
+      arr.dx = arr.x - r.left; arr.dy = arr.y - r.top; document.body.appendChild(arr.fant);
+    }
+    arr.fant.style.transform = "translate(" + (ev.clientX - arr.dx) + "px," + (ev.clientY - arr.dy) + "px) rotate(-2deg) scale(1.04)";
+    var bajo = document.elementFromPoint(ev.clientX, ev.clientY), t = bajo && bajo.closest("#botGrid .bt[data-i]");
+    if (t && +t.dataset.i !== arr.i) { var bs = botones(), x = bs.splice(arr.i, 1)[0], j = +t.dataset.i; bs.splice(j, 0, x); arr.i = j; selB = j; dibujarBotonera(); }
+    var n = $('#botGrid .bt[data-i="' + arr.i + '"]'); if (n) { n.classList.add("hueco"); }
+  });
+  function soltar() {
+    if (!arr) { return; }
+    var a2 = arr;
+    if (a2.fant) { a2.fant.remove(); }
+    document.body.classList.remove("bot-arrastrando");
+    if (a2.movido) { cambioBot(true); setTimeout(function () { arr = null; }, 0); } else { arr = null; }
+  }
+  addEventListener("pointerup", soltar); addEventListener("pointercancel", soltar);
+  $("#bModoComp").onclick = function () { modoDisp("completo"); };
+  $("#bBotCfg").onclick = function () { config("botonera"); };
+  $("#bEditBot").onclick = function () { editarBotonera = !editarBotonera; if (!editarBotonera) { selB = -1; } dibujarBotonera(); pintarInsp(); };
+  $("#botMenos").onclick = function () { estado.botonera.columnas = Math.max(2, (estado.botonera.columnas || 4) - 1); cambioBot(false); };
+  $("#botMas").onclick = function () { estado.botonera.columnas = Math.min(8, (estado.botonera.columnas || 4) + 1); cambioBot(false); };
   $("#bBotAyuda").onclick = function () {
     modal("<h2>Botonera y teclado</h2><p class='lead'>Cada botón muestra u oculta una gráfica con un toque (o lanza una transición).</p><ul class='pasos'>" +
-      "<li>Las teclas <b>F13 a F24</b> (o cualquier otra que elijas) disparan su botón <b>en cualquier pestaña</b> del panel.</li>" +
-      "<li>Los teclados externos y botoneras programables (macro pads, Stream Deck, etc.) pueden enviar F13–F24: configúralos en su programa.</li>" +
-      "<li>Las teclas funcionan cuando la ventana del panel está activa (en primer plano). Si usas el panel como dock de OBS, haz clic en el dock antes de usar el teclado.</li>" +
-      "<li>Los botones usan lo <b>guardado</b> de cada gráfica, no lo que estés escribiendo en el editor.</li>" +
-      "<li><b>Editar botonera</b>: toca un botón para cambiar gráfica, nombre, color, acción o tecla; ◀ ▶ lo mueven; «+ BOTÓN» agrega.</li></ul>" +
+      "<li><b>Para editar</b>: toca «✏️ Editar botones» y luego toca cualquier botón. A la derecha eliges la gráfica, el texto, el color y la tecla. Todo se guarda solo.</li>" +
+      "<li><b>Para ordenar</b>: en modo edición arrastra los botones (en el celular, desde el ícono ⠿).</li>" +
+      "<li>Las teclas <b>F13 a F24</b> (o cualquier otra que elijas) disparan su botón <b>en cualquier pestaña</b> del panel. Teclados externos, macro pads y Stream Deck pueden enviar F13–F24 desde su programa.</li>" +
+      "<li>Las teclas funcionan con la ventana del panel <b>al frente</b>. Si usas el panel como dock de OBS, haz clic en el dock antes de usar el teclado.</li>" +
+      "<li>Los botones usan lo <b>guardado</b> de cada gráfica, no lo que estés escribiendo en el editor.</li></ul>" +
       "<div class='modal-pie'><button class='btn prim' onclick=\"document.querySelector('#modal .cerrar').click()\">Entendido</button></div>");
   };
-  function configBoton(i) {
-    var nuevo = i < 0, b = nuevo ? nuevoBoton({color: COLORES_B[botones().length % COLORES_B.length]}) : JSON.parse(JSON.stringify(botones()[i]));
-    var usados = {}; pasos().forEach(function (p) { p.items.forEach(function (id) { usados[id] = usados[id] || p.n; }); });
-    var lista = estado.elementos.filter(function (e) { return P[e.plantilla]; }).slice().sort(function (a, c) { return (usados[a.id] || "99").localeCompare(usados[c.id] || "99"); });
-    var opts = '<optgroup label="Acciones">' + Object.keys(ESPECIALES).map(function (k) { return '<option value=":' + k + '">' + esc(ESPECIALES[k]) + '</option>'; }).join("") + '</optgroup><optgroup label="Gráficas">' +
-      lista.map(function (e) { return '<option value="' + esc(e.id) + '">' + (usados[e.id] ? usados[e.id] + " · " : "") + esc(e.nombre) + '</option>'; }).join("") + '</optgroup>';
-    var c = modal("<h2>" + (nuevo ? "Nuevo botón" : "Configurar botón") + "</h2>" +
-      "<div class='form-fila'><div class='campo ancho'><label>Gráfica o acción</label><select id='cbEl'>" + opts + "</select></div>" +
-      "<div class='campo'><label>Texto del botón</label><input type='text' id='cbEt' maxlength='28' placeholder='Igual al nombre de la gráfica'></div>" +
-      "<div class='campo'><label>Al presionar</label><div class='seg' id='cbAcc'><button type='button' data-v='alternar'>Mostrar / ocultar</button><button type='button' data-v='mostrar'>Solo mostrar</button><button type='button' data-v='ocultar'>Solo ocultar</button></div></div>" +
-      "<div class='campo'><label>Color</label><div class='color'><div class='sw' id='cbCol'>" + COLORES_B.map(function (x) { return "<button type='button' style='background:" + x + ";width:28px;height:28px' data-c='" + x + "'></button>"; }).join("") + "</div></div></div>" +
-      "<div class='campo'><label>Tecla</label><div class='media'><select id='cbTec'><option value=''>Sin tecla</option>" + TECLAS_F.map(function (k) { return "<option>" + k + "</option>"; }).join("") + "<option value='__otra'>Otra tecla…</option></select><button type='button' class='btn mini' id='cbCap'>Presionar tecla</button></div><span class='nota' id='cbTecNota'></span></div></div>" +
-      "<div class='modal-pie'>" + (nuevo ? "" : "<button class='btn peligro' id='cbDel'>Eliminar botón</button>") + "<button class='btn' id='cbNo'>Cancelar</button><button class='btn prim' id='cbOk'>Guardar</button></div>", {alCerrar: function () { capturando = null; }});
-    var sel2 = $("#cbEl", c); sel2.value = b.esp ? ":" + b.esp : b.el; if (!sel2.value && sel2.options.length) { sel2.selectedIndex = Object.keys(ESPECIALES).length; }
-    $("#cbEt", c).value = b.etiqueta || "";
-    function marcarAcc() { $$("#cbAcc button", c).forEach(function (x) { x.classList.toggle("on", x.dataset.v === (b.accion || "alternar")); }); }
-    $$("#cbAcc button", c).forEach(function (x) { x.onclick = function () { b.accion = x.dataset.v; marcarAcc(); }; }); marcarAcc();
-    function marcarCol() { $$("#cbCol button", c).forEach(function (x) { x.style.outline = x.dataset.c === b.color ? "3px solid #fff" : ""; }); }
-    $$("#cbCol button", c).forEach(function (x) { x.onclick = function () { b.color = x.dataset.c; marcarCol(); }; }); marcarCol();
-    var st = $("#cbTec", c), nota = $("#cbTecNota", c);
-    function ponerTecla(k) {
-      b.tecla = k;
-      if (k && TECLAS_F.indexOf(k) < 0) { if (![].some.call(st.options, function (o) { return o.value === k; })) { var o = document.createElement("option"); o.value = k; o.textContent = nombreTecla(k); st.insertBefore(o, st.lastChild); } }
-      st.value = k || "";
-      var otro = botones().filter(function (x, j) { return j !== i && x.tecla && x.tecla === k; })[0];
-      nota.textContent = otro ? "Esa tecla la usa «" + (otro.etiqueta || "otro botón") + "»: se le quitará." : (k ? "Tecla asignada: " + nombreTecla(k) : "");
-    }
-    ponerTecla(b.tecla);
-    st.onchange = function () { if (st.value === "__otra") { $("#cbCap", c).click(); } else { ponerTecla(st.value); } };
-    $("#cbCap", c).onclick = function () {
-      nota.textContent = "Presiona la tecla en tu teclado o botonera… (Esc cancela)"; capturando = true;
-      var f = function (ev) {
-        ev.preventDefault(); ev.stopPropagation(); document.removeEventListener("keydown", f, true); capturando = null;
-        if (ev.key === "Escape") { ponerTecla(b.tecla); return; }
-        if (/^(Tab|Enter|Shift|Control|Alt|Meta)$/.test(ev.key)) { nota.textContent = "Esa tecla no se puede usar. Prueba otra."; return; }
-        ponerTecla(ev.key);
-      };
-      document.addEventListener("keydown", f, true);
-    };
-    $("#cbNo", c).onclick = cerrarModal;
-    if (!nuevo) { $("#cbDel", c).onclick = function () { botones().splice(i, 1); cerrarModal(); publicar(); toast("Botón eliminado", "ok"); }; }
-    $("#cbOk", c).onclick = function () {
-      var v = sel2.value; b.el = v.charAt(0) === ":" ? "" : v; b.esp = v.charAt(0) === ":" ? v.slice(1) : ""; b.etiqueta = $("#cbEt", c).value.trim().toUpperCase();
-      if (b.tecla) { botones().forEach(function (x, j) { if (j !== i && x.tecla === b.tecla) { x.tecla = ""; } }); }
-      if (nuevo) { botones().push(b); } else { botones()[i] = b; }
-      cerrarModal(); publicar(); toast("Botón guardado", "ok");
-    };
-  }
   $("#bBotRest").onclick = function () {
-    confirmar("¿Restaurar botonera?", "Vuelve a los botones iniciales con las teclas F13–F24. Tus gráficas no se tocan.", "Restaurar").then(function (ok) { if (!ok) { return; } delete estado.botonera; sembrarBotonera(estado); publicar(); });
+    confirmar("¿Restaurar botonera?", "Vuelve a los botones iniciales con las teclas F13–F24. Tus gráficas no se tocan.", "Restaurar").then(function (ok) { if (!ok) { return; } delete estado.botonera; sembrarBotonera(estado); selB = -1; publicar(); pintarInsp(); });
   };
 
   window.CG_PANEL = {estado: function () { return estado; }, seleccionar: seleccionar, mostrar: mostrar, ocultar: ocultar, borrador: borrador, lanzar: lanzar, botones: botones}; /* para pruebas */

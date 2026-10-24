@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#0e1015">
 <title>Panel · Completos Mojados CG</title>
 <link rel="icon" href="assets/logo.png">
-<link rel="stylesheet" href="css/panel.css">
+<link rel="stylesheet" href="css/panel.css?v=202610232240">
 </head>
 <body class="tab-control">
 
@@ -31,7 +31,7 @@
     <button class="btn cortina" id="bCortina" title="Lanzar cortina de salsa (tapa un cambio de cámara)"><svg><use href="#i-rayo"/></svg><span>Cortina</span></button>
     <button class="btn limpiar" id="bLimpiar" title="Retira todas las gráficas de la salida (no corta la conexión)"><svg><use href="#i-limpiar"/></svg><span>Limpiar salida</span></button>
     <button class="btn" id="bRemoto" title="Links para OBS y para controlar desde otro equipo"><svg><use href="#i-link"/></svg><span>Remoto</span></button>
-    <button class="btn ico" id="bAjustes" title="Ajustes: logo, velocidad, copia de seguridad"><svg><use href="#i-ajustes"/></svg></button>
+    <button class="btn ico" id="bAjustes" title="Configuración: botonera, gráficas, transiciones, dispositivo y ajustes"><svg><use href="#i-ajustes"/></svg></button>
     <button class="btn ico" id="bAyuda" title="Ayuda rápida"><svg><use href="#i-ayuda"/></svg></button>
   </div>
 </header>
@@ -101,13 +101,18 @@
   <!-- ================= BOTONERA ================= -->
   <section id="botonera">
     <div class="bot-barra">
-      <b>Botonera</b><span class="bot-nota">Teclas F13–F24 activas con esta ventana al frente</span>
-      <label class="bot-cols">Columnas <select id="botCols"><option>3</option><option>4</option><option>5</option><option>6</option><option>8</option></select></label>
-      <button class="btn mini" id="bBotRest" title="Volver a los botones iniciales">Restaurar</button>
+      <div class="bot-tit"><b>Botonera</b><span class="bot-nota" id="botNota"></span></div>
+      <div class="bot-tam" title="Tamaño de los botones"><span>Columnas</span><button class="btn mini" id="botMenos" aria-label="Menos columnas">−</button><b id="botTam">4</b><button class="btn mini" id="botMas" aria-label="Más columnas">+</button></div>
+      <button class="btn mini bot-rest" id="bBotRest" title="Volver a los botones iniciales">Restaurar</button>
       <button class="btn mini" id="bBotAyuda" title="Cómo funciona"><svg><use href="#i-ayuda"/></svg></button>
-      <button class="btn mini prim" id="bEditBot">Editar botonera</button>
+      <button class="btn mini" id="bBotCfg" title="Configuración completa: qué va en la botonera, teclas, transiciones">⚙️ Configurar</button>
+      <button class="btn mini bot-comp" id="bModoComp" title="Ver el panel completo en este equipo">🖥️ Panel completo</button>
+      <button class="btn prim bot-edit" id="bEditBot">✏️ Editar botones</button>
     </div>
-    <div id="botGrid" class="bot-grid"></div>
+    <div class="bot-cuerpo">
+      <div id="botGrid" class="bot-grid"></div>
+      <aside id="botInsp" class="bot-insp" hidden></aside>
+    </div>
   </section>
 
   <section id="monitores">
@@ -173,13 +178,13 @@
   </defs>
 </svg>
 
-<script src="js/config.js"></script>
-<script src="js/plantillas.js"></script>
-<script src="js/paquete.js"></script>
-<script src="js/libreto.js"></script>
-<script src="js/conexion.js"></script>
-<script src="js/vendor/qrcode.js"></script>
-<script src="js/chroma.js"></script>
-<script src="js/panel.js"></script>
+<script src="js/config.js?v=202610232240"></script>
+<script src="js/plantillas.js?v=202610232240"></script>
+<script src="js/paquete.js?v=202610232240"></script>
+<script src="js/libreto.js?v=202610232240"></script>
+<script src="js/conexion.js?v=202610232240"></script>
+<script src="js/vendor/qrcode.js?v=202610232240"></script>
+<script src="js/chroma.js?v=202610232240"></script>
+<script src="js/panel.js?v=202610232240"></script>
 </body>
 </html>

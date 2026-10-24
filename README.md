@@ -129,6 +129,20 @@ La pestaña **Botonera** es un panel de botones grandes, uno por gráfica, para 
 
 GC listos tomados de los videos de referencia: *Felipe Jiménez / Presentador*, *Carlos Piña / Vocalista de la banda El Piña Papa*, *Invitado 1 / Dirección del Seremi* y *Presentador 2 / Notiserio* (etiqueta PERIODISTA, estilo noticiero).
 
+### Configuración completa (botón ⚙️ arriba a la derecha)
+
+| Pestaña | Para qué |
+|---|---|
+| **Botonera** | Interruptor por gráfica para que tenga (o no) su botón, y tecla de cada una (F13–F24 o ⌨️ cualquier tecla). |
+| **Gráficas** | Todas las gráficas: renombrar, **Entra con / Sale con** (sin transición o con una cortina, transición animada o video tuyo), editar, duplicar, eliminar y crear nuevas. |
+| **Transiciones** | Subir un **video MP4 o .webm** propio como transición, crear cortinas de salsa y transiciones animadas, probarlas y ajustar el **corte** (segundo en que tapan la pantalla). |
+| **Dispositivo** | Por equipo: *Automático* (celular y tablet = solo botonera, computador = panel completo), *Solo botonera* o *Panel completo*. |
+| **General** | Datos del programa, logo, velocidad, biblioteca de videos y copia de seguridad. |
+
+Con transición, al mostrar u ocultar se lanza primero la transición y la gráfica cambia justo en el corte, cuando la pantalla está tapada. El botón de la botonera muestra ✨ cuando la gráfica tiene transición. También se elige desde el editor de cada botón (paso *Transición*).
+
+> Al publicar cambios, sube el número `?v=` de los `<link>`/`<script>` en `panel.html`, `salida.html` e `index.html` para que los navegadores no mezclen archivos viejos y nuevos.
+
 ## 2. Videos propios (pantalla verde o transparencia)
 
 En el panel: **+ Nueva → Video** (o «Subir video» dentro de una gráfica de video).
