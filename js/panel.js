@@ -1028,20 +1028,34 @@
   function cfgBotonera(cu) {
     var o = ordenLibreto(), dueno = {}; botones().forEach(function (b) { if (b.tecla) { dueno[b.tecla] = b; } });
     var filas = Object.keys(ESPECIALES).map(function (k) { return {v: ":" + k, nom: ESPECIALES[k], tipo: "ACCIÓN", num: "⚡"}; })
-      .concat(o.lista.map(function (e) { return {v: e.id, nom: e.nombre, tipo: (CG.TIPOS[CG.tipoDe(e)] || "").toUpperCase(), num: o.num[e.id] || "·"}; }));
+      .concat(o.lista.map(function (e) { return {v: e.id, nom: e.nombre, tipo: (CG.TIPOS[CG.tipoDe(e)] || "").toUpperCase(), num: o.num[e.id] || "·", fav: !!e.fav, graf: true}; }));
     var nB = botones().length;
+    var mF = modoFavBot(), nF = o.lista.filter(function (e) { return e.fav; }).length;
     cu.innerHTML = "<div class='cfg-barra'><label class='cfg-bus'><svg><use href='#i-buscar'/></svg><input type='search' placeholder='Buscar gráfica…'></label>" +
+      "<div class='seg cfg-filtro' id='cfgFiltro'><button data-f='todas' class='" + (mF === "todas" ? "on" : "") + "'>Todas (" + o.lista.length + ")</button><button data-f='fav' class='" + (mF === "fav" ? "on" : "") + "'>★ Favoritas (" + nF + ")</button></div>" +
       "<span class='cfg-info'><b>" + nB + "</b> en la botonera</span><button class='btn prim' id='cfgVerBot'>Abrir botonera para ordenar →</button></div>" +
       "<p class='nota-m'>Activa el interruptor para que la gráfica tenga su botón. Elige la tecla: F13–F24 o la que mande tu teclado (⌨️). Para cambiar texto o color usa la botonera en modo edición.</p>" +
       "<div class='cfg-lista'>" + filas.map(function (f) {
         var b = botonDe(f.v), teclas = TECLAS_F.slice(); if (b && b.tecla && teclas.indexOf(b.tecla) < 0) { teclas.push(b.tecla); }
-        return "<div class='cfg-fila" + (b ? " activa" : "") + "' data-v='" + esc(f.v) + "' data-q='" + esc((f.nom + " " + f.tipo).toLowerCase()) + "'>" +
+        return "<div class='cfg-fila" + (b ? " activa" : "") + "' data-v='" + esc(f.v) + "' data-fav='" + (f.fav ? 1 : 0) + "' data-q='" + esc((f.nom + " " + f.tipo).toLowerCase()) + "'>" +
           "<label class='sw-on'><input type='checkbox' class='cfgOn'" + (b ? " checked" : "") + "><i></i></label>" +
+          (f.graf ? "<button class='bi-star" + (f.fav ? " on" : "") + " cfgStar' title='" + (f.fav ? "Quitar de favoritas" : "Agregar a favoritas") + "'>★</button>" : "<span class='bi-star nada'></span>") +
           "<span class='bi-num'>" + esc(f.num) + "</span><span class='cfg-nom'><b>" + esc(f.nom) + "</b><small>" + esc(f.tipo) + "</small></span>" +
           (b ? "<span class='cfg-color' style='background:" + esc(b.color || "#3A3F4E") + "'></span><select class='cfgTec'><option value=''>Sin tecla</option>" + teclas.map(function (k) { var d = dueno[k]; return "<option value='" + esc(k) + "'" + (b.tecla === k ? " selected" : "") + ">" + esc(nombreTecla(k)) + (d && d !== b ? " · ocupa " + esc((d.etiqueta || estadoBoton(d).txt).slice(0, 14)) : "") + "</option>"; }).join("") + "</select><button class='btn mini cfgCap' title='Presionar una tecla del teclado'>⌨️</button>" : "<span class='cfg-vacio'>sin botón</span>") +
           "</div>";
       }).join("") + "</div>";
-    buscador(cu);
+    buscador(cu, function () {
+      if (modoFavBot() !== "fav") { return; }
+      $$(".cfg-fila[data-q]", cu).forEach(function (r) { if (r.dataset.fav !== "1") { r.hidden = true; } });
+    });
+    $$("#cfgFiltro button", cu).forEach(function (x) { x.onclick = function () { guardarLS("cg_bot_filtro", x.dataset.f); config(); }; });
+    $$(".cfgStar", cu).forEach(function (x) {
+      x.onclick = function (ev) {
+        ev.preventDefault(); ev.stopPropagation();
+        var fe = el(x.closest(".cfg-fila").dataset.v); if (!fe) { return; }
+        fe.fav = !fe.fav; publicar(); config();
+      };
+    });
     $("#cfgVerBot", cu).onclick = function () { cerrarModal(); if (esMovil()) { vistaMovil("boton"); } else { cambiarTab("boton"); } editarBotonera = true; dibujarBotonera(); pintarInsp(); };
     $$(".cfg-fila", cu).forEach(function (r) {
       var v = r.dataset.v;
@@ -1286,6 +1300,12 @@
     return {on: e.on, ev: !!p.evento, pend: pend.length > 0, falta: e.plantilla === "video" && !e.datos.media, txt: e.nombre, tipo: (CG.TIPOS[CG.tipoDe(e)] || "").toUpperCase(), e: e};
   }
   var selB = -1, filtroBot = "";
+  /* filtro del selector de gráficas: "todas" o "fav" (se recuerda en este equipo) */
+  function modoFavBot() {
+    var m = leerLS("cg_bot_filtro", null);
+    if (m === "fav" || m === "todas") { return m; }
+    return estado && estado.elementos.some(function (e) { return e.fav; }) ? "fav" : "todas";
+  }
   function dibujarBotonera() {
     var cont = $("#botGrid"); if (!cont || !estado) { return; }
     var bo = estado.botonera || {columnas: 4};
@@ -1316,7 +1336,7 @@
     var usados = {}; pasos().forEach(function (p) { p.items.forEach(function (id) { usados[id] = usados[id] || p.n; }); });
     var acc = Object.keys(ESPECIALES).map(function (k) { return {v: ":" + k, nom: ESPECIALES[k], tipo: "ACCIÓN", num: "⚡"}; });
     var gr = estado.elementos.filter(function (e) { return P[e.plantilla]; }).slice().sort(function (a, c) { return (usados[a.id] || "99").localeCompare(usados[c.id] || "99"); })
-      .map(function (e) { return {v: e.id, nom: e.nombre, tipo: (CG.TIPOS[CG.tipoDe(e)] || "").toUpperCase(), num: usados[e.id] || "·"}; });
+      .map(function (e) { return {v: e.id, nom: e.nombre, tipo: (CG.TIPOS[CG.tipoDe(e)] || "").toUpperCase(), num: usados[e.id] || "·", fav: !!e.fav, graf: true}; });
     return acc.concat(gr);
   }
   function pintarInsp() {
@@ -1334,8 +1354,17 @@
     a.innerHTML =
       '<div class="bi-cab"><span class="bi-prev" style="--c:' + esc(b.color || "#3A3F4E") + '">' + esc(nombreTecla(b.tecla) || "—") + '</span><div><small>BOTÓN ' + (selB + 1) + ' DE ' + botones().length + '</small><b>' + esc(b.etiqueta || s2.txt) + '</b></div><button class="btn ico" id="biCerrar" title="Cerrar">✕</button></div>' +
       '<div class="bi-sec"><label class="bi-tit"><span>1</span>¿Qué gráfica saca?</label>' +
+        (function () {
+          var nFav = ops.filter(function (o) { return o.fav; }).length, nGr = ops.filter(function (o) { return o.graf; }).length, m = modoFavBot();
+          return '<div class="seg bi-filtro" id="biFiltro"><button data-f="todas" class="' + (m === "todas" ? "on" : "") + '">Todas (' + nGr + ')</button>' +
+                 '<button data-f="fav" class="' + (m === "fav" ? "on" : "") + '">★ Favoritas (' + nFav + ')</button></div>';
+        })() +
         '<input type="search" id="biBus" placeholder="Buscar gráfica…" value="' + esc(filtroBot) + '"><div class="bi-ops" id="biOps">' +
-        ops.map(function (o) { return '<button class="bi-op' + (o.v === v ? " on" : "") + '" data-v="' + esc(o.v) + '"><span class="bi-num">' + esc(o.num) + '</span><span class="bi-nom">' + esc(o.nom) + '</span><span class="bi-tipo">' + esc(o.tipo) + '</span></button>'; }).join("") + '</div></div>' +
+        ops.map(function (o) {
+          return '<div role="button" tabindex="0" class="bi-op' + (o.v === v ? " on" : "") + (o.graf ? "" : " accion") + '" data-v="' + esc(o.v) + '" data-fav="' + (o.fav ? 1 : 0) + '">' +
+            (o.graf ? '<span class="bi-star' + (o.fav ? " on" : "") + '" title="' + (o.fav ? "Quitar de favoritas" : "Agregar a favoritas") + '">★</span>' : '<span class="bi-star nada"></span>') +
+            '<span class="bi-num">' + esc(o.num) + '</span><span class="bi-nom">' + esc(o.nom) + '</span><span class="bi-tipo">' + esc(o.tipo) + '</span></div>';
+        }).join("") + '<div class="bi-sinfav" id="biSinFav" hidden>Aún no tienes favoritas.<br>Toca la <b>★</b> de cualquier gráfica para agregarla.<button class="btn mini" id="biVerTodas">Ver todas</button></div></div></div>' +
       '<div class="bi-sec"><label class="bi-tit" for="biEt"><span>2</span>Texto del botón</label><input type="text" id="biEt" maxlength="28" value="' + esc(b.etiqueta || "") + '" placeholder="' + esc(s2.txt.toUpperCase()) + '"><span class="nota">Si lo dejas vacío usa el nombre de la gráfica.</span></div>' +
       '<div class="bi-sec"><label class="bi-tit"><span>3</span>Color</label><div class="bi-cols">' + COLORES_B.map(function (x) { return '<button class="bi-col' + (x === b.color ? " on" : "") + '" data-c="' + x + '" style="background:' + x + '"></button>'; }).join("") +
         '<label class="bi-col bi-col-mas" title="Otro color"><input type="color" id="biColor" value="' + esc(b.color || "#3A3F4E") + '">+</label></div></div>' +
@@ -1351,7 +1380,16 @@
     filtrarOps();
     $("#biCerrar").onclick = function () { selB = -1; cambioBot(true); };
     $("#biBus").oninput = function () { filtroBot = this.value; filtrarOps(); };
+    $$("#biFiltro button", a).forEach(function (x) { x.onclick = function () { guardarLS("cg_bot_filtro", x.dataset.f); pintarInsp(); }; });
+    $("#biVerTodas").onclick = function () { guardarLS("cg_bot_filtro", "todas"); pintarInsp(); };
     $("#biOps").onclick = function (ev) {
+      var st = ev.target.closest(".bi-star");
+      if (st && !st.classList.contains("nada")) {
+        var fe = el(st.closest(".bi-op").dataset.v); if (!fe) { return; }
+        fe.fav = !fe.fav; cambioBot(true);
+        toast(fe.fav ? "«" + fe.nombre + "» agregada a favoritas" : "«" + fe.nombre + "» quitada de favoritas", "ok");
+        return;
+      }
       var o = ev.target.closest(".bi-op"); if (!o) { return; }
       var nv = o.dataset.v; b.el = nv.charAt(0) === ":" ? "" : nv; b.esp = nv.charAt(0) === ":" ? nv.slice(1) : ""; b.etiqueta = ""; filtroBot = "";
       cambioBot(true);
@@ -1382,8 +1420,15 @@
     };
   }
   function filtrarOps() {
-    var q = filtroBot.trim().toLowerCase();
-    $$("#biOps .bi-op").forEach(function (o) { o.hidden = q && o.textContent.toLowerCase().indexOf(q) < 0; });
+    var q = filtroBot.trim().toLowerCase(), soloFav = modoFavBot() === "fav", vis = 0;
+    $$("#biOps .bi-op").forEach(function (o) {
+      var ok = !(q && o.textContent.toLowerCase().indexOf(q) < 0);
+      /* en Favoritas: solo las marcadas con ★ (y la que ya usa este botón, para no perderla de vista) */
+      if (soloFav && o.dataset.fav !== "1" && !o.classList.contains("on")) { ok = false; }
+      o.hidden = !ok; if (ok) { vis++; }
+    });
+    var sf = $("#biSinFav");
+    if (sf) { sf.hidden = !(soloFav && !$$("#biOps .bi-op").some(function (o) { return o.dataset.fav === "1"; })); }
   }
   function asignarTecla(b, k) {
     var quitado = null;
@@ -1400,7 +1445,8 @@
     var b = nuevoBoton({color: COLORES_B[botones().length % COLORES_B.length]});
     var libre = TECLAS_F.filter(function (k) { return !botones().some(function (x) { return x.tecla === k; }); })[0];
     b.tecla = libre || "";
-    var g = estado.elementos.filter(function (e) { return P[e.plantilla] && !botones().some(function (x) { return x.el === e.id; }); })[0];
+    var libres = estado.elementos.filter(function (e) { return P[e.plantilla] && !botones().some(function (x) { return x.el === e.id; }); });
+    var g = (modoFavBot() === "fav" ? libres.filter(function (e) { return e.fav; })[0] : null) || libres[0];
     b.el = g ? g.id : ""; if (!g) { b.esp = "limpiar"; }
     botones().push(b); selB = botones().length - 1; filtroBot = ""; cambioBot(true);
     setTimeout(function () { var s = $("#biBus"); if (s && !esMovil()) { s.focus(); } var n = $('#botGrid .bt[data-i="' + selB + '"]'); if (n) { n.scrollIntoView({block: "nearest"}); } }, 30);

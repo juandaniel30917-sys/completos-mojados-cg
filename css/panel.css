@@ -642,3 +642,15 @@ body.modo-botonera .bot-grid{grid-auto-rows:minmax(120px,auto);gap:12px}
   .bot-barra .btn{flex:1 1 auto;padding:0 8px;font-size:12px;height:36px}
   .bot-barra .bot-edit{font-size:13px}
 }
+
+/* =================== BOTONERA · FILTRO DE FAVORITAS =================== */
+.bi-filtro button,.cfg-filtro button{flex:1;padding:7px 10px;font-weight:800}
+.bi-filtro button.on,.cfg-filtro button.on{background:var(--acento);color:#140a00}
+.cfg-filtro{flex:0 0 auto}
+.bi-op{cursor:pointer}
+.bi-star{flex:none;width:26px;height:26px;display:grid;place-items:center;border:0;background:none;border-radius:6px;color:var(--txt3);font-size:16px;line-height:1;cursor:pointer;padding:0}
+.bi-star:hover{color:var(--amar);background:var(--panel3)}
+.bi-star.on{color:var(--amar)}
+.bi-star.nada{cursor:default;background:none}
+.bi-sinfav{padding:18px 14px;text-align:center;color:var(--txt2);font-size:12.5px;display:flex;flex-direction:column;gap:10px;align-items:center}
+.bi-sinfav[hidden]{display:none}
