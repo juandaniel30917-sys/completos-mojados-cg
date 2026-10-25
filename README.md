@@ -123,6 +123,7 @@ La pestaña **Botonera** es un panel de botones grandes, uno por gráfica, para 
 - El botón que está al aire se marca con un borde rojo. Con ⚠ se indica que a la gráfica le falta un dato del libreto.
 - **Teclas F13 a F24**: al abrirla, la botonera ya trae asignados los 12 botones principales. Con **Editar botonera** cambias en cada botón la gráfica, el texto, el color y la tecla. Con *Otra tecla…* puedes asignar cualquier tecla que mande tu teclado externo o tu Stream Deck. Una tecla solo puede estar en un botón.
 - Las teclas funcionan en las tres pestañas, pero solo con **la ventana del panel al frente** (el navegador no recibe teclas si está en segundo plano). Mientras escribes en un campo de texto, no se disparan.
+- **Favoritas:** al editar un botón (o en Configuración → Botonera), el selector de gráficas tiene el filtro **Todas / ★ Favoritas**. Toca la ★ de cualquier gráfica para agregarla o quitarla de tus favoritas; el filtro elegido se recuerda en cada equipo.
 - Botones de acción especiales: *Limpiar salida*, *Paso siguiente*, *Paso anterior*, *Cortina*.
 - La botonera se guarda en la sala, así que la ve igual cualquier equipo conectado. **Restaurar** vuelve a los botones iniciales sin tocar las gráficas.
 - En el celular aparece como cuarta vista en la barra inferior, con 2 columnas.
