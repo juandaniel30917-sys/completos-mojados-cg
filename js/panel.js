@@ -229,11 +229,13 @@
     pill("#pRed", m[0], m[1]);
     $("#pRed").title = s === "sin-conexion" ? "Sin conexión. Lo que hagas se enviará solo cuando vuelva internet. Las salidas siguen mostrando lo último." : "Conexión con el servidor";
   }
+  var directos = 0, ultPres = null;
   function presencia(p) {
+    if (p) { ultPres = p; } else { p = ultPres; } if (!p) { return; }
     var n = p.salidas, antes = salidas; salidas = n;
     if (estado && (antes === null || !antes !== !n)) { dibujarLista(); pgm(); estadoFicha(); }
-    pill("#pSalidas", n ? "ok" : "warn", n ? (n === 1 ? "1 salida" : n + " salidas") : "Sin salida");
-    $("#pSalidas").title = n ? "Salidas de OBS conectadas a esta sala" + (p.controles > 0 ? " · " + p.controles + " panel(es) más controlando" : "") : "Ninguna salida (OBS) conectada todavía. Usa Remoto → Link de salida.";
+    pill("#pSalidas", n ? "ok" : "warn", n ? (directos ? "⚡ " : "") + (n === 1 ? "1 salida" : n + " salidas") : "Sin salida");
+    $("#pSalidas").title = n ? "Salidas de OBS conectadas a esta sala" + (directos ? " · ⚡ " + directos + " con conexión directa (instantánea)" : " · por internet (sin conexión directa todavía)") + (p.controles > 0 ? " · " + p.controles + " panel(es) más controlando" : "") : "Ninguna salida (OBS) conectada todavía. Usa Remoto → Link de salida.";
   }
   function guardado(s, msg) {
     var g = $("#pGuardado"); g.classList.toggle("err", s === "error");
@@ -1229,6 +1231,7 @@
     con.on("red", red);
     con.on("guardado", guardado);
     con.on("presencia", presencia);
+    con.on("directo", function (n) { directos = n; presencia(); });
     con.on("fin", finDe);
     con.on("mensaje", function (t, d) {
       if (t === "fin") { finDe(d.id); }

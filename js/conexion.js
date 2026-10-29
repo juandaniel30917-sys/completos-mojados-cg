@@ -61,6 +61,68 @@
   };
   function nombreCanal(outKey) { return CG.sha256("ch:" + outKey).then(function (h) { return "cg-" + h.slice(0, 32); }); }
 
+  /* campos "de ejecución" (órdenes play/pausa, reloj del temporizador): viajan aparte y no cuentan en la huella */
+  var RUNT = ["run", "cmd"];
+  CG.sinRuntime = function (d) { if (!d || typeof d !== "object") { return d; } var c = Object.assign({}, d); RUNT.forEach(function (k) { delete c[k]; }); return c; };
+  CG.runtimeDe = function (d) { var o = {}; RUNT.forEach(function (k) { if (d && d[k] !== undefined) { o[k] = d[k]; } }); return o; };
+  CG.huellaDatos = function (d) { return CG.huella(CG.sinRuntime(d)); };
+
+  /* ---------------- CONEXIÓN DIRECTA (WebRTC) panel ⇄ salida ----------------
+     El panel abre un canal directo con cada salida (OBS). En la misma red wifi el aviso llega en milisegundos,
+     sin pasar por el servidor de Supabase (Oregón). La coordinación inicial viaja por el canal Realtime de la sala.
+     Si no se logra (red que lo bloquea), todo sigue funcionando por Realtime como antes. */
+  function Directo(rt, alMensaje, alCambio) {
+    var pares = {}, ICE = {iceServers: [{urls: "stun:stun.l.google.com:19302"}, {urls: "stun:stun1.l.google.com:19302"}]};
+    if (!window.RTCPeerConnection) { return {senal: function () {}, conectar: function () {}, cerrar: function () {}, ids: function () { return []; }, enviar: function () { return 0; }, abiertos: function () { return 0; }}; }
+    function abiertos() { var n = 0; Object.keys(pares).forEach(function (id) { var dc = pares[id].dc; if (dc && dc.readyState === "open") { n++; } }); return n; }
+    function aviso() { if (alCambio) { try { alCambio(abiertos()); } catch (e) {} } }
+    function cerrar(id) { var p = pares[id]; if (!p) { return; } delete pares[id]; try { if (p.dc) { p.dc.close(); } } catch (e) {} try { p.pc.close(); } catch (e) {} aviso(); }
+    function listo(p) { p.remoto = true; var c = p.cola; p.cola = []; c.forEach(function (x) { p.pc.addIceCandidate(x).catch(function () {}); }); }
+    function nuevo(id, inicia) {
+      cerrar(id);
+      var pc = new RTCPeerConnection(ICE), p = {pc: pc, dc: null, t: Date.now(), cola: [], remoto: false}; pares[id] = p;
+      pc.onicecandidate = function (e) { if (e.candidate) { rt.enviar("rtc", {de: CG.yo, para: id, c: e.candidate.toJSON ? e.candidate.toJSON() : e.candidate}); } };
+      pc.onconnectionstatechange = function () { if (/failed|closed/.test(pc.connectionState) && pares[id] === p) { cerrar(id); } };
+      function usar(dc) {
+        p.dc = dc;
+        dc.onopen = aviso;
+        dc.onmessage = function (m) { var d; try { d = JSON.parse(m.data); } catch (e) { return; } alMensaje(d); };
+        dc.onclose = function () { if (pares[id] === p) { cerrar(id); } };
+      }
+      if (inicia) {
+        usar(pc.createDataChannel("cg", {ordered: true}));
+        pc.createOffer().then(function (o) { return pc.setLocalDescription(o); })
+          .then(function () { rt.enviar("rtc", {de: CG.yo, para: id, sdp: {type: pc.localDescription.type, sdp: pc.localDescription.sdp}}); })
+          .catch(function () { cerrar(id); });
+      } else { pc.ondatachannel = function (e) { usar(e.channel); }; }
+      return p;
+    }
+    return {
+      senal: function (d) {
+        if (!d || d.para !== CG.yo || !d.de) { return; }
+        var p = pares[d.de];
+        if (d.sdp && d.sdp.type === "offer") {
+          p = nuevo(d.de, false);
+          p.pc.setRemoteDescription(d.sdp).then(function () { listo(p); return p.pc.createAnswer(); })
+            .then(function (a) { return p.pc.setLocalDescription(a); })
+            .then(function () { rt.enviar("rtc", {de: CG.yo, para: d.de, sdp: {type: p.pc.localDescription.type, sdp: p.pc.localDescription.sdp}}); })
+            .catch(function () { cerrar(d.de); });
+        } else if (d.sdp && p) {
+          p.pc.setRemoteDescription(d.sdp).then(function () { listo(p); }, function () { cerrar(d.de); });
+        } else if (d.c && p) {
+          if (p.remoto) { p.pc.addIceCandidate(d.c).catch(function () {}); } else { p.cola.push(d.c); }
+        }
+      },
+      /* el panel llama esto por cada salida que ve; reintenta solo si no hay canal abierto y pasaron 8 s */
+      conectar: function (id) { var p = pares[id]; if (p && ((p.dc && p.dc.readyState === "open") || Date.now() - p.t < 8000)) { return; } nuevo(id, true); },
+      cerrar: cerrar,
+      ids: function () { return Object.keys(pares); },
+      enviar: function (obj) { var s = JSON.stringify(obj), n = 0; Object.keys(pares).forEach(function (id) { var dc = pares[id].dc; if (dc && dc.readyState === "open") { try { dc.send(s); n++; } catch (e) {} } }); return n; },
+      abiertos: abiertos
+    };
+  }
+  CG.Directo = Directo;
+
   /* errores en español, entendibles */
   function traducir(e, status) {
     var m = String((e && (e.message || e.msg || e.error || e.hint)) || e || "");
@@ -171,13 +233,16 @@
     /* VÍA RÁPIDA: además de guardar, avisa al tiro por Realtime qué gráficas quedan al aire y qué eventos se lanzan.
        Solo viajan ids + huellas: la salida usa los datos que YA leyó de la base, y si algo no calza espera la base. */
     var evEnviados = {};
+    var directo = null, salidasVistas = [];
     function rapido(est) {
-      if (!rt || !rt.conectado()) { return; }
+      if (!rt) { return; }
       try {
         var on = [], evs = [];
-        (est.elementos || []).forEach(function (e) { if (e.on) { on.push([e.id, CG.huella(e.datos)]); } });
-        (est.ev || []).forEach(function (x) { if (!evEnviados[x.id]) { evEnviados[x.id] = 1; evs.push({id: x.id, el: x.el || "", tipo: x.tipo, t: x.t, h: CG.huella(x.datos)}); } });
-        rt.enviar("ya", {seq: est.seq, n: (est.elementos || []).length, on: on, ev: evs, de: yo});
+        (est.elementos || []).forEach(function (e) { if (e.on) { on.push([e.id, CG.huellaDatos(e.datos), CG.runtimeDe(e.datos)]); } });
+        (est.ev || []).forEach(function (x) { if (!evEnviados[x.id]) { evEnviados[x.id] = 1; evs.push({id: x.id, el: x.el || "", tipo: x.tipo, t: x.t, h: CG.huellaDatos(x.datos), rt: CG.runtimeDe(x.datos)}); } });
+        var msg = {seq: est.seq, n: (est.elementos || []).length, on: on, ev: evs, de: yo};
+        if (directo) { directo.enviar(msg); }      /* primero el canal directo (milisegundos) */
+        if (rt.conectado()) { rt.enviar("ya", msg); } /* y por Realtime para las salidas sin canal directo */
       } catch (e) { console.warn("[via rapida]", e); }
     }
     function releer() {
@@ -195,11 +260,17 @@
           ((r.estado && r.estado.ev) || []).forEach(function (x) { evEnviados[x.id] = 1; });
           return CG.claveSalida(token).then(function (k) { outKey = k; return nombreCanal(k); }).then(function (canal) {
             rt = Realtime(canal, {presencia: {rol: "control", id: yo, desde: Date.now()}});
+            directo = Directo(rt, function () {}, function (n) { ev.emit("directo", n); });
+            var unirSalidas = function () { salidasVistas.forEach(function (id) { directo.conectar(id); }); directo.ids().forEach(function (id) { if (salidasVistas.indexOf(id) < 0) { directo.cerrar(id); } }); };
+            setInterval(function () { if (rt.conectado()) { unirSalidas(); } }, 5000);
             rt.on("estado", function (s) { setRed(s === "conectado" ? "conectado" : "reconectando"); if (s === "conectado") { releer().catch(function () {}); if (pendiente) { guardar(); } } });
-            rt.on("presencia", function (l) { ev.emit("presencia", {salidas: l.filter(function (p) { return p.rol === "salida"; }).length, controles: l.filter(function (p) { return p.rol === "control"; }).length, lista: l}); });
+            rt.on("presencia", function (l) {
+              salidasVistas = l.filter(function (p) { return p.rol === "salida" && p.id; }).map(function (p) { return p.id; }); unirSalidas();
+              ev.emit("presencia", {salidas: l.filter(function (p) { return p.rol === "salida"; }).length, controles: l.filter(function (p) { return p.rol === "control"; }).length, lista: l}); });
             rt.on("mensaje", function (evento, d) {
               if (evento === "rev" && d.de !== yo && d.rev > rev) { releer().catch(function () {}); }
               if (evento === "fin" && d.id) { ev.emit("fin", d.id); }
+              if (evento === "rtc") { directo.senal(d); return; }
               if (evento === "hola") { /* una salida nueva pide estado: le avisamos la versión vigente */ rt.enviar("rev", {rev: rev, de: yo}); }
               if (evento === "error" && d.msg) { ev.emit("errorSalida", d.msg); }
             });
@@ -210,12 +281,14 @@
         });
       },
       publicar: function (estado) {
-        seq = Math.max(seq + 1, Date.now()); estado.seq = seq; pendiente = JSON.parse(JSON.stringify(estado));
-        rapido(pendiente);
+        seq = Math.max(seq + 1, Date.now()); estado.seq = seq;
+        rapido(estado);   /* antes de copiar el estado completo: el aviso sale lo antes posible */
+        pendiente = JSON.parse(JSON.stringify(estado));
         guardar();
       },
       hayPendiente: function () { return !!pendiente || guardando; },
       red: function () { return red; },
+      directos: function () { return directo ? directo.abiertos() : 0; },
       claveSalida: function () { return outKey; },
       renombrar: function (n) { return CG.rpc("cg_renombrar", {p_sala: sala, p_token: token, p_nombre: n}); },
       regenerar: function () { return CG.rpc("cg_regenerar", {p_sala: sala, p_token: token}); },
@@ -230,6 +303,9 @@
   CG.SalaSalida = function (sala, clave) {
     var ev = emisor(), rt = null, rev = -1, seq = 0, leyendo = false, otraVez = false, ultimo = null;
     function emitir(e) { ultimo = e; ev.emit("estado", e); }
+    var cacheH = typeof WeakMap === "function" ? new WeakMap() : null;
+    function hd(e) { if (!cacheH) { return CG.huellaDatos(e.datos); } var h = cacheH.get(e.datos); if (h === undefined) { h = CG.huellaDatos(e.datos); cacheH.set(e.datos, h); } return h; }
+    var directo = null;
     /* VÍA RÁPIDA: arma el estado nuevo con los datos ya leídos de la base. Si algo no calza (gráfica nueva,
        texto editado, video distinto) no inventa nada: deja que llegue la lectura de la base. */
     function rapido(d) {
@@ -238,18 +314,23 @@
       if (d.n !== els.length) { return; }
       els.forEach(function (e) { por[e.id] = e; });
       var quiero = {}, ok = true;
-      d.on.forEach(function (x) { var e = por[x[0]]; if (!e || CG.huella(e.datos) !== x[1]) { ok = false; } else { quiero[x[0]] = 1; } });
+      d.on.forEach(function (x) { var e = por[x[0]]; if (!e || hd(e) !== x[1]) { ok = false; } else { quiero[x[0]] = x[2] || {}; } });
       var vistos = {}; (ultimo.ev || []).forEach(function (x) { vistos[x.id] = 1; });
       var nuevos = [];
       (d.ev || []).forEach(function (x) {
         if (vistos[x.id]) { return; }
-        var e = por[x.el]; if (!e || CG.huella(e.datos) !== x.h) { ok = false; return; }
-        nuevos.push({id: x.id, el: x.el, tipo: x.tipo, t: x.t, datos: JSON.parse(JSON.stringify(e.datos))});
+        var e = por[x.el]; if (!e || hd(e) !== x.h) { ok = false; return; }
+        nuevos.push({id: x.id, el: x.el, tipo: x.tipo, t: x.t, datos: Object.assign(JSON.parse(JSON.stringify(CG.sinRuntime(e.datos))), x.rt || {})});
       });
       if (!ok) { return; }
       var st = Object.assign({}, ultimo, {
         seq: +d.seq,
-        elementos: els.map(function (e) { var on = !!quiero[e.id]; return e.on === on ? e : Object.assign({}, e, {on: on}); }),
+        elementos: els.map(function (e) {
+          var q = quiero[e.id], on = !!q;
+          if (!on) { return e.on ? Object.assign({}, e, {on: false}) : e; }
+          var datos = Object.assign(CG.sinRuntime(e.datos), q);
+          return Object.assign({}, e, {on: true, datos: datos});
+        }),
         ev: (ultimo.ev || []).concat(nuevos).slice(-12)
       });
       seq = +d.seq; emitir(st);
@@ -275,9 +356,11 @@
           rev = r.rev; seq = (r.estado && r.estado.seq) || 0; emitir(r.estado || {});
           return (r.rol === "control" ? CG.claveSalida(clave) : Promise.resolve(clave)).then(nombreCanal).then(function (canal) {
             rt = Realtime(canal, {presencia: {rol: "salida", id: yo, desde: Date.now()}});
+            directo = Directo(rt, rapido);
             rt.on("estado", function (s) { if (s === "conectado") { ev.emit("red", "conectado"); leer(); rt.enviar("hola", {}); } else { ev.emit("red", "reconectando"); } });
             rt.on("mensaje", function (evento, d) {
               if (evento === "ya") { rapido(d); return; }
+              if (evento === "rtc") { directo.senal(d); return; }
               if (evento === "rev" && +d.rev !== rev) { leer(); }
             });
             /* respaldo: revisa la versión (consulta liviana). Cada 2 s sin Realtime, cada 15 s con Realtime. */
