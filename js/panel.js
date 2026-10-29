@@ -75,10 +75,14 @@
     $("#pvwNada").hidden = !!(e && !esEvento(e));
     if (e && esEvento(e)) { $("#pvwNada").textContent = "Avisos y cortinas: usa «Vista previa» para probarlos aquí"; $("#pvwNada").hidden = false; }
     else { $("#pvwNada").textContent = "Elige una gráfica para verla aquí"; }
-    enviar(ifPVW, {t: "estado", estado: estadoPVW()});
+    if (seVe(ifPVW)) { enviar(ifPVW, {t: "estado", estado: estadoPVW()}); sucioPVW = false; } else { sucioPVW = true; }
   }, 70);
+  /* cuando un monitor vuelve a verse, se pone al día */
+  setInterval(function () { if (!estado) { return; } if (sucioPGM && seVe(ifPGM)) { pgm(); } if (sucioPVW && seVe(ifPVW)) { pvw(); } }, 400);
+  function seVe(f) { return !!f && f.getClientRects().length > 0; }
+  var sucioPGM = false, sucioPVW = false;
   function pgm() {
-    enviar(ifPGM, {t: "estado", estado: estado});
+    if (seVe(ifPGM)) { enviar(ifPGM, {t: "estado", estado: estado}); sucioPGM = false; } else { sucioPGM = true; }
     var n = estado.elementos.filter(function (e) { return e.on; }).length;
     $("#pgmInfo").textContent = (salidas === 0 ? "SIN SALIDA CONECTADA · " : "") + (n ? n + (n === 1 ? " gráfica programada" : " gráficas programadas") : "nada al aire");
     $(".monitor.pgm").classList.toggle("vivo", n > 0 && salidas !== 0);
@@ -229,12 +233,12 @@
     pill("#pRed", m[0], m[1]);
     $("#pRed").title = s === "sin-conexion" ? "Sin conexión. Lo que hagas se enviará solo cuando vuelva internet. Las salidas siguen mostrando lo último." : "Conexión con el servidor";
   }
-  var directos = 0, ultPres = null;
+  var directos = 0, msDirecto = null, ultPres = null;
   function presencia(p) {
     if (p) { ultPres = p; } else { p = ultPres; } if (!p) { return; }
     var n = p.salidas, antes = salidas; salidas = n;
     if (estado && (antes === null || !antes !== !n)) { dibujarLista(); pgm(); estadoFicha(); }
-    pill("#pSalidas", n ? "ok" : "warn", n ? (directos ? "⚡ " : "") + (n === 1 ? "1 salida" : n + " salidas") : "Sin salida");
+    pill("#pSalidas", n ? "ok" : "warn", n ? (directos ? "⚡ " : "") + (n === 1 ? "1 salida" : n + " salidas") + (directos && msDirecto != null ? " · " + msDirecto + " ms" : "") : "Sin salida");
     $("#pSalidas").title = n ? "Salidas de OBS conectadas a esta sala" + (directos ? " · ⚡ " + directos + " con conexión directa (instantánea)" : " · por internet (sin conexión directa todavía)") + (p.controles > 0 ? " · " + p.controles + " panel(es) más controlando" : "") : "Ninguna salida (OBS) conectada todavía. Usa Remoto → Link de salida.";
   }
   function guardado(s, msg) {
@@ -1231,7 +1235,7 @@
     con.on("red", red);
     con.on("guardado", guardado);
     con.on("presencia", presencia);
-    con.on("directo", function (n) { directos = n; presencia(); });
+    con.on("directo", function (n, ms) { directos = n; msDirecto = ms; presencia(); });
     con.on("fin", finDe);
     con.on("mensaje", function (t, d) {
       if (t === "fin") { finDe(d.id); }
@@ -1313,6 +1317,7 @@
     var cont = $("#botGrid"); if (!cont || !estado) { return; }
     var bo = estado.botonera || {columnas: 4};
     cont.style.setProperty("--cols", bo.columnas || 4);
+    ajusteBotonera();
     document.body.classList.toggle("bot-editando", editarBotonera);
     $("#bEditBot").innerHTML = editarBotonera ? "✓ Listo" : "✏️ Editar botones";
     $("#bEditBot").classList.toggle("listo", editarBotonera);
@@ -1478,8 +1483,44 @@
     return true;
   }
   /* clic normal = disparar; en edición: tocar = editar, arrastrar = mover (mouse en todo el botón, dedo desde ⠿) */
-  var arr = null;
+  var arr = null, tocado = 0;
+  /* «⚡ Al tocar» por equipo (por defecto encendido en celulares y tablets) */
+  var alTocar = leerLS("cg_bot_al_tocar", null); if (alTocar === null) { alTocar = tactil(); }
+  function ajusteBotonera() {
+    var g = $("#botGrid"); if (!g) { return; }
+    document.body.classList.toggle("bot-ajustar", !!alTocar);
+    var b = $("#bToque"); if (b) { b.classList.toggle("on", !!alTocar); b.setAttribute("aria-pressed", alTocar ? "true" : "false"); }
+    if (!alTocar) { return; }
+    var n = botones().length || 1, cols = esMovil() ? 2 : (+((estado && estado.botonera) || {}).columnas || 4);
+    if (esMovil() && n > 16) { cols = 3; }
+    g.style.setProperty("--cols", cols);
+    g.style.gridTemplateColumns = "repeat(" + cols + ",minmax(0,1fr))";
+    var filas = Math.ceil(n / cols); g.style.setProperty("--filas", filas);
+    /* tamaño de letra según el espacio de cada botón, para que el nombre quepa en 2 líneas */
+    var w = g.clientWidth, h = g.clientHeight;
+    if (w && h) { var altoF = (h - 16 - 8 * (filas - 1)) / filas, anchoC = (w - 20 - 8 * (cols - 1)) / cols; g.style.setProperty("--fs-bt", Math.max(9, Math.min(17, (altoF - (esMovil() ? 22 : 34)) / 2.3, anchoC / 8.4)).toFixed(1) + "px"); }
+  }
+  $("#bToque").onclick = function () {
+    alTocar = !alTocar; guardarLS("cg_bot_al_tocar", alTocar);
+    if (!alTocar) { $("#botGrid").style.gridTemplateColumns = ""; }
+    dibujarBotonera();
+    toast(alTocar ? "⚡ Al tocar: los botones salen apenas los tocas" : "Los botones salen al soltar el dedo (con scroll)");
+  };
+  addEventListener("resize", function () { if (alTocar) { ajusteBotonera(); } });
+  /* el botón se dispara al TOCAR (no al soltar): con mouse siempre; con el dedo, si la botonera cabe en pantalla.
+     Si la botonera tiene scroll, con el dedo se dispara al soltar para no lanzar gráficas al deslizar. */
+  function conScroll(n) {
+    for (var x = n; x && x !== document.documentElement; x = x.parentElement) { var cs = getComputedStyle(x); if (/(auto|scroll)/.test(cs.overflowY) && x.scrollHeight > x.clientHeight + 2) { return true; } }
+    var se = document.scrollingElement; return !!se && se.scrollHeight > se.clientHeight + 2;
+  }
+  $("#botGrid").addEventListener("pointerdown", function (ev) {
+    if (editarBotonera || ev.button > 0 || ev.isPrimary === false) { return; }
+    var t = ev.target.closest(".bt[data-i]"); if (!t) { return; }
+    if (ev.pointerType === "touch" && conScroll($("#botGrid"))) { return; }
+    tocado = Date.now(); disparar(botones()[+t.dataset.i], t);
+  });
   $("#botGrid").addEventListener("click", function (ev) {
+    if (!editarBotonera && Date.now() - tocado < 900) { return; } /* ya se disparó al tocar */
     var t = ev.target.closest(".bt"); if (!t) { return; }
     if (t.id === "btMas") { agregarBoton(); return; }
     if (editarBotonera) { if (arr && arr.movido) { return; } selB = +t.dataset.i; filtroBot = ""; dibujarBotonera(); pintarInsp(); if (esMovil()) { $("#botInsp").scrollTop = 0; } return; }

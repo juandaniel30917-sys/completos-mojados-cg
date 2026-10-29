@@ -49,7 +49,13 @@
   }
   CG.claveSalida = function (token) { return CG.sha256("out:" + token); };
   /* huella corta de unos datos (JSON con claves ordenadas, igual en panel y salida aunque la base reordene) */
+  function muestra(t) {
+    var n = t.length, paso = Math.floor(n / 256), r = t.slice(0, 64) + t.slice(n - 64);
+    for (var i = 64; i < n - 64; i += paso) { r += t.charAt(i); }
+    return "\u00a7" + n + ":" + r;
+  }
   function canon(o) {
+    if (typeof o === "string" && o.length > 2048) { return JSON.stringify(muestra(o)); }
     if (o === null || typeof o !== "object") { return JSON.stringify(o === undefined ? null : o); }
     if (Array.isArray(o)) { return "[" + o.map(canon).join(",") + "]"; }
     return "{" + Object.keys(o).sort().filter(function (k) { return o[k] !== undefined; }).map(function (k) { return JSON.stringify(k) + ":" + canon(o[k]); }).join(",") + "}";
@@ -73,9 +79,12 @@
      Si no se logra (red que lo bloquea), todo sigue funcionando por Realtime como antes. */
   function Directo(rt, alMensaje, alCambio) {
     var pares = {}, ICE = {iceServers: [{urls: "stun:stun.l.google.com:19302"}, {urls: "stun:stun1.l.google.com:19302"}]};
-    if (!window.RTCPeerConnection) { return {senal: function () {}, conectar: function () {}, cerrar: function () {}, ids: function () { return []; }, enviar: function () { return 0; }, abiertos: function () { return 0; }}; }
+    if (!window.RTCPeerConnection) { return {senal: function () {}, conectar: function () {}, cerrar: function () {}, ids: function () { return []; }, enviar: function () { return 0; }, abiertos: function () { return 0; }, latencia: function () { return null; }, medir: function () {}}; }
     function abiertos() { var n = 0; Object.keys(pares).forEach(function (id) { var dc = pares[id].dc; if (dc && dc.readyState === "open") { n++; } }); return n; }
-    function aviso() { if (alCambio) { try { alCambio(abiertos()); } catch (e) {} } }
+    /* latencia de ida (ms) de la conexión directa más lenta abierta */
+    function latencia() { var m = null; Object.keys(pares).forEach(function (id) { var p = pares[id]; if (p.dc && p.dc.readyState === "open" && p.rtt != null) { var v = Math.round(p.rtt / 2); if (m === null || v > m) { m = v; } } }); return m; }
+    function aviso() { if (alCambio) { try { alCambio(abiertos(), latencia()); } catch (e) {} } }
+    var ahora = function () { return window.performance && performance.now ? performance.now() : Date.now(); };
     function cerrar(id) { var p = pares[id]; if (!p) { return; } delete pares[id]; try { if (p.dc) { p.dc.close(); } } catch (e) {} try { p.pc.close(); } catch (e) {} aviso(); }
     function listo(p) { p.remoto = true; var c = p.cola; p.cola = []; c.forEach(function (x) { p.pc.addIceCandidate(x).catch(function () {}); }); }
     function nuevo(id, inicia) {
@@ -86,7 +95,12 @@
       function usar(dc) {
         p.dc = dc;
         dc.onopen = aviso;
-        dc.onmessage = function (m) { var d; try { d = JSON.parse(m.data); } catch (e) { return; } alMensaje(d); };
+        dc.onmessage = function (m) {
+          var d; try { d = JSON.parse(m.data); } catch (e) { return; }
+          if (d && d.ping !== undefined) { try { dc.send(JSON.stringify({pong: d.ping})); } catch (e) {} return; }
+          if (d && d.pong !== undefined) { var r = ahora() - d.pong; p.rtt = p.rtt == null ? r : p.rtt * 0.6 + r * 0.4; aviso(); return; }
+          alMensaje(d);
+        };
         dc.onclose = function () { if (pares[id] === p) { cerrar(id); } };
       }
       if (inicia) {
@@ -118,7 +132,9 @@
       cerrar: cerrar,
       ids: function () { return Object.keys(pares); },
       enviar: function (obj) { var s = JSON.stringify(obj), n = 0; Object.keys(pares).forEach(function (id) { var dc = pares[id].dc; if (dc && dc.readyState === "open") { try { dc.send(s); n++; } catch (e) {} } }); return n; },
-      abiertos: abiertos
+      abiertos: abiertos,
+      latencia: latencia,
+      medir: function () { var s = JSON.stringify({ping: ahora()}); Object.keys(pares).forEach(function (id) { var dc = pares[id].dc; if (dc && dc.readyState === "open") { try { dc.send(s); } catch (e) {} } }); }
     };
   }
   CG.Directo = Directo;
@@ -260,7 +276,8 @@
           ((r.estado && r.estado.ev) || []).forEach(function (x) { evEnviados[x.id] = 1; });
           return CG.claveSalida(token).then(function (k) { outKey = k; return nombreCanal(k); }).then(function (canal) {
             rt = Realtime(canal, {presencia: {rol: "control", id: yo, desde: Date.now()}});
-            directo = Directo(rt, function () {}, function (n) { ev.emit("directo", n); });
+            directo = Directo(rt, function () {}, function (n, ms) { ev.emit("directo", n, ms); });
+            setInterval(function () { directo.medir(); }, 2000);
             var unirSalidas = function () { salidasVistas.forEach(function (id) { directo.conectar(id); }); directo.ids().forEach(function (id) { if (salidasVistas.indexOf(id) < 0) { directo.cerrar(id); } }); };
             setInterval(function () { if (rt.conectado()) { unirSalidas(); } }, 5000);
             rt.on("estado", function (s) { setRed(s === "conectado" ? "conectado" : "reconectando"); if (s === "conectado") { releer().catch(function () {}); if (pendiente) { guardar(); } } });
