@@ -48,6 +48,17 @@
     var out = new Uint8Array(32), o = new DataView(out.buffer); for (i = 0; i < 8; i++) { o.setInt32(i * 4, H[i]); } return out;
   }
   CG.claveSalida = function (token) { return CG.sha256("out:" + token); };
+  /* huella corta de unos datos (JSON con claves ordenadas, igual en panel y salida aunque la base reordene) */
+  function canon(o) {
+    if (o === null || typeof o !== "object") { return JSON.stringify(o === undefined ? null : o); }
+    if (Array.isArray(o)) { return "[" + o.map(canon).join(",") + "]"; }
+    return "{" + Object.keys(o).sort().filter(function (k) { return o[k] !== undefined; }).map(function (k) { return JSON.stringify(k) + ":" + canon(o[k]); }).join(",") + "}";
+  }
+  CG.huella = function (o) {
+    var s = canon(o), h = 2166136261;
+    for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return (h >>> 0).toString(36) + "." + s.length.toString(36);
+  };
   function nombreCanal(outKey) { return CG.sha256("ch:" + outKey).then(function (h) { return "cg-" + h.slice(0, 32); }); }
 
   /* errores en español, entendibles */
@@ -157,6 +168,18 @@
         clearTimeout(tReint); tReint = setTimeout(guardar, Math.min(10000, 800 * falla));
       });
     }
+    /* VÍA RÁPIDA: además de guardar, avisa al tiro por Realtime qué gráficas quedan al aire y qué eventos se lanzan.
+       Solo viajan ids + huellas: la salida usa los datos que YA leyó de la base, y si algo no calza espera la base. */
+    var evEnviados = {};
+    function rapido(est) {
+      if (!rt || !rt.conectado()) { return; }
+      try {
+        var on = [], evs = [];
+        (est.elementos || []).forEach(function (e) { if (e.on) { on.push([e.id, CG.huella(e.datos)]); } });
+        (est.ev || []).forEach(function (x) { if (!evEnviados[x.id]) { evEnviados[x.id] = 1; evs.push({id: x.id, el: x.el || "", tipo: x.tipo, t: x.t, h: CG.huella(x.datos)}); } });
+        rt.enviar("ya", {seq: est.seq, n: (est.elementos || []).length, on: on, ev: evs, de: yo});
+      } catch (e) { console.warn("[via rapida]", e); }
+    }
     function releer() {
       return CG.rpc("cg_leer", {p_sala: sala, p_clave: token}).then(function (r) {
         if (r.rev > rev && !pendiente && !guardando) { rev = r.rev; ev.emit("remoto", r.estado || {}); }
@@ -169,6 +192,7 @@
         return CG.rpc("cg_leer", {p_sala: sala, p_clave: token}).then(function (r) {
           if (r.rol !== "control") { throw new Error("Este link es de SALIDA (solo lectura). Para controlar necesitas el link de control."); }
           rev = r.rev;
+          ((r.estado && r.estado.ev) || []).forEach(function (x) { evEnviados[x.id] = 1; });
           return CG.claveSalida(token).then(function (k) { outKey = k; return nombreCanal(k); }).then(function (canal) {
             rt = Realtime(canal, {presencia: {rol: "control", id: yo, desde: Date.now()}});
             rt.on("estado", function (s) { setRed(s === "conectado" ? "conectado" : "reconectando"); if (s === "conectado") { releer().catch(function () {}); if (pendiente) { guardar(); } } });
@@ -185,7 +209,11 @@
           });
         });
       },
-      publicar: function (estado) { seq = Math.max(seq + 1, Date.now()); estado.seq = seq; pendiente = JSON.parse(JSON.stringify(estado)); guardar(); },
+      publicar: function (estado) {
+        seq = Math.max(seq + 1, Date.now()); estado.seq = seq; pendiente = JSON.parse(JSON.stringify(estado));
+        rapido(pendiente);
+        guardar();
+      },
       hayPendiente: function () { return !!pendiente || guardando; },
       red: function () { return red; },
       claveSalida: function () { return outKey; },
@@ -200,14 +228,39 @@
 
   /* ======================= SALA: SALIDA (solo lectura) ======================= */
   CG.SalaSalida = function (sala, clave) {
-    var ev = emisor(), rt = null, rev = -1, seq = 0, leyendo = false, otraVez = false;
+    var ev = emisor(), rt = null, rev = -1, seq = 0, leyendo = false, otraVez = false, ultimo = null;
+    function emitir(e) { ultimo = e; ev.emit("estado", e); }
+    /* VÍA RÁPIDA: arma el estado nuevo con los datos ya leídos de la base. Si algo no calza (gráfica nueva,
+       texto editado, video distinto) no inventa nada: deja que llegue la lectura de la base. */
+    function rapido(d) {
+      if (!ultimo || !d || !(+d.seq > seq) || !Array.isArray(d.on)) { return; }
+      var els = ultimo.elementos || [], por = {};
+      if (d.n !== els.length) { return; }
+      els.forEach(function (e) { por[e.id] = e; });
+      var quiero = {}, ok = true;
+      d.on.forEach(function (x) { var e = por[x[0]]; if (!e || CG.huella(e.datos) !== x[1]) { ok = false; } else { quiero[x[0]] = 1; } });
+      var vistos = {}; (ultimo.ev || []).forEach(function (x) { vistos[x.id] = 1; });
+      var nuevos = [];
+      (d.ev || []).forEach(function (x) {
+        if (vistos[x.id]) { return; }
+        var e = por[x.el]; if (!e || CG.huella(e.datos) !== x.h) { ok = false; return; }
+        nuevos.push({id: x.id, el: x.el, tipo: x.tipo, t: x.t, datos: JSON.parse(JSON.stringify(e.datos))});
+      });
+      if (!ok) { return; }
+      var st = Object.assign({}, ultimo, {
+        seq: +d.seq,
+        elementos: els.map(function (e) { var on = !!quiero[e.id]; return e.on === on ? e : Object.assign({}, e, {on: on}); }),
+        ev: (ultimo.ev || []).concat(nuevos).slice(-12)
+      });
+      seq = +d.seq; emitir(st);
+    }
     function leer() {
       if (leyendo) { otraVez = true; return; }
       leyendo = true;
       CG.rpc("cg_leer", {p_sala: sala, p_clave: clave}).then(function (r) {
         leyendo = false;
         var s = (r.estado && r.estado.seq) || 0;
-        if (r.rev !== rev && s >= seq) { rev = r.rev; seq = s; ev.emit("estado", r.estado || {}); }
+        if (r.rev !== rev && s >= seq) { rev = r.rev; seq = s; emitir(r.estado || {}); }
         ev.emit("red", rt && rt.conectado() ? "conectado" : "respaldo");
         if (otraVez) { otraVez = false; leer(); }
       }, function (e) {
@@ -219,11 +272,14 @@
       on: ev.on,
       conectar: function () {
         return CG.rpc("cg_leer", {p_sala: sala, p_clave: clave}).then(function (r) {
-          rev = r.rev; seq = (r.estado && r.estado.seq) || 0; ev.emit("estado", r.estado || {});
+          rev = r.rev; seq = (r.estado && r.estado.seq) || 0; emitir(r.estado || {});
           return (r.rol === "control" ? CG.claveSalida(clave) : Promise.resolve(clave)).then(nombreCanal).then(function (canal) {
             rt = Realtime(canal, {presencia: {rol: "salida", id: yo, desde: Date.now()}});
             rt.on("estado", function (s) { if (s === "conectado") { ev.emit("red", "conectado"); leer(); rt.enviar("hola", {}); } else { ev.emit("red", "reconectando"); } });
-            rt.on("mensaje", function (evento, d) { if (evento === "rev" && +d.rev !== rev) { leer(); } });
+            rt.on("mensaje", function (evento, d) {
+              if (evento === "ya") { rapido(d); return; }
+              if (evento === "rev" && +d.rev !== rev) { leer(); }
+            });
             /* respaldo: revisa la versión (consulta liviana). Cada 2 s sin Realtime, cada 15 s con Realtime. */
             var ult = 0;
             setInterval(function () {
