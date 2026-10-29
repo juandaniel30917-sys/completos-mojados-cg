@@ -1486,23 +1486,37 @@
   var arr = null, tocado = 0;
   /* «⚡ Al tocar» por equipo (por defecto encendido en celulares y tablets) */
   var alTocar = leerLS("cg_bot_al_tocar", null); if (alTocar === null) { alTocar = tactil(); }
+  /* el acomodo se calcula en píxeles con el tamaño REAL de la botonera (no depende de cómo cada navegador
+     resuelve las filas "1fr"). Si la botonera todavía no tiene tamaño (oculta, cargando) o los botones quedarían
+     demasiado chicos, se muestra la botonera normal con scroll: nunca quedan botones invisibles. */
   function ajusteBotonera() {
     var g = $("#botGrid"); if (!g) { return; }
     document.body.classList.toggle("bot-ajustar", !!alTocar);
     var b = $("#bToque"); if (b) { b.classList.toggle("on", !!alTocar); b.setAttribute("aria-pressed", alTocar ? "true" : "false"); }
-    if (!alTocar) { return; }
-    var n = botones().length || 1, cols = esMovil() ? 2 : (+((estado && estado.botonera) || {}).columnas || 4);
-    if (esMovil() && n > 16) { cols = 3; }
-    g.style.setProperty("--cols", cols);
-    g.style.gridTemplateColumns = "repeat(" + cols + ",minmax(0,1fr))";
-    var filas = Math.ceil(n / cols); g.style.setProperty("--filas", filas);
-    /* tamaño de letra según el espacio de cada botón, para que el nombre quepa en 2 líneas */
-    var w = g.clientWidth, h = g.clientHeight;
-    if (w && h) { var altoF = (h - 16 - 8 * (filas - 1)) / filas, anchoC = (w - 20 - 8 * (cols - 1)) / cols; g.style.setProperty("--fs-bt", Math.max(9, Math.min(17, (altoF - (esMovil() ? 22 : 34)) / 2.3, anchoC / 8.4)).toFixed(1) + "px"); }
+    var encaja = false;
+    if (alTocar && !editarBotonera) {
+      var n = botones().length || 1, cols = esMovil() ? 2 : (+((estado && estado.botonera) || {}).columnas || 4);
+      if (esMovil() && n > 16) { cols = 3; }
+      var filas = Math.ceil(n / cols), gap = 8, w = g.clientWidth, h = g.clientHeight;
+      var cs = getComputedStyle(g), padV = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0), padH = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+      var alto = Math.floor((h - padV - gap * (filas - 1)) / filas), anchoC = (w - padH - gap * (cols - 1)) / cols;
+      if (w > 0 && h > 0 && alto >= 44) {
+        encaja = true;
+        g.style.setProperty("--cols", cols);
+        g.style.gridTemplateColumns = "repeat(" + cols + ",minmax(0,1fr))";
+        g.style.setProperty("--alto-bt", alto + "px");
+        g.style.setProperty("--fs-bt", Math.max(9, Math.min(17, (alto - (esMovil() ? 22 : 34)) / 2.3, anchoC / 8.4)).toFixed(1) + "px");
+      }
+    }
+    if (!encaja) { g.style.gridTemplateColumns = ""; g.style.removeProperty("--alto-bt"); g.style.removeProperty("--fs-bt"); g.style.setProperty("--cols", +((estado && estado.botonera) || {}).columnas || 4); }
+    document.body.classList.toggle("bot-encaja", encaja);
+    /* red de seguridad: si en este navegador los botones igual quedaran sin alto, vuelve a la botonera normal */
+    if (encaja) { requestAnimationFrame(function () { var b1 = $("#botGrid .bt[data-i]"); if (b1 && b1.getBoundingClientRect().height < 30 && g.clientHeight > 0) { document.body.classList.remove("bot-encaja"); g.style.gridTemplateColumns = ""; } }); }
   }
+  /* se vuelve a acomodar cuando la botonera cambia de tamaño o aparece (cambio de pestaña, girar el celular, cargar la sala) */
+  if (window.ResizeObserver) { new ResizeObserver(function () { if (alTocar && estado) { ajusteBotonera(); } }).observe($("#botGrid")); }
   $("#bToque").onclick = function () {
     alTocar = !alTocar; guardarLS("cg_bot_al_tocar", alTocar);
-    if (!alTocar) { $("#botGrid").style.gridTemplateColumns = ""; }
     dibujarBotonera();
     toast(alTocar ? "⚡ Al tocar: los botones salen apenas los tocas" : "Los botones salen al soltar el dedo (con scroll)");
   };
