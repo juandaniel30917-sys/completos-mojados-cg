@@ -7,7 +7,8 @@
 (function () {
   "use strict";
   var CG = window.CG, P = CG.PLANTILLAS, esc = CG.esc;
-  var COL = {ketchup: "#E02A12", mostaza: "#F59A23", mayo: "#FFF3D6", palta: "#6AA832"};
+  /* palta: verde amarillento que el chroma del ATEM no toma (el #6AA832 anterior quedaba dentro del rango del verde) */
+  var COL = {ketchup: "#E02A12", mostaza: "#F59A23", mayo: "#FFF3D6", palta: "#A6B23A"};
 
   /* qué cambios obligan a volver a dibujar (el resto se actualiza en caliente) */
   P.temporizador.firma = function (d) { var c = Object.assign({}, d); delete c.run; return c; };
@@ -145,7 +146,7 @@
 
     /* ---------- cortina de salsa ---------- */
     function cortina(estilo) {
-      var el = cajaCortina, cols = ["#E02A12", "#FFF3D6", "#F59A23", "#6AA832"];
+      var el = cajaCortina, cols = ["#E02A12", "#FFF3D6", "#F59A23", COL.palta];
       el.className = "capa"; el.innerHTML = "";
       if (estilo === "iris") {
         ["#F59A23", "#FFF3D6", "#E02A12"].forEach(function (c, i) { el.insertAdjacentHTML("beforeend", '<i class="circ" style="background:' + c + ';--s:' + (5.6 - i * 0.7) + ';animation-delay:' + i * 0.1 + 's"></i>'); });

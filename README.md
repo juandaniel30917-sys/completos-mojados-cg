@@ -127,6 +127,17 @@ La pestaña **Botonera** es un panel de botones grandes, uno por gráfica, para 
 - Botones de acción especiales: *Limpiar salida*, *Paso siguiente*, *Paso anterior*, *Cortina*.
 - La botonera se guarda en la sala, así que la ve igual cualquier equipo conectado. **Restaurar** vuelve a los botones iniciales sin tocar las gráficas.
 - En el celular aparece como cuarta vista en la barra inferior, con 2 columnas.
+- **EDIT en cada botón:** la pestañita **EDIT** (arriba a la derecha de cada botón de gráfica) abre un mini panel ahí mismo para cambiar los textos, la foto, el video, los colores y todo lo demás de esa gráfica, sin salir de la botonera. Si la gráfica **no** está al aire, lo que escribes se guarda solo y el próximo toque del botón ya sale con el texto nuevo. Si **está al aire**, queda como borrador hasta que aprietes **↻ Actualizar al aire** (así no se ve cómo escribes). La botonera en sí (qué gráfica va en cada botón, la tecla, el color del botón) se sigue cambiando con **Editar botones**.
+- **⚡ Al tocar** (encendido por defecto en celular y tablet): todos los botones caben en pantalla y salen apenas los tocas.
+
+### Botón ⚡ Cortina (cortinas al azar)
+
+El botón **⚡ Cortina** de arriba (y el botón *Cortina* de la botonera) lanza una cortina elegida de una lista. Con la flechita **▾** al lado eliges:
+
+- **Qué cortinas usa:** las de salsa dibujadas, las cortinas en video y las transiciones animadas. Cada una tiene **Probar** (sale al aire).
+- **Cómo las elige:** **🎲 Al azar** (nunca repite la misma dos veces seguidas), **🔁 En orden** o **📌 Siempre la primera**.
+
+Vienen listas tres **cortinas en video** de salsa (*Salsa noticiero*, *Salsa VTR 02*, *Salsa VTR 03*), con el verde palta cambiado por un **verde oliva (#A6B23A) que el chroma del ATEM no toma**. El fondo sigue siendo verde chroma. La cortina de salsa dibujada usa el mismo verde.
 
 GC listos tomados de los videos de referencia: *Felipe Jiménez / Presentador*, *Carlos Piña / Vocalista de la banda El Piña Papa*, *Invitado 1 / Dirección del Seremi* y *Presentador 2 / Notiserio* (etiqueta PERIODISTA, estilo noticiero).
 

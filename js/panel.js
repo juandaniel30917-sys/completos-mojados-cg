@@ -473,7 +473,7 @@
     return String(v === undefined ? "" : v) === m[1];
   }
   function dibujarCampos() {
-    var e = el(sel), p = P[e.plantilla], d = borrador(sel), cont = $("#campos"), grupos = [], porG = {};
+    var e = el(sel), p = P[e.plantilla], d = borrador(sel), cont = miniId ? $("#miniCampos") : $("#campos"), grupos = [], porG = {};
     p.campos.forEach(function (f) { var g = f.g || "Texto"; if (!porG[g]) { porG[g] = []; grupos.push(g); } porG[g].push(f); });
     cont.innerHTML = '<p class="desc-tpl">' + esc(p.desc || "") + '</p>';
     var abiertosG = Object.assign({Texto: true, Video: true, Chroma: true, "Reproducción": true, Llamadas: true, Respuesta: true, Marca: true}, leerLS("cg_grupos_abiertos", {}));
@@ -489,11 +489,11 @@
   }
   function condicionales() {
     var d = borrador(sel); if (!d) { return; }
-    $$("#campos .campo[data-si]").forEach(function (c) { c.hidden = !visible({si: c.dataset.si}, d); });
+    $$((miniId ? "#miniCampos" : "#campos") + " .campo[data-si]").forEach(function (c) { c.hidden = !visible({si: c.dataset.si}, d); });
   }
   function cambio(k, v, sinRedibujar) {
     var d = borrador(sel); d[k] = v;
-    guardarBorr(); pvw(); estadoFicha(); condicionales(); marcarItem();
+    guardarBorr(); pvw(); estadoFicha(); condicionales(); marcarItem(); if (miniId) { miniCambio(); }
     var e = el(sel);
     if ($("#aVivo").checked && e.on && !esEvento(e)) { vivoDeb(); }
   }
@@ -700,11 +700,54 @@
   modoDisp();
 
   /* ------------------------------------------------------------------ barra superior */
+  /* ---------- botón CORTINA configurable: elige qué cortinas usa y si salen al azar, en orden o siempre la misma ---------- */
+  var CORT_DEF = ["lb-cortina-cm", "lb-cortina-programa", "lb-cort-v-noticiero", "lb-cort-v-vtr2", "lb-cort-v-vtr3"];
+  function cfgCortina() {
+    var c = estado.cortinaBoton;
+    if (!c || !Array.isArray(c.ids)) { c = estado.cortinaBoton = {modo: "aleatoria", ids: CORT_DEF.filter(function (id) { return el(id); }), ultima: ""}; }
+    return c;
+  }
+  function elegirCortina() {
+    var c = cfgCortina(), ids = c.ids.filter(function (id) { var e = el(id); return e && esTransicion(e) && !(e.plantilla === "video" && !e.datos.media); });
+    if (!ids.length) { return null; }
+    if (c.modo === "fija" || ids.length === 1) { return ids[0]; }
+    var i = ids.indexOf(c.ultima);
+    if (c.modo === "orden") { return ids[(i + 1) % ids.length]; }
+    var otras = ids.filter(function (id) { return id !== c.ultima; });          /* aleatoria, sin repetir la anterior */
+    return otras[Math.floor(Math.random() * otras.length)];
+  }
   $("#bCortina").onclick = function () {
-    var c = estado.elementos.filter(function (e) { return e.plantilla === "cortina" && e.fav; })[0] || estado.elementos.filter(function (e) { return e.plantilla === "cortina"; })[0];
-    if (c) { lanzar(c.id); return; }
-    estado.ev = (estado.ev || []).concat({id: CG.nuevoId(), tipo: "cortina", datos: {estilo: "bandas"}, t: Date.now()}).slice(-12); publicar(); toast("Cortina lanzada al aire", "ok");
+    var id = elegirCortina();
+    if (!id) {
+      estado.ev = (estado.ev || []).concat({id: CG.nuevoId(), tipo: "cortina", datos: {estilo: "bandas"}, t: Date.now()}).slice(-12); publicar(); toast("Cortina lanzada al aire", "ok"); return;
+    }
+    cfgCortina().ultima = id;
+    if (salidas === 0) { toast("Ojo: no hay ninguna salida conectada, nadie verá esta cortina.", "err"); }
+    pasarTrans(id);
+    toast("Cortina: " + el(id).nombre, "ok");
   };
+  $("#bCortinaCfg").onclick = configCortina;
+  function configCortina() {
+    var c = cfgCortina(), lista = transiciones();
+    var grupo = function (t) { return t.plantilla === "cortina" ? "Salsa (dibujadas)" : t.plantilla === "transicion" ? "Animadas" : "Videos"; };
+    var orden = ["Salsa (dibujadas)", "Videos", "Animadas"], h = "<h2>Botón Cortina</h2><p class='lead'>Elige qué cortinas puede lanzar el botón <b>⚡ Cortina</b> (y el botón «Cortina» de la botonera).</p>" +
+      "<div class='seg cort-modo' role='radiogroup'>" + [["aleatoria", "🎲 Al azar"], ["orden", "🔁 En orden"], ["fija", "📌 Siempre la primera"]].map(function (o) { return "<button type='button' data-m='" + o[0] + "' class='" + (c.modo === o[0] ? "on" : "") + "'>" + o[1] + "</button>"; }).join("") + "</div>" +
+      "<p class='nota-m'>Al azar nunca repite la misma cortina dos veces seguidas.</p>";
+    orden.forEach(function (g) {
+      var it = lista.filter(function (t) { return grupo(t) === g; }); if (!it.length) { return; }
+      h += "<h3 class='cfg-h3'>" + g + "</h3><div class='cort-lista'>" + it.map(function (t) {
+        var sin = t.plantilla === "video" && !t.datos.media;
+        return "<label class='cort-it" + (sin ? " sin" : "") + "'><input type='checkbox' data-id='" + esc(t.id) + "'" + (c.ids.indexOf(t.id) >= 0 ? " checked" : "") + (sin ? " disabled" : "") + "><span>" + esc(t.nombre) + (sin ? " <small>(sin video)</small>" : "") + "</span><button type='button' class='btn mini' data-probar='" + esc(t.id) + "'>Probar</button></label>";
+      }).join("") + "</div>";
+    });
+    h += "<div class='modal-pie'><span class='cort-n' id='cortN'></span><button class='btn prim' data-r='1'>Listo</button></div>";
+    var m = modal(h, {ancho: true, sinFoco: true});
+    function contar() { var n = c.ids.filter(function (id) { return el(id); }).length; $("#cortN", m).textContent = n ? n + (n === 1 ? " cortina elegida" : " cortinas elegidas") : "Ninguna: el botón lanzará la cortina de salsa básica"; }
+    $$(".cort-modo button", m).forEach(function (b) { b.onclick = function () { c.modo = b.dataset.m; $$(".cort-modo button", m).forEach(function (x) { x.classList.toggle("on", x === b); }); publicar(); }; });
+    $$("input[data-id]", m).forEach(function (i) { i.onchange = function () { var id = i.dataset.id; c.ids = c.ids.filter(function (x) { return x !== id; }); if (i.checked) { c.ids.push(id); } publicar(); contar(); }; });
+    $$("[data-probar]", m).forEach(function (b) { b.onclick = function (ev) { ev.preventDefault(); pasarTrans(b.dataset.probar); toast("Probando: " + el(b.dataset.probar).nombre + " (sale al aire)", "ok"); }; });
+    $("[data-r='1']", m).onclick = cerrarModal; contar();
+  }
   $("#bLimpiar").onclick = function () {
     var on = estado.elementos.filter(function (e) { return e.on; });
     estado.ev = (estado.ev || []).concat({id: CG.nuevoId(), tipo: "limpiar", t: Date.now()}).slice(-12);
@@ -720,6 +763,7 @@
     var escribiendo = /input|textarea|select/i.test((document.activeElement || {}).tagName || "");
     if (!escribiendo && $("#modal").hidden && estado && (e.key === "PageDown" || e.key === "PageUp")) { e.preventDefault(); moverPaso(e.key === "PageDown" ? 1 : -1); return; }
     if (e.key === "Escape" && !$("#modal").hidden) { cerrarModal(); return; }
+    if (e.key === "Escape" && miniId) { cerrarMini(); return; }
     if (teclaBotonera(e, escribiendo)) { return; }
     if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && sel && $("#modal").hidden) { e.preventDefault(); if (e.shiftKey) { ocultar(sel); } else { $("#aMostrar").click(); } }
   });
@@ -1329,9 +1373,9 @@
       return '<button class="bt' + (s2.on ? " on" : "") + (s2.ev ? " ev" : "") + (s2.falta ? " falta" : "") + (b.esp ? " esp" : "") + (editarBotonera && i === selB ? " sel" : "") + '" data-i="' + i + '" style="--c:' + esc(col) + '" title="' + esc(s2.txt) + '">' +
         '<span class="bt-tec">' + esc(nombreTecla(b.tecla)) + '</span>' + (s2.pend || s2.falta ? '<span class="bt-pend" title="Tiene datos o archivos pendientes">⚠</span>' : '') +
         '<span class="bt-et">' + esc(b.etiqueta || s2.txt) + '</span><span class="bt-sub">' + (s2.e && s2.e.tr && (s2.e.tr.entra || s2.e.tr.sale) ? '<span title="Entra o sale con transición">✨ </span>' : '') + esc(s2.tipo) + (s2.ev ? " · se lanza" : s2.on ? (salidas === 0 ? " · PROG." : " · AL AIRE") : "") + '</span>' +
-        (editarBotonera ? '<span class="bt-asa" title="Arrastrar para mover">⠿</span>' : '') + '</button>';
+        (editarBotonera ? '<span class="bt-asa" title="Arrastrar para mover">⠿</span>' : (s2.e ? '<span class="bt-edit' + (miniId === s2.e.id ? ' on' : '') + '" data-edit="' + i + '" role="button" title="Editar textos, fotos y video de esta gráfica">EDIT</span>' : '')) + '</button>';
     }).join("") + (editarBotonera ? '<button class="bt bt-mas" id="btMas"><span class="bt-mas-ico">+</span><span class="bt-sub">AGREGAR BOTÓN</span></button>' : '');
-    if (!botones().length && !editarBotonera) { cont.innerHTML = '<div class="lista-vacia">No hay botones. Toca «Editar botones» para agregarlos.</div>'; }
+    if (!botones().length && !editarBotonera) { cont.innerHTML = '<div class="lista-vacia">No hay botones. Toca «Editar botones» para agregarlos.</div>'; }    if (miniId) { if (!el(miniId)) { cerrarMini(); } else { miniEstado(); } }
   }
   /* guarda y redibuja sin perder lo que se está escribiendo en el panel lateral */
   var tGuardarBot = null;
@@ -1472,6 +1516,55 @@
     if (acc === "ocultar" || (acc === "alternar" && e.on)) { ocultar(e.id); return; }
     mostrar(e.id, true, false, true);
   }
+  /* ---------- EDIT: mini panel para editar la gráfica de un botón ahí mismo (textos, fotos, video, colores) ----------
+     La botonera en sí (qué botón, tecla, color) se sigue editando con «Editar botones». */
+  var miniId = null, tMini = 0;
+  function abrirMini(id) {
+    var e = el(id); if (!e || !P[e.plantilla]) { return; }
+    miniId = id; seleccionar(id);
+    var m = $("#miniEd"); m.hidden = false;
+    $("#miniNom").textContent = e.nombre; $("#miniTipo").textContent = P[e.plantilla].nombre;
+    miniEstado(); dibujarBotonera(); document.body.classList.add("mini-abierto");
+    var i = $("#miniCampos input[type=text], #miniCampos textarea"); if (i && !esMovil()) { setTimeout(function () { i.focus(); }, 60); }
+  }
+  function cerrarMini() {
+    if (!miniId) { return; }
+    var id = miniId; clearTimeout(tMini); miniGuardar(id);
+    miniId = null; $("#miniEd").hidden = true; $("#miniCampos").innerHTML = ""; document.body.classList.remove("mini-abierto");
+    if (sel && el(sel)) { dibujarCampos(); } dibujarBotonera();
+  }
+  /* si la gráfica NO está al aire, lo que escribes se guarda solo (el próximo toque del botón ya sale con el texto nuevo).
+     Si está AL AIRE, queda como borrador hasta que aprietes «Actualizar al aire» (así no se ve cómo escribes). */
+  function miniGuardar(id) {
+    var e = el(id); if (!e || e.on || !difiere(e)) { return; }
+    e.datos = datosParaAire(e); borr[id] = clon(e.datos); publicar(); guardarBorr();
+  }
+  function miniCambio() {
+    var id = miniId, e = el(id); if (!e) { return; }
+    clearTimeout(tMini);
+    if (!e.on) { tMini = setTimeout(function () { miniGuardar(id); miniEstado(); }, 450); }
+    miniEstado();
+  }
+  function miniEstado() {
+    var e = miniId && el(miniId); if (!e) { return; }
+    var ev = esEvento(e), cambios = difiere(e), a = $("#miniAire"), u = $("#miniAct"), est = $("#miniEst");
+    a.textContent = ev ? (e.plantilla === "cortina" ? "⚡ LANZAR CORTINA" : "⚡ LANZAR") : e.on ? "■ OCULTAR" : "▶ MOSTRAR";
+    a.className = "btn " + (ev ? "pgm lanzar" : e.on ? "activo" : "pgm");
+    u.hidden = !(e.on && cambios && !ev);
+    est.textContent = e.on ? (cambios ? "Al aire · tienes cambios sin enviar" : "Al aire") : ev ? "Se lanza una vez" : (cambios ? "Guardando…" : "Guardado · sale así al tocar el botón");
+    est.className = "mini-est" + (e.on ? " aire" : "");
+    $("#miniDesc").hidden = !cambios;
+  }
+  $("#miniCerrar").onclick = cerrarMini;
+  $("#miniAire").onclick = function () {
+    var e = el(miniId); if (!e) { return; }
+    clearTimeout(tMini);
+    if (esEvento(e)) { miniGuardar(e.id); lanzar(e.id, true); }
+    else if (e.on) { ocultar(e.id); } else { mostrar(e.id); }
+    setTimeout(miniEstado, 30);
+  };
+  $("#miniAct").onclick = function () { var e = el(miniId); if (e && e.on) { mostrar(e.id); toast("Actualizado al aire", "ok"); setTimeout(miniEstado, 30); } };
+  $("#miniDesc").onclick = function () { var id = miniId; if (!el(id)) { return; } borr[id] = clon(el(id).datos); guardarBorr(); dibujarCampos(); estadoFicha(); pvw(); dibujarLista(); miniEstado(); };
   function teclaBotonera(ev, escribiendo) {
     if (capturando) { return false; }
     if (escribiendo || !$("#modal").hidden || !estado || ev.repeat || ev.ctrlKey || ev.altKey || ev.metaKey) { return false; }
@@ -1529,11 +1622,14 @@
   }
   $("#botGrid").addEventListener("pointerdown", function (ev) {
     if (editarBotonera || ev.button > 0 || ev.isPrimary === false) { return; }
+    if (ev.target.closest(".bt-edit")) { return; }
     var t = ev.target.closest(".bt[data-i]"); if (!t) { return; }
     if (ev.pointerType === "touch" && conScroll($("#botGrid"))) { return; }
     tocado = Date.now(); disparar(botones()[+t.dataset.i], t);
   });
   $("#botGrid").addEventListener("click", function (ev) {
+    var ed = ev.target.closest(".bt-edit");
+    if (ed && !editarBotonera) { ev.preventDefault(); var bb = botones()[+ed.dataset.edit]; if (bb && bb.el) { if (miniId === bb.el) { cerrarMini(); } else { abrirMini(bb.el); } } return; }
     if (!editarBotonera && Date.now() - tocado < 900) { return; } /* ya se disparó al tocar */
     var t = ev.target.closest(".bt"); if (!t) { return; }
     if (t.id === "btMas") { agregarBoton(); return; }
@@ -1571,7 +1667,7 @@
   addEventListener("pointerup", soltar); addEventListener("pointercancel", soltar);
   $("#bModoComp").onclick = function () { modoDisp("completo"); };
   $("#bBotCfg").onclick = function () { config("botonera"); };
-  $("#bEditBot").onclick = function () { editarBotonera = !editarBotonera; if (!editarBotonera) { selB = -1; } dibujarBotonera(); pintarInsp(); };
+  $("#bEditBot").onclick = function () { cerrarMini(); editarBotonera = !editarBotonera; if (!editarBotonera) { selB = -1; } dibujarBotonera(); pintarInsp(); };
   $("#botMenos").onclick = function () { estado.botonera.columnas = Math.max(2, (estado.botonera.columnas || 4) - 1); cambioBot(false); };
   $("#botMas").onclick = function () { estado.botonera.columnas = Math.min(8, (estado.botonera.columnas || 4) + 1); cambioBot(false); };
   $("#bBotAyuda").onclick = function () {

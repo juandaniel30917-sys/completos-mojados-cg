@@ -334,7 +334,10 @@
       {id: "m-trans-not", nombre: "Transición Noticiero (8 s)", url: "assets/media/TRANSICION_NOTICIERO_05S.webm", tipo: "video/webm", modo: "alfa", dur: 8, incluido: true},
       {id: "m-trans-not2", nombre: "Transición Noticiero corta (5 s)", url: "assets/media/TRANSICION_NOTICIERO_05S_1.webm", tipo: "video/webm", modo: "alfa", dur: 5, incluido: true},
       {id: "m-vtr2", nombre: "Transición VTR 02", url: "assets/media/TRANSICION_VTR_02.webm", tipo: "video/webm", modo: "alfa", dur: 4, incluido: true},
-      {id: "m-vtr3", nombre: "Transición VTR 03", url: "assets/media/TRANSICION_VTR_03.webm", tipo: "video/webm", modo: "alfa", dur: 8, incluido: true}
+      {id: "m-vtr3", nombre: "Transición VTR 03", url: "assets/media/TRANSICION_VTR_03.webm", tipo: "video/webm", modo: "alfa", dur: 8, incluido: true},
+      {id: "m-cort-not", nombre: "Cortina salsa Noticiero (5 s)", url: "assets/media/CORTINA_NOTICIERO_05S.webm", tipo: "video/webm", modo: "alfa", dur: 5, incluido: true},
+      {id: "m-cort-vtr2", nombre: "Cortina salsa VTR 02 (4 s)", url: "assets/media/CORTINA_VTR_02.webm", tipo: "video/webm", modo: "alfa", dur: 4, incluido: true},
+      {id: "m-cort-vtr3", nombre: "Cortina salsa VTR 03 (8 s)", url: "assets/media/CORTINA_VTR_03.webm", tipo: "video/webm", modo: "alfa", dur: 8, incluido: true}
     ];
     media.forEach(function (m) { e.push(CG.crearElemento("video", {nombre: m.nombre, datos: {media: m.id, modo: "alfa"}})); });
     return {v: 2, elementos: e, biblioteca: media, ev: [], ajustes: {velocidad: 100}, logo: ""};

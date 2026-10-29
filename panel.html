@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#0e1015">
 <title>Panel · Completos Mojados CG</title>
 <link rel="icon" href="assets/logo.png">
-<link rel="stylesheet" href="css/panel.css?v=202610291745">
+<link rel="stylesheet" href="css/panel.css?v=202610291800">
 </head>
 <body class="tab-control">
 
@@ -28,7 +28,7 @@
     <span class="guardado" id="pGuardado"></span>
   </div>
   <div class="acciones">
-    <button class="btn cortina" id="bCortina" title="Lanzar cortina de salsa (tapa un cambio de cámara)"><svg><use href="#i-rayo"/></svg><span>Cortina</span></button>
+    <span class="split-cortina"><button class="btn cortina" id="bCortina" title="Lanzar una cortina (tapa un cambio de cámara). Elige cuáles con ▾"><svg><use href="#i-rayo"/></svg><span>Cortina</span></button><button class="btn cortina cort-cfg" id="bCortinaCfg" title="Elegir qué cortinas lanza el botón (al azar, en orden o siempre la misma)" aria-label="Configurar cortinas">▾</button></span>
     <button class="btn limpiar" id="bLimpiar" title="Retira todas las gráficas de la salida (no corta la conexión)"><svg><use href="#i-limpiar"/></svg><span>Limpiar salida</span></button>
     <button class="btn" id="bRemoto" title="Links para OBS y para controlar desde otro equipo"><svg><use href="#i-link"/></svg><span>Remoto</span></button>
     <button class="btn ico" id="bAjustes" title="Configuración: botonera, gráficas, transiciones, dispositivo y ajustes"><svg><use href="#i-ajustes"/></svg></button>
@@ -113,6 +113,11 @@
     <div class="bot-cuerpo">
       <div id="botGrid" class="bot-grid"></div>
       <aside id="botInsp" class="bot-insp" hidden></aside>
+      <aside id="miniEd" class="mini-ed" hidden aria-label="Editar gráfica">
+        <div class="mini-cab"><div class="mini-tit"><small id="miniTipo"></small><b id="miniNom"></b></div><button class="btn mini" id="miniCerrar" aria-label="Cerrar">✕</button></div>
+        <div id="miniCampos" class="campos mini-campos"></div>
+        <div class="mini-pie"><span id="miniEst" class="mini-est"></span><button class="btn mini" id="miniDesc" hidden>Descartar</button><button class="btn" id="miniAct" hidden>↻ ACTUALIZAR AL AIRE</button><button class="btn pgm" id="miniAire">▶ MOSTRAR</button></div>
+      </aside>
     </div>
   </section>
 
@@ -179,13 +184,13 @@
   </defs>
 </svg>
 
-<script src="js/config.js?v=202610291745"></script>
-<script src="js/plantillas.js?v=202610291745"></script>
-<script src="js/paquete.js?v=202610291745"></script>
-<script src="js/libreto.js?v=202610291745"></script>
-<script src="js/conexion.js?v=202610291745"></script>
-<script src="js/vendor/qrcode.js?v=202610291745"></script>
-<script src="js/chroma.js?v=202610291745"></script>
-<script src="js/panel.js?v=202610291745"></script>
+<script src="js/config.js?v=202610291800"></script>
+<script src="js/plantillas.js?v=202610291800"></script>
+<script src="js/paquete.js?v=202610291800"></script>
+<script src="js/libreto.js?v=202610291800"></script>
+<script src="js/conexion.js?v=202610291800"></script>
+<script src="js/vendor/qrcode.js?v=202610291800"></script>
+<script src="js/chroma.js?v=202610291800"></script>
+<script src="js/panel.js?v=202610291800"></script>
 </body>
 </html>

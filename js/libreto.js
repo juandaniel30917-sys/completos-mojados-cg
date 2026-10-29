@@ -25,6 +25,10 @@
   E("gc-conductor", "gcPersona", "GC conductor", {etiqueta: "CONDUCTOR", nombre: "PENDIENTE_NOMBRE_CONDUCTOR", cargo: "CONDUCTOR DEL PROGRAMA", colorEtq: "rojo"}, {pend: {nombre: "PENDIENTE_NOMBRE_CONDUCTOR"}, vinc: {nombre: "conductor"}, fav: true});
   TRANS("trans-vtr2", "TRANSICION_VTR_02 (video incluido)", "m-vtr2");
   TRANS("trans-vtr3", "TRANSICION_VTR_03 (video incluido)", "m-vtr3");
+  /* cortinas en video para el botón ⚡ Cortina (versión 2: verde palta cambiado por un verde que el chroma no toma) */
+  TRANS("cort-v-noticiero", "Cortina video · Salsa noticiero (5 s)", "m-cort-not");
+  TRANS("cort-v-vtr2", "Cortina video · Salsa VTR 02 (4 s)", "m-cort-vtr2");
+  TRANS("cort-v-vtr3", "Cortina video · Salsa VTR 03 (8 s)", "m-cort-vtr3");
 
   /* bloque 1 */
   VID("video-intro", "Video de apertura", "PENDIENTE_VIDEO_INTRO");
