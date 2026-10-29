@@ -665,3 +665,45 @@ body.bot-encaja:not(.bot-editando) .bt-tec{top:5px;left:7px;font-size:9.5px;padd
 @media (max-width:480px){.bot-toque .tx{display:none}}
 /* en el celular las teclas F13–F24 no se usan: se ocultan para dar espacio al nombre */
 @media (max-width:900px){body.bot-encaja:not(.bot-editando) .bt-tec{display:none}body.bot-encaja:not(.bot-editando) .bt{padding-top:8px}}
+
+/* ---------- EDIT: pestaña en cada botón + mini panel de edición ---------- */
+.bt-edit{position:absolute;right:6px;top:6px;z-index:2;font:800 10.5px/1 var(--sans);letter-spacing:.08em;padding:6px 8px;border-radius:7px;background:rgba(0,0,0,.42);color:#fff;border:1px solid rgba(255,255,255,.25);cursor:pointer;touch-action:manipulation}
+.bt-edit:hover{background:rgba(0,0,0,.6)}
+.bt-edit.on{background:#fff;color:#111;border-color:#fff}
+.bt:has(.bt-edit) .bt-pend{right:58px}
+.mini-ed{position:fixed;right:16px;top:118px;bottom:16px;width:min(400px,calc(100vw - 32px));z-index:60;display:flex;flex-direction:column;background:var(--panel,#151821);border:1px solid var(--borde,#2a2f3c);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.55);overflow:hidden}
+.mini-ed[hidden]{display:none}
+.mini-cab{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--borde,#2a2f3c)}
+.mini-tit{flex:1;min-width:0;display:flex;flex-direction:column}
+.mini-tit small{font-size:11px;letter-spacing:.06em;text-transform:uppercase;opacity:.7}
+.mini-tit b{font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mini-campos{flex:1;overflow:auto;padding:10px 14px}
+.mini-pie{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 14px;border-top:1px solid var(--borde,#2a2f3c)}
+.mini-est{flex:1 1 100%;font-size:12px;opacity:.8}
+.mini-est.aire{color:#ff6b6b;opacity:1;font-weight:700}
+.mini-pie .btn{flex:1 1 auto}
+#miniAct{background:#f5a623;border-color:#f5a623;color:#1b1200;font-weight:800}
+#miniAire.activo{background:#2a2f3c}
+body.mini-abierto .bot-grid{padding-right:432px}
+@media (max-width:900px){
+  .mini-ed{left:0;right:0;bottom:0;top:auto;width:auto;max-height:62vh;border-radius:16px 16px 0 0;padding-bottom:env(safe-area-inset-bottom)}
+  body.mini-abierto .bot-grid{padding-right:14px;padding-bottom:62vh}
+  .bt-edit{padding:5px 6px;font-size:9.5px}
+}
+
+/* ---------- botón Cortina configurable ---------- */
+.split-cortina{display:inline-flex}
+.split-cortina #bCortina{border-top-right-radius:0;border-bottom-right-radius:0}
+.split-cortina .cort-cfg{border-top-left-radius:0;border-bottom-left-radius:0;border-left-width:0;padding:0 9px;min-width:0}
+.cort-modo{margin:10px 0 2px}
+.cort-lista{display:flex;flex-direction:column;gap:6px}
+.cort-it{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--borde,#2a2f3c);border-radius:10px;cursor:pointer}
+.cort-it input{width:20px;height:20px;accent-color:var(--pgm,#E02A12)}
+.cort-it span{flex:1}
+.cort-it.sin{opacity:.5}
+.cort-n{flex:1;font-size:13px;opacity:.8}
+/* monitores siempre en 16:9 completos: no se encogen ni se recortan dentro de la columna (si no caben, la columna hace scroll) */
+#monitores .monitor{flex:0 0 auto}
+#monitores .pantalla{width:min(100%, calc((100vh - 190px) / 2 * 16 / 9));height:auto;aspect-ratio:16/9;margin:0 auto}
+body.tab-boton #monitores .pantalla{width:min(100%, calc((100vh - 150px) * 16 / 9))}
+@media (max-width:1280px){body.tab-visual #monitores .monitor{flex:1 1 0;min-width:0}}
