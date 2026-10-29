@@ -191,7 +191,7 @@
     }
     if (salidas === 0) { toast("Ojo: no hay ninguna salida conectada, nadie verá esta cortina.", "err"); }
     if (!guardado) { e.datos = clon(borrador(id)); }
-    var ev = {id: CG.nuevoId(), tipo: e.plantilla, datos: clon(e.datos), t: Date.now()};
+    var ev = {id: CG.nuevoId(), el: e.id, tipo: e.plantilla, datos: clon(e.datos), t: Date.now()};
     estado.ev = (estado.ev || []).concat(ev).slice(-12);
     publicar(); guardarBorr();
     flash($("#aMostrar"));
