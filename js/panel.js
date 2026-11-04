@@ -162,10 +162,14 @@
     }
     if (esEvento(e)) { lanzar(id, guardado); return; }
     var nuevo = !e.on, g = CG.grupoDe({plantilla: e.plantilla, datos: fuente});
-    /* reglas: el cierre limpia todo; dos gráficas del mismo grupo (ej. dos GC de nombre) no se superponen */
-    if (nuevo) {
+    /* fuera de un botón-grupo, la gráfica vuelve a su lugar normal */
+    if (!enGrupo && !sinTrans) { delete e.gb; delete e.lay; }
+    /* reglas: el cierre limpia todo; dos gráficas del mismo grupo (ej. dos GC de nombre) no se superponen.
+       Excepciones: una transición no apaga nada (pasa por encima), y las gráficas de un mismo botón-grupo salen juntas */
+    if (nuevo && !esTransicion(e)) {
       estado.elementos.forEach(function (o) {
-        if (o === e || !o.on) { return; }
+        if (o === e || !o.on || esTransicion(o)) { return; }
+        if (e.gb && o.gb === e.gb) { return; }
         if (P[e.plantilla].exclusivo || CG.grupoDe(o) === g) { o.on = false; }
       });
     }
@@ -702,9 +706,11 @@
   /* ------------------------------------------------------------------ barra superior */
   /* ---------- botón CORTINA configurable: elige qué cortinas usa y si salen al azar, en orden o siempre la misma ---------- */
   var CORT_DEF = ["lb-cortina-cm", "lb-cortina-programa", "lb-cort-v-noticiero", "lb-cort-v-vtr2", "lb-cort-v-vtr3"];
+  var CORT_NUEVAS = ["lb-trans-lluvia", "lb-trans-gran-completo", "lb-trans-maule", "lb-trans-ya-volvemos"];   /* v2: transiciones largas */
   function cfgCortina() {
     var c = estado.cortinaBoton;
-    if (!c || !Array.isArray(c.ids)) { c = estado.cortinaBoton = {modo: "aleatoria", ids: CORT_DEF.filter(function (id) { return el(id); }), ultima: ""}; }
+    if (!c || !Array.isArray(c.ids)) { c = estado.cortinaBoton = {modo: "aleatoria", ids: CORT_DEF.filter(function (id) { return el(id); }), ultima: "", v: 1}; }
+    if ((c.v || 1) < 2) { CORT_NUEVAS.forEach(function (id) { if (el(id) && c.ids.indexOf(id) < 0) { c.ids.push(id); } }); c.v = 2; }
     return c;
   }
   function elegirCortina() {
@@ -732,7 +738,10 @@
     var grupo = function (t) { return t.plantilla === "cortina" ? "Salsa (dibujadas)" : t.plantilla === "transicion" ? "Animadas" : "Videos"; };
     var orden = ["Salsa (dibujadas)", "Videos", "Animadas"], h = "<h2>Botón Cortina</h2><p class='lead'>Elige qué cortinas puede lanzar el botón <b>⚡ Cortina</b> (y el botón «Cortina» de la botonera).</p>" +
       "<div class='seg cort-modo' role='radiogroup'>" + [["aleatoria", "🎲 Al azar"], ["orden", "🔁 En orden"], ["fija", "📌 Siempre la primera"]].map(function (o) { return "<button type='button' data-m='" + o[0] + "' class='" + (c.modo === o[0] ? "on" : "") + "'>" + o[1] + "</button>"; }).join("") + "</div>" +
-      "<p class='nota-m'>Al azar nunca repite la misma cortina dos veces seguidas.</p>";
+      "<p class='nota-m'>Al azar nunca repite la misma cortina dos veces seguidas.</p>" +
+      "<h3 class='cfg-h3'>Atajo de teclado</h3><div class='cort-tecla'><span class='cort-k' id='cortK'>" + esc(c.tecla ? nombreTecla(c.tecla) : "Sin tecla") + "</span>" +
+      "<button type='button' class='btn' id='cortCap'>⌨️ Presionar una tecla</button>" + (c.tecla ? "<button type='button' class='btn mini' id='cortSin'>Quitar</button>" : "") + "</div>" +
+      "<p class='nota-m'>Sirve cualquier tecla de tu teclado o Stream Deck (por ejemplo F12 o F13–F24). Si un botón de la botonera ya la usa, se le quita.</p>";
     orden.forEach(function (g) {
       var it = lista.filter(function (t) { return grupo(t) === g; }); if (!it.length) { return; }
       h += "<h3 class='cfg-h3'>" + g + "</h3><div class='cort-lista'>" + it.map(function (t) {
@@ -740,13 +749,45 @@
         return "<label class='cort-it" + (sin ? " sin" : "") + "'><input type='checkbox' data-id='" + esc(t.id) + "'" + (c.ids.indexOf(t.id) >= 0 ? " checked" : "") + (sin ? " disabled" : "") + "><span>" + esc(t.nombre) + (sin ? " <small>(sin video)</small>" : "") + "</span><button type='button' class='btn mini' data-probar='" + esc(t.id) + "'>Probar</button></label>";
       }).join("") + "</div>";
     });
+    var otros = estado.elementos.filter(function (e) { return e.plantilla === "video" && !esTransicion(e) && e.datos.media; });
+    if (otros.length) {
+      h += "<h3 class='cfg-h3'>Tus videos (al marcarlos pasan a ser cortina: van encima de todo)</h3><div class='cort-lista'>" + otros.map(function (t) {
+        return "<label class='cort-it'><input type='checkbox' data-vid='" + esc(t.id) + "'><span>" + esc(t.nombre) + "</span><button type='button' class='btn mini' data-probar='" + esc(t.id) + "'>Probar</button></label>";
+      }).join("") + "</div>";
+    }
     h += "<div class='modal-pie'><span class='cort-n' id='cortN'></span><button class='btn prim' data-r='1'>Listo</button></div>";
     var m = modal(h, {ancho: true, sinFoco: true});
     function contar() { var n = c.ids.filter(function (id) { return el(id); }).length; $("#cortN", m).textContent = n ? n + (n === 1 ? " cortina elegida" : " cortinas elegidas") : "Ninguna: el botón lanzará la cortina de salsa básica"; }
     $$(".cort-modo button", m).forEach(function (b) { b.onclick = function () { c.modo = b.dataset.m; $$(".cort-modo button", m).forEach(function (x) { x.classList.toggle("on", x === b); }); publicar(); }; });
     $$("input[data-id]", m).forEach(function (i) { i.onchange = function () { var id = i.dataset.id; c.ids = c.ids.filter(function (x) { return x !== id; }); if (i.checked) { c.ids.push(id); } publicar(); contar(); }; });
     $$("[data-probar]", m).forEach(function (b) { b.onclick = function (ev) { ev.preventDefault(); pasarTrans(b.dataset.probar); toast("Probando: " + el(b.dataset.probar).nombre + " (sale al aire)", "ok"); }; });
+    $$("input[data-vid]", m).forEach(function (i) { i.onchange = function () {
+      var t = el(i.dataset.vid); if (!t || !i.checked) { return; }
+      t.datos.esTrans = true; if (borr[t.id]) { borr[t.id].esTrans = true; } if (c.ids.indexOf(t.id) < 0) { c.ids.push(t.id); }
+      publicar(); toast("«" + t.nombre + "» ahora es cortina: va encima de todo", "ok"); configCortina();
+    }; });
+    $("#cortCap", m).onclick = function () {
+      var bt = this; bt.textContent = "Presiona la tecla ahora… (Esc cancela)"; bt.classList.add("esperando"); capturando = true;
+      var f = function (ev) {
+        ev.preventDefault(); ev.stopPropagation(); document.removeEventListener("keydown", f, true); capturando = null;
+        if (ev.key === "Escape") { configCortina(); return; }
+        if (/^(Tab|Enter|Shift|Control|Alt|Meta|CapsLock| )$/.test(ev.key)) { toast("Esa tecla no se puede usar. Prueba otra.", "err"); configCortina(); return; }
+        asignarTeclaCortina(ev.key); configCortina();
+      };
+      document.addEventListener("keydown", f, true);
+    };
+    if ($("#cortSin", m)) { $("#cortSin", m).onclick = function () { asignarTeclaCortina(""); configCortina(); }; }
     $("[data-r='1']", m).onclick = cerrarModal; contar();
+  }
+  function asignarTeclaCortina(k) {
+    var c = cfgCortina(), quitado = null;
+    if (k) { botones().forEach(function (x) { if (x.tecla === k) { x.tecla = ""; quitado = x; } }); }
+    c.tecla = k || ""; publicar(); dibujarBotonera(); etiquetaCortina();
+    toast(k ? "Botón Cortina: tecla " + nombreTecla(k) + (quitado ? " (quitada de «" + (quitado.etiqueta || estadoBoton(quitado).txt) + "»)" : "") : "Botón Cortina sin tecla", "ok");
+  }
+  function etiquetaCortina() {
+    var k = estado && estado.cortinaBoton && estado.cortinaBoton.tecla, sp = $("#bCortina span");
+    if (sp) { sp.textContent = k ? "Cortina · " + nombreTecla(k) : "Cortina"; }
   }
   $("#bLimpiar").onclick = function () {
     var on = estado.elementos.filter(function (e) { return e.on; });
@@ -764,6 +805,7 @@
     if (!escribiendo && $("#modal").hidden && estado && (e.key === "PageDown" || e.key === "PageUp")) { e.preventDefault(); moverPaso(e.key === "PageDown" ? 1 : -1); return; }
     if (e.key === "Escape" && !$("#modal").hidden) { cerrarModal(); return; }
     if (e.key === "Escape" && miniId) { cerrarMini(); return; }
+    if (!escribiendo && !capturando && $("#modal").hidden && estado && !e.repeat && !e.ctrlKey && !e.altKey && !e.metaKey && estado.cortinaBoton && estado.cortinaBoton.tecla && e.key === estado.cortinaBoton.tecla) { e.preventDefault(); $("#bCortina").click(); return; }
     if (teclaBotonera(e, escribiendo)) { return; }
     if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && sel && $("#modal").hidden) { e.preventDefault(); if (e.shiftKey) { ocultar(sel); } else { $("#aMostrar").click(); } }
   });
@@ -1344,8 +1386,45 @@
   }
   function botones() { return (estado && estado.botonera && estado.botonera.botones) || []; }
   function nombreTecla(k) { return k === " " ? "Espacio" : k || ""; }
+  /* ids de las gráficas de un botón (1 a 5) */
+  var MAX_GRUPO = 5;
+  function idsBoton(b) {
+    if (!b || b.esp) { return []; }
+    var l = Array.isArray(b.els) && b.els.length ? b.els : (b.el ? [b.el] : []);
+    return l.filter(function (id, i) { return l.indexOf(id) === i; }).slice(0, MAX_GRUPO);
+  }
+  function esGrupo(b) { return idsBoton(b).length > 1; }
+  /* acomodo en pantalla de las gráficas de un botón-grupo (no cambia sus datos: mueve y achica la capa completa) */
+  function layGrupo(dist, i, n) {
+    if (dist === "fila") { var s = Math.min(0.85, 1.6 / n); return {x: Math.round(i * 1920 / n), y: 0, s: +s.toFixed(3), o: "0 100%"}; }
+    if (dist === "columna") { var s2 = n <= 2 ? 0.85 : n === 3 ? 0.7 : n === 4 ? 0.58 : 0.5; return {x: 0, y: -Math.round(i * 270 * s2), s: s2, o: "0 100%"}; }
+    return null;
+  }
+  var enGrupo = false;
+  function dispararGrupo(b) {
+    var ids = idsBoton(b).filter(function (id) { return el(id); }), es = ids.map(el);
+    if (!es.length) { toast("Este botón apunta a gráficas que ya no existen. Edítalo.", "err"); return; }
+    var normales = es.filter(function (e) { return !esEvento(e); }), acc = b.accion || "alternar";
+    es.filter(esEvento).forEach(function (e) { lanzar(e.id, true, true); });
+    var alAire = normales.some(function (e) { return e.on; });
+    if (acc === "ocultar" || (acc === "alternar" && alAire)) { normales.forEach(function (e) { if (e.on) { ocultar(e.id); } }); return; }
+    enGrupo = true;
+    try {
+      normales.forEach(function (e, i) {
+        e.gb = b.id; var l = layGrupo(b.dist || "libre", i, normales.length); if (l) { e.lay = l; } else { delete e.lay; }
+        if (e.on) { return; }
+        mostrar(e.id, true, true, true, true);
+      });
+    } finally { enGrupo = false; }
+    publicar();
+  }
   function estadoBoton(b) {
     if (b.esp) { return {on: false, txt: ESPECIALES[b.esp] || b.esp, tipo: "ACCIÓN"}; }
+    if (esGrupo(b)) {
+      var gs = idsBoton(b).map(el).filter(Boolean); if (!gs.length) { return {falta: true, txt: "Gráficas eliminadas", tipo: "—"}; }
+      return {on: gs.some(function (x) { return x.on; }), ev: false, pend: gs.some(function (x) { return CG.pendientesDe(x).length > 0; }), falta: false,
+        txt: gs.map(function (x) { return x.nombre.replace(/^GC /, ""); }).join(" + "), tipo: gs.length + " GRÁFICAS JUNTAS", e: gs[0], grupo: gs};
+    }
     var e = el(b.el); if (!e) { return {falta: true, txt: "Gráfica eliminada", tipo: "—"}; }
     var p = P[e.plantilla], pend = CG.pendientesDe(e);
     return {on: e.on, ev: !!p.evento, pend: pend.length > 0, falta: e.plantilla === "video" && !e.datos.media, txt: e.nombre, tipo: (CG.TIPOS[CG.tipoDe(e)] || "").toUpperCase(), e: e};
@@ -1373,9 +1452,10 @@
       return '<button class="bt' + (s2.on ? " on" : "") + (s2.ev ? " ev" : "") + (s2.falta ? " falta" : "") + (b.esp ? " esp" : "") + (editarBotonera && i === selB ? " sel" : "") + '" data-i="' + i + '" style="--c:' + esc(col) + '" title="' + esc(s2.txt) + '">' +
         '<span class="bt-tec">' + esc(nombreTecla(b.tecla)) + '</span>' + (s2.pend || s2.falta ? '<span class="bt-pend" title="Tiene datos o archivos pendientes">⚠</span>' : '') +
         '<span class="bt-et">' + esc(b.etiqueta || s2.txt) + '</span><span class="bt-sub">' + (s2.e && s2.e.tr && (s2.e.tr.entra || s2.e.tr.sale) ? '<span title="Entra o sale con transición">✨ </span>' : '') + esc(s2.tipo) + (s2.ev ? " · se lanza" : s2.on ? (salidas === 0 ? " · PROG." : " · AL AIRE") : "") + '</span>' +
-        (editarBotonera ? '<span class="bt-asa" title="Arrastrar para mover">⠿</span>' : (s2.e ? '<span class="bt-edit' + (miniId === s2.e.id ? ' on' : '') + '" data-edit="' + i + '" role="button" title="Editar textos, fotos y video de esta gráfica">EDIT</span>' : '')) + '</button>';
+        (editarBotonera ? '<span class="bt-asa" title="Arrastrar para mover">⠿</span>' : (s2.e ? '<span class="bt-edit' + (miniId && idsBoton(b).indexOf(miniId) >= 0 ? ' on' : '') + '" data-edit="' + i + '" role="button" title="Editar textos, fotos y video de esta gráfica">EDIT</span>' : '')) + '</button>';
     }).join("") + (editarBotonera ? '<button class="bt bt-mas" id="btMas"><span class="bt-mas-ico">+</span><span class="bt-sub">AGREGAR BOTÓN</span></button>' : '');
     if (!botones().length && !editarBotonera) { cont.innerHTML = '<div class="lista-vacia">No hay botones. Toca «Editar botones» para agregarlos.</div>'; }    if (miniId) { if (!el(miniId)) { cerrarMini(); } else { miniEstado(); } }
+    etiquetaCortina();
   }
   /* guarda y redibuja sin perder lo que se está escribiendo en el panel lateral */
   var tGuardarBot = null;
@@ -1399,13 +1479,16 @@
       a.innerHTML = '<div class="bi-vacio"><div class="bi-ilus">👆</div><b>Toca un botón para editarlo</b><p>Puedes cambiar qué gráfica saca, su texto, su color y su tecla. Los cambios se ven al instante.</p><p>Para ordenarlos, <b>arrástralos</b> en la grilla.</p><button class="btn prim grande" id="biNuevo">+ Agregar botón</button></div>';
       $("#biNuevo").onclick = agregarBoton; return;
     }
-    var v = b.esp ? ":" + b.esp : b.el, s2 = estadoBoton(b), ops = opcionesBot();
+    var v = b.esp ? ":" + b.esp : b.el, s2 = estadoBoton(b), ops = opcionesBot(), varias = !b.esp && !!b.varias, sel1 = idsBoton(b);
     var dueno = {}; botones().forEach(function (x, j) { if (x.tecla) { dueno[x.tecla] = j; } });
     var teclas = TECLAS_F.slice(); if (b.tecla && teclas.indexOf(b.tecla) < 0) { teclas.push(b.tecla); }
     var mostrarAcc = !b.esp && !s2.ev;
     a.innerHTML =
       '<div class="bi-cab"><span class="bi-prev" style="--c:' + esc(b.color || "#3A3F4E") + '">' + esc(nombreTecla(b.tecla) || "—") + '</span><div><small>BOTÓN ' + (selB + 1) + ' DE ' + botones().length + '</small><b>' + esc(b.etiqueta || s2.txt) + '</b></div><button class="btn ico" id="biCerrar" title="Cerrar">✕</button></div>' +
-      '<div class="bi-sec"><label class="bi-tit"><span>1</span>¿Qué gráfica saca?</label>' +
+      '<div class="bi-sec"><label class="bi-tit"><span>1</span>' + (varias ? "¿Qué gráficas saca juntas?" : "¿Qué gráfica saca?") + '</label>' +
+        (b.esp ? '' : '<div class="seg bi-modo" id="biModo"><button data-m="1" class="' + (varias ? "" : "on") + '">Una gráfica</button><button data-m="n" class="' + (varias ? "on" : "") + '">Varias a la vez (hasta ' + MAX_GRUPO + ')</button></div>') +
+        (varias ? '<div class="bi-grupo" id="biGrupo">' + (sel1.length ? sel1.map(function (id, i) { var g = el(id); return '<span class="bi-gch">' + (i + 1) + '. ' + esc(g ? g.nombre : "(eliminada)") + '<button data-q="' + esc(id) + '" title="Quitar">✕</button></span>'; }).join("") : '<span class="nota">Toca en la lista las gráficas que quieres sacar juntas (' + MAX_GRUPO + ' máximo).</span>') + '</div>' +
+          '<label class="bi-sub">Cómo se acomodan</label><div class="seg bi-dist" id="biDist">' + [["libre", "Cada una en su lugar"], ["fila", "En fila (lado a lado)"], ["columna", "En columna (una sobre otra)"]].map(function (x) { return '<button data-d="' + x[0] + '" class="' + ((b.dist || "libre") === x[0] ? "on" : "") + '">' + x[1] + '</button>'; }).join("") + '</div>' : '') +
         (function () {
           var nFav = ops.filter(function (o) { return o.fav; }).length, nGr = ops.filter(function (o) { return o.graf; }).length, m = modoFavBot();
           return '<div class="seg bi-filtro" id="biFiltro"><button data-f="todas" class="' + (m === "todas" ? "on" : "") + '">Todas (' + nGr + ')</button>' +
@@ -1413,7 +1496,9 @@
         })() +
         '<input type="search" id="biBus" placeholder="Buscar gráfica…" value="' + esc(filtroBot) + '"><div class="bi-ops" id="biOps">' +
         ops.map(function (o) {
-          return '<div role="button" tabindex="0" class="bi-op' + (o.v === v ? " on" : "") + (o.graf ? "" : " accion") + '" data-v="' + esc(o.v) + '" data-fav="' + (o.fav ? 1 : 0) + '">' +
+          var marcada = varias ? sel1.indexOf(o.v) >= 0 : o.v === v;
+          if (varias && !o.graf) { return ""; }
+          return '<div role="button" tabindex="0" class="bi-op' + (marcada ? " on" : "") + (o.graf ? "" : " accion") + '" data-v="' + esc(o.v) + '" data-fav="' + (o.fav ? 1 : 0) + '">' + (varias ? '<span class="bi-chk">' + (marcada ? (sel1.indexOf(o.v) + 1) : "") + '</span>' : '') +
             (o.graf ? '<span class="bi-star' + (o.fav ? " on" : "") + '" title="' + (o.fav ? "Quitar de favoritas" : "Agregar a favoritas") + '">★</span>' : '<span class="bi-star nada"></span>') +
             '<span class="bi-num">' + esc(o.num) + '</span><span class="bi-nom">' + esc(o.nom) + '</span><span class="bi-tipo">' + esc(o.tipo) + '</span></div>';
         }).join("") + '<div class="bi-sinfav" id="biSinFav" hidden>Aún no tienes favoritas.<br>Toca la <b>★</b> de cualquier gráfica para agregarla.<button class="btn mini" id="biVerTodas">Ver todas</button></div></div></div>' +
@@ -1425,8 +1510,9 @@
         '<button class="bi-tecla' + (!b.tecla ? " on" : "") + '" data-k=""><b>—</b><small>sin tecla</small></button></div>' +
         '<button class="btn bi-cap" id="biCap">⌨️ Presionar una tecla del teclado</button></div>' +
       (mostrarAcc ? '<div class="bi-sec"><label class="bi-tit"><span>5</span>Al presionar</label><div class="seg bi-acc" id="biAcc">' + [["alternar", "Muestra / oculta"], ["mostrar", "Solo muestra"], ["ocultar", "Solo oculta"]].map(function (x) { return '<button data-v="' + x[0] + '" class="' + ((b.accion || "alternar") === x[0] ? "on" : "") + '">' + x[1] + '</button>'; }).join("") + '</div></div>' : '') +
-      (s2.e ? '<div class="bi-sec"><label class="bi-tit"><span>' + (mostrarAcc ? 6 : 5) + '</span>Transición</label><div class="bi-trs"><label><small>Entra con</small><select id="biTrE">' + opcionesTrans((s2.e.tr || {}).entra, s2.e.id) + '</select></label>' +
+      (s2.e && !esGrupo(b) ? '<div class="bi-sec"><label class="bi-tit"><span>' + (mostrarAcc ? 6 : 5) + '</span>Transición</label><div class="bi-trs"><label><small>Entra con</small><select id="biTrE">' + opcionesTrans((s2.e.tr || {}).entra, s2.e.id) + '</select></label>' +
         (s2.ev ? '' : '<label><small>Sale con</small><select id="biTrS">' + opcionesTrans((s2.e.tr || {}).sale, s2.e.id) + '</select></label>') + '</div><span class="nota">Crea o sube transiciones en Configuración → Transiciones.</span></div>' : '') +
+      (sel1.length ? '<div class="bi-sec"><label class="bi-tit"><span>◧</span>Capa</label><div id="biCapa" class="bi-capa"></div><span class="nota">Al fondo: las demás gráficas pasan por encima. Arriba: queda sobre todas. Las transiciones y cortinas van siempre encima de todo.</span></div>' : '') +
       '<div class="bi-pie"><button class="btn" id="biIzq" title="Mover a la izquierda">◀</button><button class="btn" id="biDer" title="Mover a la derecha">▶</button><button class="btn" id="biDup">Duplicar</button><button class="btn peligro" id="biDel">Eliminar</button></div>';
     var on = $(".bi-op.on", a); if (on && !filtroBot) { on.scrollIntoView({block: "nearest"}); }
     filtrarOps();
@@ -1443,7 +1529,13 @@
         return;
       }
       var o = ev.target.closest(".bi-op"); if (!o) { return; }
-      var nv = o.dataset.v; b.el = nv.charAt(0) === ":" ? "" : nv; b.esp = nv.charAt(0) === ":" ? nv.slice(1) : ""; b.etiqueta = ""; filtroBot = "";
+      var nv = o.dataset.v;
+      if (varias) {
+        var l = idsBoton(b), k = l.indexOf(nv);
+        if (k >= 0) { l.splice(k, 1); } else if (l.length >= MAX_GRUPO) { toast("Máximo " + MAX_GRUPO + " gráficas por botón", "err"); return; } else { l.push(nv); }
+        b.els = l; b.el = l[0] || ""; cambioBot(true); return;
+      }
+      b.el = nv.charAt(0) === ":" ? "" : nv; b.esp = nv.charAt(0) === ":" ? nv.slice(1) : ""; b.etiqueta = ""; filtroBot = ""; delete b.els;
       cambioBot(true);
     };
     $("#biEt").oninput = function () { b.etiqueta = this.value.toUpperCase(); $(".bi-cab b", a).textContent = b.etiqueta || estadoBoton(b).txt; cambioBot(false, true); };
@@ -1460,6 +1552,14 @@
       };
       document.addEventListener("keydown", f, true);
     };
+    if ($("#biModo")) { $$("#biModo button", a).forEach(function (x) { x.onclick = function () {
+      b.varias = x.dataset.m === "n";
+      if (b.varias) { b.els = b.el ? [b.el] : []; } else { var p0 = idsBoton(b)[0] || b.el; delete b.els; b.el = p0 || ""; }
+      cambioBot(true);
+    }; }); }
+    if ($("#biGrupo")) { $$("#biGrupo [data-q]", a).forEach(function (x) { x.onclick = function () { b.els = idsBoton(b).filter(function (id) { return id !== x.dataset.q; }); b.el = b.els[0] || ""; cambioBot(true); }; }); }
+    if ($("#biDist")) { $$("#biDist button", a).forEach(function (x) { x.onclick = function () { b.dist = x.dataset.d; cambioBot(true); }; }); }
+    if ($("#biCapa")) { pintarCapa($("#biCapa"), sel1); }
     if ($("#biAcc")) { $$("#biAcc button", a).forEach(function (x) { x.onclick = function () { b.accion = x.dataset.v; cambioBot(true); }; }); }
     if ($("#biTrE")) { $("#biTrE").onchange = function () { s2.e.tr = Object.assign({}, s2.e.tr, {entra: this.value}); cambioBot(true); }; }
     if ($("#biTrS")) { $("#biTrS").onchange = function () { s2.e.tr = Object.assign({}, s2.e.tr, {sale: this.value}); cambioBot(true); }; }
@@ -1485,6 +1585,7 @@
   function asignarTecla(b, k) {
     var quitado = null;
     if (k) { botones().forEach(function (x) { if (x !== b && x.tecla === k) { x.tecla = ""; quitado = x; } }); }
+    if (k && estado.cortinaBoton && estado.cortinaBoton.tecla === k) { estado.cortinaBoton.tecla = ""; etiquetaCortina(); toast("La tecla " + nombreTecla(k) + " ya no lanza la Cortina", "ok"); }
     b.tecla = k || "";
     cambioBot(true);
     if (quitado) { toast("Tecla " + nombreTecla(k) + " movida desde «" + (quitado.etiqueta || estadoBoton(quitado).txt) + "»", "ok"); }
@@ -1510,6 +1611,7 @@
     if (b.esp === "siguiente") { moverPaso(1); return; }
     if (b.esp === "anterior") { moverPaso(-1); return; }
     if (b.esp === "cortina") { $("#bCortina").click(); return; }
+    if (esGrupo(b)) { dispararGrupo(b); return; }
     var e = el(b.el); if (!e) { toast("Ese botón apunta a una gráfica que ya no existe. Edítalo.", "err"); return; }
     if (esEvento(e)) { lanzar(e.id, true); return; }
     var acc = b.accion || "alternar";
@@ -1518,19 +1620,26 @@
   }
   /* ---------- EDIT: mini panel para editar la gráfica de un botón ahí mismo (textos, fotos, video, colores) ----------
      La botonera en sí (qué botón, tecla, color) se sigue editando con «Editar botones». */
-  var miniId = null, tMini = 0;
-  function abrirMini(id) {
+  var miniId = null, tMini = 0, miniGrupo = [];
+  function abrirMini(id, grupo) {
     var e = el(id); if (!e || !P[e.plantilla]) { return; }
+    if (grupo) { miniGrupo = grupo; } else if (miniGrupo.indexOf(id) < 0) { miniGrupo = [id]; }
+    if (miniId && miniId !== id) { clearTimeout(tMini); miniGuardar(miniId); }
     miniId = id; seleccionar(id);
     var m = $("#miniEd"); m.hidden = false;
     $("#miniNom").textContent = e.nombre; $("#miniTipo").textContent = P[e.plantilla].nombre;
+    var tabs = $("#miniTabs");
+    tabs.hidden = miniGrupo.length < 2;
+    tabs.innerHTML = miniGrupo.map(function (x, i) { var g = el(x); return g ? '<button type="button" class="' + (x === id ? "on" : "") + '" data-id="' + esc(x) + '">' + (i + 1) + '. ' + esc(g.nombre.replace(/^GC /, "")) + '</button>' : ""; }).join("");
+    $$("button", tabs).forEach(function (t) { t.onclick = function () { abrirMini(t.dataset.id); }; });
+    pintarCapa($("#miniCapa"), [id]);
     miniEstado(); dibujarBotonera(); document.body.classList.add("mini-abierto");
     var i = $("#miniCampos input[type=text], #miniCampos textarea"); if (i && !esMovil()) { setTimeout(function () { i.focus(); }, 60); }
   }
   function cerrarMini() {
     if (!miniId) { return; }
     var id = miniId; clearTimeout(tMini); miniGuardar(id);
-    miniId = null; $("#miniEd").hidden = true; $("#miniCampos").innerHTML = ""; document.body.classList.remove("mini-abierto");
+    miniId = null; miniGrupo = []; $("#miniEd").hidden = true; $("#miniCampos").innerHTML = ""; document.body.classList.remove("mini-abierto");
     if (sel && el(sel)) { dibujarCampos(); } dibujarBotonera();
   }
   /* si la gráfica NO está al aire, lo que escribes se guarda solo (el próximo toque del botón ya sale con el texto nuevo).
@@ -1565,6 +1674,22 @@
   };
   $("#miniAct").onclick = function () { var e = el(miniId); if (e && e.on) { mostrar(e.id); toast("Actualizado al aire", "ok"); setTimeout(miniEstado, 30); } };
   $("#miniDesc").onclick = function () { var id = miniId; if (!el(id)) { return; } borr[id] = clon(el(id).datos); guardarBorr(); dibujarCampos(); estadoFicha(); pvw(); dibujarLista(); miniEstado(); };
+  /* ---------- CAPAS: al fondo / normal / arriba (las transiciones van siempre encima de todo) ---------- */
+  var CAPAS = [["fondo", "⬇ Al fondo"], ["normal", "Normal"], ["arriba", "⬆ Arriba"]];
+  function pintarCapa(cont, ids) {
+    if (!cont) { return; }
+    var es = ids.map(el).filter(Boolean); if (!es.length) { cont.innerHTML = ""; return; }
+    var trans = es.filter(esTransicion);
+    if (trans.length === es.length) { cont.innerHTML = '<span class="capa-trans">✨ Transición: siempre encima de todo</span>'; return; }
+    var act = es.filter(function (e) { return !esTransicion(e); }).map(function (e) { return e.capaUsr || "normal"; });
+    var igual = act.every(function (x) { return x === act[0]; }) ? act[0] : "";
+    cont.innerHTML = '<span class="capa-tit">Capa</span><div class="seg capa-seg">' + CAPAS.map(function (c) { return '<button type="button" data-c="' + c[0] + '" class="' + (igual === c[0] ? "on" : "") + '">' + c[1] + '</button>'; }).join("") + '</div>';
+    $$("button", cont).forEach(function (bt) { bt.onclick = function () {
+      es.forEach(function (e) { if (esTransicion(e)) { return; } if (bt.dataset.c === "normal") { delete e.capaUsr; } else { e.capaUsr = bt.dataset.c; } });
+      publicar(); pintarCapa(cont, ids);
+      toast(bt.dataset.c === "fondo" ? "Queda al fondo: las demás gráficas pasan por encima" : bt.dataset.c === "arriba" ? "Queda arriba de las demás gráficas (las transiciones siguen encima)" : "Capa normal", "ok");
+    }; });
+  }
   function teclaBotonera(ev, escribiendo) {
     if (capturando) { return false; }
     if (escribiendo || !$("#modal").hidden || !estado || ev.repeat || ev.ctrlKey || ev.altKey || ev.metaKey) { return false; }
@@ -1629,7 +1754,7 @@
   });
   $("#botGrid").addEventListener("click", function (ev) {
     var ed = ev.target.closest(".bt-edit");
-    if (ed && !editarBotonera) { ev.preventDefault(); var bb = botones()[+ed.dataset.edit]; if (bb && bb.el) { if (miniId === bb.el) { cerrarMini(); } else { abrirMini(bb.el); } } return; }
+    if (ed && !editarBotonera) { ev.preventDefault(); var bb = botones()[+ed.dataset.edit], gi = idsBoton(bb).filter(function (x) { return el(x); }); if (gi.length) { if (miniId && gi.indexOf(miniId) >= 0) { cerrarMini(); } else { abrirMini(gi[0], gi); } } return; }
     if (!editarBotonera && Date.now() - tocado < 900) { return; } /* ya se disparó al tocar */
     var t = ev.target.closest(".bt"); if (!t) { return; }
     if (t.id === "btMas") { agregarBoton(); return; }

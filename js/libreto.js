@@ -29,6 +29,12 @@
   TRANS("cort-v-noticiero", "Cortina video · Salsa noticiero (5 s)", "m-cort-not");
   TRANS("cort-v-vtr2", "Cortina video · Salsa VTR 02 (4 s)", "m-cort-vtr2");
   TRANS("cort-v-vtr3", "Cortina video · Salsa VTR 03 (8 s)", "m-cort-vtr3");
+  /* transiciones animadas largas (para el botón ⚡ Cortina y la botonera) */
+  E("trans-lluvia", "transicion", "Transición · Lluvia de ingredientes (8 s)", {escena: "lluvia_salsas"});
+  E("trans-gran-completo", "transicion", "Transición · El gran completo (9 s)", {escena: "gran_completo"});
+  E("trans-maule", "transicion", "Transición · Desde Talca para el Maule (8 s)", {escena: "maule_salsa"});
+  E("trans-ya-volvemos", "transicion", "Transición · Ya volvemos (10 s)", {escena: "ya_volvemos"});
+  E("trans-extra", "transicion", "Transición · Noticiero ¡Extra, extra! (8 s)", {escena: "noticiero_extra"});
 
   /* bloque 1 */
   VID("video-intro", "Video de apertura", "PENDIENTE_VIDEO_INTRO");

@@ -8,8 +8,8 @@
   /* paleta exacta de los scripts (var P en COMPLETOS_MOJADOS_MASTER.jsx) */
   var K = CG.PAL = {
     mauve: "#C79BB0", mauveL: "#DDB5C8", panL: "#F2A04C", panM: "#EE8A3C", panD: "#E2673A", vien: "#9C3B22", vienL: "#B8512E",
-    palta: "#6AA832", paltaL: "#8CC24A", tomate: "#D9301F", tomL: "#F05A3C", mayo: "#FFF3D6", ketchup: "#E02A12", mostaza: "#F59A23",
-    amarillo: "#F2E21A", lima: "#B9D47A", negro: "#0A0A0A", blanco: "#FFFFFF", azulO: "#050E2B", azul: "#0B3A8C", azulC: "#2E9BFF",
+    palta: "#A6B23A", paltaL: "#BCC45A", tomate: "#D9301F", tomL: "#F05A3C", mayo: "#FFF3D6", ketchup: "#E02A12", mostaza: "#F59A23",
+    amarillo: "#F2E21A", lima: "#C9C98A", negro: "#0A0A0A", blanco: "#FFFFFF", azulO: "#050E2B", azul: "#0B3A8C", azulC: "#2E9BFF",
     rojoN: "#E01E2B", vino: "#5B2A63", vinoL: "#8A3E7A", pina: "#F7B500", pinaD: "#D98A00", rosa: "#B8527A", mosBG: "#F2B632", linea: "#2A1204"
   };
 
@@ -306,6 +306,27 @@
       A: function (d, ctx) { return CG.fondoHTML("programa", {maule: false}, false, ctx) + CG.completoSVG({x: 960, y: 700, s: 0.8, hosts: true, T: TT(0.1, 0.1)}) + TXT(d.a, 960, 150, 100, "#fff", 0.9, {sw: 4, dy: -80}) + [800, 960, 1120].map(function (x, i) { return icono("trozo", x, 585, 0.8, 1.6 + i * 0.2, 0, -500, 15); }).join(""); },
       B: function (d, ctx) { return CG.fondoHTML("vtr", {}, false, ctx) + icono("pina", 960, 430, 1.7, 0.3, 0, -500, 10) + TXT(d.b, 960, 740, 120, K.ketchup, 0.6, {sw: 4, sc: K.mayo}) + (tx(d.c) ? TXT(d.c, 960, 830, 52, K.negro, 0.85, {f: "arial", dy: 40}) : ""); }}
   };
+  /* ---------- transiciones LARGAS nuevas (misma estética: salsas, completo, ingredientes, Maule) ---------- */
+  function lluvia(t0, n) {   /* ingredientes que caen desde arriba, escalonados */
+    var tipos = ["vienesa", "tomate", "palta", "trozo", "tomate", "vienesa"], h = "";
+    for (var i = 0; i < n; i++) { h += icono(tipos[i % tipos.length], 140 + ((i * 397) % 1640), 200 + ((i * 263) % 640), 0.9 + (i % 3) * 0.35, t0 + i * 0.18, 0, -900, ((i * 47) % 50) - 25); }
+    return h;
+  }
+  ESCENAS.lluvia_salsas = {n: "LLUVIA DE INGREDIENTES · «¡Se viene lo mejor!» (8 s)", dur: 8, corte: 3.4, tipoCorte: "salsaV", a: "¡SE VIENE LO MEJOR!", b: "COMPLETOS MOJADOS",
+    A: function (d, ctx) { return CG.fondoHTML("programa", {maule: false}, false, ctx) + lluvia(0.1, 14) + TXT(d.a, 960, 540, 130, "#fff", 1.6, {sw: 4.5, r: -3}); },
+    B: function (d, ctx) { return CG.fondoHTML("vino", {}, false, ctx) + CG.completoSVG({x: 960, y: 680, s: 0.85, hosts: true, T: TT(0.15, 0.12), titulo: 1.0}) + TXT(d.b, 960, 170, 110, K.mayo, 0.9, {sw: 4.5, dy: -80}); }};
+  ESCENAS.gran_completo = {n: "EL GRAN COMPLETO · se arma gigante (9 s)", dur: 9, corte: 4.4, tipoCorte: "salsa", a: "EL PROGRAMA MÁS SABROSO DEL MAULE", b: "¡SEGUIMOS!",
+    A: function (d, ctx) { return CG.fondoHTML("programa", {maule: false}, false, ctx) + arcosSVG(0.2) + CG.completoSVG({x: 960, y: 640, s: 1.15, hosts: true, T: TT(0.4, 0.22), titulo: 1.8, tag: 2.4}) + (tx(d.a) ? banner(d.a, 960, 120, 1500, 100, K.rojoN, "#fff", 62, 2.6, "imp") : ""); },
+    B: function (d, ctx) { return CG.fondoHTML("vtr", {}, false, ctx) + icono("vienesa", 960, 420, 1.6, 0.25, 0, -500, 8) + icono("tomate", 560, 440, 1.5, 0.45, -500, 0, 20) + icono("palta", 1360, 440, 1.4, 0.6, 500, 0, -20) + TXT(d.b, 960, 760, 190, K.ketchup, 0.8, {sw: 5, sc: K.mayo, r: -3}); }};
+  ESCENAS.maule_salsa = {n: "DESDE TALCA PARA EL MAULE (8 s)", dur: 8, corte: 3.8, tipoCorte: "mancha", a: "DESDE TALCA", b: "PARA TODA LA REGIÓN DEL MAULE", c: "¡QUÉ RICO!",
+    A: function (d, ctx) { return CG.fondoHTML("programa", {maule: false}, false, ctx) + mapaSVG(1300, 600, 1.0, 0.3, 30) + TXT(d.a, 700, 420, 150, "#fff", 0.9, {sw: 4.5, r: -4}) + (tx(d.b) ? banner(d.b, 700, 600, 1000, 90, K.ketchup, "#fff", 52, 1.8, "imp") : ""); },
+    B: function (d, ctx) { return CG.fondoHTML("cierre", {logo: false, maule: false}, false, ctx) + CG.completoSVG({x: 960, y: 690, s: 0.8, hosts: true, T: TT(0.1, 0.1)}) + TXT(d.c, 960, 190, 150, K.mostaza, 0.8, {sw: 4.5, dy: -80}); }};
+  ESCENAS.ya_volvemos = {n: "YA VOLVEMOS · pausa comercial (10 s)", dur: 10, corte: 5, tipoCorte: "salsa", cols: [K.ketchup, K.mayo, K.mostaza, K.ketchup, K.mayo], a: "YA VOLVEMOS", b: "NO SE VAYAN", c: "COMPLETOS MOJADOS",
+    A: function (d, ctx) { return CG.fondoHTML("vino", {}, false, ctx) + ondasSVG(0.3, [[930, 22, K.mostaza, 0, 26], [990, 22, K.ketchup, 1, 20]]) + icono("vienesa", 380, 300, 1.2, 0.8, -600, 0, -12) + icono("tomate", 1540, 300, 1.3, 1.0, 600, 0, 14) + TXT(d.a, 960, 520, 220, K.mayo, 0.5, {sw: 5.5, r: -3}); },
+    B: function (d, ctx) { return CG.fondoHTML("programa", {maule: false}, false, ctx) + CG.completoSVG({x: 960, y: 700, s: 0.75, hosts: true, T: TT(0.15, 0.12), titulo: 1.2}) + TXT(d.b, 960, 160, 120, "#fff", 0.6, {sw: 4.5, dy: -80}) + (tx(d.c) ? banner(d.c, 960, 300, 760, 80, K.rojoN, "#fff", 48, 1.4, "imp") : ""); }};
+  ESCENAS.noticiero_extra = {n: "NOTICIERO · «¡Extra, extra!» (8 s)", dur: 8, corte: 3.3, tipoCorte: "salsaV", cols: [K.rojoN, K.mayo, K.azulC], a: "¡EXTRA, EXTRA!", b: "NOTICIERO MOJADO", c: "ÚLTIMO MINUTO",
+    A: function (d, ctx) { return CG.fondoHTML("noticiero", {maule: false}, false, ctx) + (tx(d.c) ? banner(d.c, 960, 300, 620, 90, K.rojoN, "#fff", 54, 0.3, "ai") : "") + TXT(d.a, 960, 560, 170, "#fff", 0.8, {f: "ai", sw: 4.5}) + '<div class="barra-s" style="left:360px;top:620px;width:1200px;height:22px;background:' + K.rojoN + ';--d:1.3s;--dx:-1600px"></div>'; },
+    B: function (d, ctx) { return CG.fondoHTML("noticiero", {maule: false}, false, ctx) + mapaSVG(300, 660, 0.7, 0.4, 25) + TXT(d.b, 1060, 540, 140, "#fff", 0.5, {f: "ai", sw: 4}); }};
   CG.ESCENAS = ESCENAS;
   P.transicion = {
     nombre: "Transición del programa", cat: "escenas", icono: "rayo", evento: true, tipo: "TRANSICION",
@@ -350,8 +371,9 @@
     }
     setTimeout(function () { w.remove(); }, 900);
   }
-  var tTrans = [];
+  var tTrans = [], genTrans = 0;
   P.transicion.lanzar = function (caja, d, ctx) {
+    var g = ++genTrans, vivo = function () { return g === genTrans; };   /* si se lanza otra transición, los relojes de esta ya no tocan la pantalla */
     var e = ESCENAS[d.escena] || ESCENAS.pase_noticiero, v = Math.max(0.25, ((+d.vel || 100) / 100) * (CG.velocidad || 1));
     var t = {a: tx(d.a) ? d.a : (e.a || ""), b: tx(d.b) ? d.b : (e.b || ""), c: tx(d.c) ? d.c : (e.c || "")};
     tTrans.forEach(clearTimeout); tTrans = [];
@@ -361,18 +383,19 @@
     fase(e.A(t, ctx));
     var cols = e.cols || [K.ketchup, K.mostaza, K.mayo];
     function salir() {
-      if (d.salidaSalsa === false) { esc.animate([{opacity: 1}, {opacity: 0}], {duration: 450 / v, fill: "forwards"}); tTrans.push(setTimeout(function () { caja.innerHTML = ""; }, 470 / v)); return; }
-      barrido(caja, {v: v * 1.2, cols: cols}, function () { esc.remove(); }, function () { caja.innerHTML = ""; });
+      if (!vivo()) { return; }
+      if (d.salidaSalsa === false) { esc.animate([{opacity: 1}, {opacity: 0}], {duration: 450 / v, fill: "forwards"}); tTrans.push(setTimeout(function () { if (vivo()) { caja.innerHTML = ""; } }, 470 / v)); return; }
+      barrido(caja, {v: v * 1.2, cols: cols}, function () { if (vivo()) { esc.remove(); } }, function () { if (vivo()) { caja.innerHTML = ""; } });
     }
     if (e.B && e.tipoCorte) {
       tTrans.push(setTimeout(function () {
-        var cubrir = function () { fase(e.B(t, ctx)); salpicar(caja, cols); };
+        var cubrir = function () { if (!vivo()) { return; } fase(e.B(t, ctx)); salpicar(caja, cols); };
         if (e.tipoCorte === "mancha") { mancha(caja, v, cubrir); } else { barrido(caja, {v: v, vert: e.tipoCorte === "salsaV", nb: e.tipoCorte === "salsaV" ? 6 : 5, st: e.tipoCorte === "salsaV" ? 0.07 : 0.1, tv: 0.55, ho: 0.2, cols: e.tipoCorte === "salsaV" ? [K.mayo, K.ketchup, K.mostaza] : cols}, cubrir); }
       }, e.corte * 1000 / v));
     }
     tTrans.push(setTimeout(salir, (e.dur - 0.6) * 1000 / v));
   };
-  P.transicion.cancelar = function () { tTrans.forEach(clearTimeout); tTrans = []; };
+  P.transicion.cancelar = function () { genTrans++; tTrans.forEach(clearTimeout); tTrans = []; };
   /* velocidad de las animaciones CSS de una escena */
   function ritmo(nodo, r) {
     if (Math.abs(r - 1) < 0.01 || !nodo.getAnimations) { return; }

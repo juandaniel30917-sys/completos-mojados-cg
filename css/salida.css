@@ -1,6 +1,6 @@
 /* COMPLETOS MOJADOS · CG — estilos de la salida (lo que va al aire). Lienzo de 1920x1080. */
 :root{
-  --linea:#2A1204;--negro:#0A0A0A;--mayo:#FFF3D6;--ketchup:#E02A12;--mostaza:#F59A23;--palta:#6AA832;--amarillo:#F2E21A;
+  --linea:#2A1204;--negro:#0A0A0A;--mayo:#FFF3D6;--ketchup:#E02A12;--mostaza:#F59A23;--palta:#A6B23A;--amarillo:#F2E21A;
   --malva:#C79BB0;--malvaL:#DDB5C8;--rosa:#B8527A;--azulO:#050E2B;--chroma:#00FF00;--vel:1;
   --imp:Impact,"Anton","Haettenschweiler","Arial Narrow Bold","Arial Black",sans-serif;
   --black:"Arial Black","Arial Bold",Gadget,Arial,sans-serif;
@@ -14,7 +14,7 @@ body.monitor{background:transparent}
 #stage{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0;overflow:hidden;font-family:var(--sans);pointer-events:none}
 .capa,.el{position:absolute;inset:0}
 .cuerpo{position:absolute;inset:0}
-#avisos{z-index:90}#cortina{z-index:100;overflow:hidden}#salp{z-index:95}
+#avisos{z-index:90}#cortina{z-index:1500;overflow:hidden}#salp{z-index:950}
 .ol{text-shadow:-.05em -.05em 0 var(--linea),.05em -.05em 0 var(--linea),-.05em .05em 0 var(--linea),.05em .05em 0 var(--linea),0 -.07em 0 var(--linea),0 .07em 0 var(--linea),-.07em 0 0 var(--linea),.07em 0 0 var(--linea),0 .13em 0 rgba(0,0,0,.35)}
 .ol-s{text-shadow:-.04em -.04em 0 var(--linea),.04em -.04em 0 var(--linea),-.04em .04em 0 var(--linea),.04em .04em 0 var(--linea),0 .08em 0 rgba(0,0,0,.3)}
 .imp{font-family:var(--imp);letter-spacing:.01em;line-height:.95;text-transform:uppercase}

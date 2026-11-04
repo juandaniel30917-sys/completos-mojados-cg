@@ -30,6 +30,28 @@
     var cajaCortina = document.createElement("div"); cajaCortina.className = "capa"; cajaCortina.id = "cortina"; stage.appendChild(cajaCortina);
     var cajaSalp = document.createElement("div"); cajaSalp.className = "capa"; cajaSalp.id = "salp"; stage.appendChild(cajaSalp);
 
+    /* ---------- CAPAS ----------
+       fondo  → debajo de todo (pero sobre el fondo transparente)
+       normal → el orden propio de cada plantilla
+       arriba → sobre todas las gráficas
+       transiciones / cortinas (dibujadas, animadas, videos marcados como transición o elegidos en el botón Cortina)
+                → SIEMPRE encima de todo, incluso de lo que está «arriba» */
+    var cortIds = {};
+    function esTransicionEl(el) { return el.tipo === "TRANSICION" || !!(el.datos && el.datos.esTrans) || !!cortIds[el.id] || el.plantilla === "cortina" || el.plantilla === "transicion"; }
+    function zDe(el) {
+      var base = (P[el.plantilla] && P[el.plantilla].capa) || 50;
+      if (esTransicionEl(el)) { return 1000 + base; }
+      if (el.capaUsr === "fondo") { return 1 + Math.floor(base / 10); }
+      if (el.capaUsr === "arriba") { return 400 + base; }
+      return base;
+    }
+    /* acomodo de grupos (botón con varias gráficas): mueve y achica la capa completa, sin tocar sus datos */
+    function acomodo(capa, el) {
+      var l = el.lay;
+      if (!l || (!l.x && !l.y && (l.s == null || l.s === 1))) { capa.style.transform = ""; return; }
+      capa.style.transformOrigin = l.o || "0 100%";
+      capa.style.transform = "translate(" + (+l.x || 0) + "px," + (+l.y || 0) + "px) scale(" + (l.s == null ? 1 : +l.s) + ")";
+    }
     function firma(el) { var p = P[el.plantilla]; return JSON.stringify([p.firma ? p.firma(el.datos) : el.datos, ctx.logo]); }
 
     function cuerpo(el, entrando) {
@@ -59,7 +81,7 @@
 
     function entrar(el) {
       var p = P[el.plantilla], capa = document.createElement("div");
-      capa.className = "el"; capa.style.zIndex = p.capa || 50; capa.dataset.id = el.id; capa.vivo = true;
+      capa.className = "el"; capa.style.zIndex = zDe(el); capa.dataset.id = el.id; capa.vivo = true; acomodo(capa, el);
       var c = cuerpo(el, true); capa.appendChild(c); stage.appendChild(capa);
       capas[el.id] = {capa: capa, c: c, firma: firma(el), plantilla: el.plantilla, ritmo: ritmo(el)};
       montar(capa, c, el); aplicarRitmo(c, capas[el.id].ritmo);
@@ -67,6 +89,7 @@
     }
     function cambiar(el) {
       var r = capas[el.id], f = firma(el);
+      r.capa.style.zIndex = zDe(el); acomodo(r.capa, el);
       if (r.firma === f) { if (r.c._m && r.c._m.actualizar) { r.c._m.actualizar(el.datos); } return; }
       /* cambió el contenido estando al aire: fundido cruzado sin repetir la entrada */
       var vieja = r.c, nueva = cuerpo(el, false);
@@ -91,6 +114,7 @@
       ctx.media = {}; (st.biblioteca || []).forEach(function (m) { ctx.media[m.id] = m; });
       var vel = ((st.ajustes && st.ajustes.velocidad) || 100) / 100; CG.velocidad = vel;
       document.documentElement.style.setProperty("--vel", vel);
+      cortIds = {}; ((st.cortinaBoton && st.cortinaBoton.ids) || []).forEach(function (id) { cortIds[id] = 1; });
       var quiero = {};
       st.elementos.forEach(function (el) { if (el.on && P[el.plantilla] && !P[el.plantilla].evento) { quiero[el.id] = el; } });
       /* si hay un zócalo al aire, los GC de abajo suben solos para no taparse */
