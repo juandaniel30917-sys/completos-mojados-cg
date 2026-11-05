@@ -125,7 +125,14 @@
     if (t.plantilla === "cortina") { return 0.75 / gl; }
     if (t.plantilla === "transicion") { var es = (CG.ESCENAS || {})[t.datos.escena] || {}, v = ((+t.datos.vel || 100) / 100) * gl; return (es.corte || (es.dur || 2) * 0.4) / v; }
     var m = (estado.biblioteca || []).filter(function (x) { return x.id === t.datos.media; })[0];
-    return m && m.dur ? m.dur / 2 / (+t.datos.ritmo || 1) : 1;
+    var lv = largoVideo(t, m && m.dur);
+    return lv ? lv / 2 / (+t.datos.ritmo || 1) : 1;
+  }
+  /* largo útil de un video recortado (segundos del original, sin contar la velocidad) */
+  function largoVideo(t, dur) {
+    dur = +dur || 0; if (!dur) { return 0; }
+    var d = t.datos || {}, a = Math.max(0, Math.min(dur, +d.ini || 0)), b = +d.fin > a ? Math.min(dur, +d.fin) : dur;
+    return Math.max(0.1, b - a);
   }
   function tipoTrans(t) { return t.plantilla === "cortina" ? "Cortina" : t.plantilla === "transicion" ? "Animada" : "Video"; }
   /* lanza la transición y devuelve los milisegundos hasta el punto donde la pantalla queda tapada */
@@ -747,7 +754,8 @@
       var it = lista.filter(function (t) { return grupo(t) === g; }); if (!it.length) { return; }
       h += "<h3 class='cfg-h3'>" + g + "</h3><div class='cort-lista'>" + it.map(function (t) {
         var sin = t.plantilla === "video" && !t.datos.media;
-        return "<div class='cort-it" + (sin ? " sin" : "") + "'><label class='cort-sel'><input type='checkbox' data-id='" + esc(t.id) + "'" + (c.ids.indexOf(t.id) >= 0 ? " checked" : "") + (sin ? " disabled" : "") + "><span>" + esc(t.nombre) + (sin ? " <small>(sin video)</small>" : "") + "</span></label>" + tiempoHTML(t) + "<button type='button' class='btn mini' data-probar='" + esc(t.id) + "'>Probar</button></div>";
+        return "<div class='cort-it" + (sin ? " sin" : "") + "'><label class='cort-sel'><input type='checkbox' data-id='" + esc(t.id) + "'" + (c.ids.indexOf(t.id) >= 0 ? " checked" : "") + (sin ? " disabled" : "") + "><span>" + esc(t.nombre) + (sin ? " <small>(sin video)</small>" : "") + "</span></label>" + tiempoHTML(t) + (t.plantilla === "video" && !sin ? "<button type='button' class='btn mini cort-rec" + (recortado(t) ? " on" : "") + "' data-recortar='" + esc(t.id) + "' title='Elegir en qué segundo empieza y termina el video'>✂️ " + (recortado(t) ? textoRecorte(t) : "Recortar") + "</button>" : "") +
+          "<button type='button' class='btn mini' data-probar='" + esc(t.id) + "'>Probar</button></div>";
       }).join("") + "</div>";
     });
     var otros = estado.elementos.filter(function (e) { return e.plantilla === "video" && !esTransicion(e) && e.datos.media; });
@@ -766,6 +774,7 @@
       fijarTiempo(t, i.value); i.value = +tiempoDe(t).s.toFixed(1);
       toast("«" + t.nombre + "»: " + (t.plantilla === "cortina" ? "tapa " : "dura ") + i.value + " s", "ok");
     }; });
+    $$("[data-recortar]", m).forEach(function (b) { b.onclick = function (ev) { ev.preventDefault(); recortarVideo(b.dataset.recortar, configCortina); }; });
     $$("[data-probar]", m).forEach(function (b) { b.onclick = function (ev) { ev.preventDefault(); pasarTrans(b.dataset.probar); toast("Probando: " + el(b.dataset.probar).nombre + " (sale al aire)", "ok"); }; });
     $$("input[data-vid]", m).forEach(function (i) { i.onchange = function () {
       var t = el(i.dataset.vid); if (!t || !i.checked) { return; }
@@ -806,7 +815,8 @@
   }
   /* ---------- tiempo de cada cortina (independiente) ----------
      dibujada: segundos tapando la pantalla · animada: duración total (cambia su velocidad) · video: duración (cambia su velocidad de reproducción) */
-  function durVideo(t) { var m = (estado.biblioteca || []).filter(function (x) { return x.id === t.datos.media; })[0]; return m && m.dur ? +m.dur : 0; }
+  function mediaDe(t) { return (estado.biblioteca || []).filter(function (x) { return x.id === t.datos.media; })[0]; }
+  function durVideo(t) { var m = mediaDe(t); return m && m.dur ? largoVideo(t, m.dur) : 0; }
   function tiempoDe(t) {
     var d = t.datos || {};
     if (t.plantilla === "cortina") { var tp = d.tapado; var auto = tp == null || tp === "" || isNaN(+tp) || +tp === 2.5; return {tipo: "tapa", s: auto ? (d.estilo === "iris" ? 0.2 : 0.8) : +tp, base: null}; }
@@ -824,8 +834,110 @@
     if (x.tipo === "tapa") { d.tapado = Math.max(0, Math.min(10, seg)); if (d.tapado === 2.5) { d.tapado = 2.6; } }
     else if (x.tipo === "dura") { d.vel = Math.round(Math.max(50, Math.min(200, x.base / Math.max(0.1, seg) * 100))); }
     else { d.ritmo = +Math.max(0.5, Math.min(2, x.base / Math.max(0.1, seg))).toFixed(3); }
-    if (borr[t.id]) { ["tapado", "vel", "ritmo"].forEach(function (k) { if (d[k] !== undefined) { borr[t.id][k] = d[k]; } }); guardarBorr(); }
+    if (borr[t.id]) { ["tapado", "vel", "ritmo", "ini", "fin"].forEach(function (k) { if (d[k] !== undefined) { borr[t.id][k] = d[k]; } }); guardarBorr(); }
     publicar();
+  }
+  /* ---------- ✂️ mini editor: recortar el inicio y el final de un video (cortinas) ----------
+     Guarda datos.ini / datos.fin en segundos del video original. La velocidad (datos.ritmo) se mantiene. */
+  function recortado(t) { var d = t.datos || {}; return (+d.ini || 0) > 0.001 || (+d.fin || 0) > 0; }
+  function fmtS(x) { return (Math.round(x * 100) / 100).toFixed(2); }
+  function textoRecorte(t) { var d = t.datos, m = mediaDe(t), f = +d.fin || (m && +m.dur) || 0; return fmtS(+d.ini || 0) + "–" + (f ? fmtS(f) : "fin") + " s"; }
+  function recortarVideo(id, volver) {
+    var t = el(id); if (!t) { return; }
+    var md = mediaDe(t); if (!md) { toast("Este video no está en la biblioteca.", "err"); return; }
+    var ritmo = +t.datos.ritmo || 1, CUADRO = 1 / 30, dur = +md.dur || 0;
+    var a = Math.max(0, +t.datos.ini || 0), b = +t.datos.fin || 0, rango = false, raf = 0;
+    var h = "<h2>✂️ Recortar video</h2><p class='lead'>" + esc(t.nombre) + " · elige en qué segundo <b class='rec-vi'>comienza</b> y en cuál <b class='rec-vf'>termina</b>. La velocidad elegida (" + (+ritmo.toFixed(2)) + "×) se mantiene.</p>" +
+      "<div class='rec-vista'><video id='recV' muted playsinline preload='auto'></video><span class='rec-reloj' id='recReloj'>0.00 s</span></div>" +
+      "<div class='rec-linea' id='recLinea' title='Toca para mover la reproducción · arrastra la manilla verde (inicio) o la roja (final)'>" +
+        "<div class='rec-fuera' id='recF1'></div><div class='rec-fuera' id='recF2'></div><div class='rec-sel' id='recSel'></div>" +
+        "<div class='rec-cab' id='recCab'></div><div class='rec-h ini' id='recHi' tabindex='0' aria-label='Inicio'></div><div class='rec-h fin' id='recHf' tabindex='0' aria-label='Final'></div></div>" +
+      "<div class='rec-ctrl'><button type='button' class='btn mini' id='recAtr' title='Un cuadro atrás'>⏮ Cuadro</button>" +
+        "<button type='button' class='btn' id='recPlay'>▶ Reproducir recorte</button>" +
+        "<button type='button' class='btn mini' id='recAde' title='Un cuadro adelante'>Cuadro ⏭</button></div>" +
+      "<div class='rec-campos'>" +
+        "<div class='rec-c ini'><span>Comienza</span><button type='button' class='btn mini' data-d='a-'>−</button><input type='number' id='recA' step='0.01' min='0'><button type='button' class='btn mini' data-d='a+'>+</button><button type='button' class='btn mini' id='recMa'>📍 Aquí</button></div>" +
+        "<div class='rec-c fin'><span>Termina</span><button type='button' class='btn mini' data-d='b-'>−</button><input type='number' id='recB' step='0.01' min='0'><button type='button' class='btn mini' data-d='b+'>+</button><button type='button' class='btn mini' id='recMb'>📍 Aquí</button></div>" +
+      "</div><p class='rec-dur' id='recDur'></p>" +
+      "<div class='modal-pie'><button type='button' class='btn' id='recReset'>Sin recorte</button><span style='flex:1'></span><button type='button' class='btn' id='recNo'>Cancelar</button><button type='button' class='btn prim' id='recOk'>Aceptar</button></div>";
+    var m = modal(h, {ancho: true, sinFoco: true, clase: "rec-modal", alCerrar: function () { cancelAnimationFrame(raf); try { v.pause(); v.removeAttribute("src"); v.load(); } catch (e) {} }});
+    var v = $("#recV", m), linea = $("#recLinea", m), inA = $("#recA", m), inB = $("#recB", m);
+    v.playbackRate = ritmo; v.defaultPlaybackRate = ritmo;
+    function fin() { return b > a ? b : dur; }
+    function limitar() {
+      if (!dur) { return; }
+      a = Math.max(0, Math.min(a, dur - 0.1)); b = b ? Math.max(a + 0.1, Math.min(b, dur)) : 0;
+    }
+    function pinta() {
+      limitar();
+      var D = dur || 1, pa = a / D * 100, pb = fin() / D * 100;
+      $("#recHi", m).style.left = pa + "%"; $("#recHf", m).style.left = pb + "%";
+      $("#recSel", m).style.left = pa + "%"; $("#recSel", m).style.width = (pb - pa) + "%";
+      $("#recF1", m).style.width = pa + "%"; $("#recF2", m).style.left = pb + "%"; $("#recF2", m).style.width = (100 - pb) + "%";
+      if (document.activeElement !== inA) { inA.value = fmtS(a); } if (document.activeElement !== inB) { inB.value = fmtS(fin()); }
+      inA.max = inB.max = dur ? fmtS(dur) : "";
+      var largo = fin() - a;
+      $("#recDur", m).innerHTML = dur ? "Duración del recorte: <b>" + fmtS(largo) + " s</b>" + (ritmo !== 1 ? " · al aire a " + (+ritmo.toFixed(2)) + "×: <b>" + fmtS(largo / ritmo) + " s</b>" : "") + " <small>(video completo: " + fmtS(dur) + " s)</small>" : "Cargando video…";
+    }
+    function cab() {
+      var D = dur || 1; $("#recCab", m).style.left = (Math.min(v.currentTime, D) / D * 100) + "%"; $("#recReloj", m).textContent = fmtS(v.currentTime) + " s";
+    }
+    function lazo() {
+      cab();
+      if (rango && !v.paused && v.currentTime >= fin() - 0.01) { v.pause(); v.currentTime = fin(); rango = false; $("#recPlay", m).textContent = "▶ Reproducir recorte"; }
+      raf = requestAnimationFrame(lazo);
+    }
+    function ir(x) { v.pause(); rango = false; $("#recPlay", m).textContent = "▶ Reproducir recorte"; v.currentTime = Math.max(0, Math.min(dur || x, x)); cab(); }
+    v.addEventListener("loadedmetadata", function () {
+      if (isFinite(v.duration) && v.duration > 0) { dur = v.duration; if (Math.abs((+md.dur || 0) - dur) > 0.05) { md.dur = +dur.toFixed(3); } }
+      v.playbackRate = ritmo; pinta(); ir(a);
+    });
+    CG.resolverMedia(md, base).then(function (u) { if (u) { v.src = u; } else { toast("Este video está guardado solo en otro equipo.", "err"); } });
+    /* arrastrar manillas / tocar la línea */
+    function tDe(ev) { var r = linea.getBoundingClientRect(); return Math.max(0, Math.min(1, (ev.clientX - r.left) / r.width)) * (dur || 0); }
+    var arrastre = null;
+    linea.addEventListener("pointerdown", function (ev) {
+      if (!dur) { return; }
+      ev.preventDefault(); linea.setPointerCapture(ev.pointerId);
+      arrastre = ev.target.id === "recHi" ? "a" : ev.target.id === "recHf" ? "b" : "cab";
+      mover(ev);
+    });
+    function mover(ev) {
+      if (!arrastre) { return; }
+      var x = tDe(ev);
+      if (arrastre === "a") { a = Math.min(x, fin() - 0.1); pinta(); ir(a); }
+      else if (arrastre === "b") { b = Math.max(x, a + 0.1); pinta(); ir(fin()); }
+      else { ir(x); }
+    }
+    linea.addEventListener("pointermove", mover);
+    linea.addEventListener("pointerup", function () { arrastre = null; });
+    linea.addEventListener("pointercancel", function () { arrastre = null; });
+    $$("[data-d]", m).forEach(function (bt) { bt.onclick = function () {
+      var k = bt.dataset.d, paso = k[1] === "+" ? CUADRO : -CUADRO;
+      if (k[0] === "a") { a += paso; pinta(); ir(a); } else { b = fin() + paso; pinta(); ir(fin()); }
+    }; });
+    inA.onchange = function () { var x = parseFloat(String(inA.value).replace(",", ".")); if (!isNaN(x)) { a = x; } inA.blur(); pinta(); ir(a); };
+    inB.onchange = function () { var x = parseFloat(String(inB.value).replace(",", ".")); if (!isNaN(x)) { b = x; } inB.blur(); pinta(); ir(fin()); };
+    $("#recMa", m).onclick = function () { a = Math.min(v.currentTime, fin() - 0.1); pinta(); };
+    $("#recMb", m).onclick = function () { b = Math.max(v.currentTime, a + 0.1); pinta(); };
+    $("#recAtr", m).onclick = function () { ir(v.currentTime - CUADRO); };
+    $("#recAde", m).onclick = function () { ir(v.currentTime + CUADRO); };
+    $("#recPlay", m).onclick = function () {
+      if (!v.paused) { v.pause(); rango = false; this.textContent = "▶ Reproducir recorte"; return; }
+      if (v.currentTime < a - 0.01 || v.currentTime >= fin() - 0.02) { v.currentTime = a; }
+      v.playbackRate = ritmo; rango = true; this.textContent = "⏸ Pausa"; v.play().catch(function () {});
+    };
+    $("#recReset", m).onclick = function () { a = 0; b = 0; pinta(); ir(0); };
+    $("#recNo", m).onclick = function () { cerrarModal(); if (volver) { volver(); } };
+    $("#recOk", m).onclick = function () {
+      limitar();
+      var d = t.datos; d.ini = a > 0.005 ? +a.toFixed(3) : 0; d.fin = b && dur && b < dur - 0.02 ? +b.toFixed(3) : 0;
+      if (borr[t.id]) { borr[t.id].ini = d.ini; borr[t.id].fin = d.fin; guardarBorr(); }
+      publicar(); cerrarModal();
+      toast(recortado(t) ? "«" + t.nombre + "» recortado: " + textoRecorte(t) : "«" + t.nombre + "» sin recorte", "ok");
+      if (volver) { volver(); }
+    };
+    raf = requestAnimationFrame(lazo); pinta();
   }
   function asignarTeclaCortina(k) {
     var c = cfgCortina(), quitado = null;

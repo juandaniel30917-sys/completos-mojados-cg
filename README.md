@@ -358,3 +358,10 @@ supabase/             Migración SQL y función cg-media
 scripts/configurar.mjs  Genera js/config.js desde .env
 test/                 Pruebas automáticas y video de prueba
 ```
+
+
+## ✂️ Recortar videos de cortina (mini editor)
+En **⚡ Cortina ▾** cada video tiene el botón **✂️ Recortar**: vista previa, línea de tiempo con manilla **verde** (comienza) y **roja** (termina), botones de cuadro a cuadro, campos con − / + y «📍 Aquí» para marcar donde está la reproducción. La velocidad elegida se mantiene: la duración al aire = largo del recorte ÷ velocidad. En la salida el video parte en el segundo elegido y termina (o vuelve a empezar si está en bucle) en el final elegido. Se guarda en `datos.ini` / `datos.fin`.
+
+## Barra del concurso + participante al mismo tiempo
+La **barra del concurso (mechadas)**, el **participante (JUGANDO)** y los **GC de nombre** pueden estar al aire juntos. Si la barra está abajo, los GC suben solos por encima de ella. Dos barras o dos participantes sí se reemplazan entre sí.
