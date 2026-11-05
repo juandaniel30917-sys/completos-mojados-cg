@@ -130,12 +130,18 @@ La pestaña **Botonera** es un panel de botones grandes, uno por gráfica, para 
 - **EDIT en cada botón:** la pestañita **EDIT** (arriba a la derecha de cada botón de gráfica) abre un mini panel ahí mismo para cambiar los textos, la foto, el video, los colores y todo lo demás de esa gráfica, sin salir de la botonera. Si la gráfica **no** está al aire, lo que escribes se guarda solo y el próximo toque del botón ya sale con el texto nuevo. Si **está al aire**, queda como borrador hasta que aprietes **↻ Actualizar al aire** (así no se ve cómo escribes). La botonera en sí (qué gráfica va en cada botón, la tecla, el color del botón) se sigue cambiando con **Editar botones**.
 - **⚡ Al tocar** (encendido por defecto en celular y tablet): todos los botones caben en pantalla y salen apenas los tocas.
 
+- **Varias gráficas en un botón (hasta 5):** en **Editar botones**, sección 1, elige **Varias a la vez** y toca en la lista las gráficas (por ejemplo 3 GC de invitados). Al tocar el botón salen todas juntas (no se reemplazan entre sí) y con otro toque se van todas. En **Cómo se acomodan** eliges *Cada una en su lugar*, *En fila (lado a lado)* o *En columna (una sobre otra)*. En un botón así, **EDIT** muestra una pestañita por cada gráfica.
+- **Capas:** en **Editar botones** (sección *Capa*) o en **EDIT** eliges si la gráfica va **⬇ Al fondo** (las demás pasan por encima), **Normal** o **⬆ Arriba** (sobre todas las gráficas). Las transiciones y cortinas van **siempre encima de todo**, también los videos marcados como transición o sumados al botón Cortina.
+
 ### Botón ⚡ Cortina (cortinas al azar)
 
 El botón **⚡ Cortina** de arriba (y el botón *Cortina* de la botonera) lanza una cortina elegida de una lista. Con la flechita **▾** al lado eliges:
 
 - **Qué cortinas usa:** las de salsa dibujadas, las cortinas en video y las transiciones animadas. Cada una tiene **Probar** (sale al aire).
 - **Cómo las elige:** **🎲 Al azar** (nunca repite la misma dos veces seguidas), **🔁 En orden** o **📌 Siempre la primera**.
+- **Atajo de teclado:** en la misma ventana, **⌨️ Presionar una tecla** (por ejemplo F12 o una tecla del Stream Deck). El botón muestra la tecla (*Cortina · F12*). Si un botón de la botonera usaba esa tecla, se le quita.
+- **Tus videos como cortina:** abajo aparecen tus videos; al marcarlos pasan a ser cortina y van encima de todo. En **EDIT** de un video también está el interruptor *Es transición o cortina*.
+- **Transiciones largas nuevas** (misma estética): *Lluvia de ingredientes* (8 s), *El gran completo* (9 s), *Desde Talca para el Maule* (8 s), *Ya volvemos* (10 s, para comerciales) y *Noticiero ¡Extra, extra!* (8 s). Las cuatro primeras ya vienen en el botón Cortina.
 
 Vienen listas tres **cortinas en video** de salsa (*Salsa noticiero*, *Salsa VTR 02*, *Salsa VTR 03*), con el verde palta cambiado por un **verde oliva (#A6B23A) que el chroma del ATEM no toma**. El fondo sigue siendo verde chroma. La cortina de salsa dibujada usa el mismo verde.
 

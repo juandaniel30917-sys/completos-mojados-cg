@@ -7,7 +7,7 @@
   var esc = CG.esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return {"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]; }); };
 
   /* paletas rápidas para los selectores de color */
-  CG.PALETA = ["#FFFFFF", "#0A0A0A", "#EEF2F8", "#FFA500", "#FF0000", "#1E9BF0", "#8A7D5E", "#FFE100", "#FF8A00", "#00AEFF", "#E02A12", "#F59A23", "#6AA832", "#D90429", "#0B3C8C", "#5B2A63", "#C79BB0", "#FFF3D6"];
+  CG.PALETA = ["#FFFFFF", "#0A0A0A", "#EEF2F8", "#FFA500", "#FF0000", "#1E9BF0", "#8A7D5E", "#FFE100", "#FF8A00", "#00AEFF", "#E02A12", "#F59A23", "#A6B23A", "#D90429", "#0B3C8C", "#5B2A63", "#C79BB0", "#FFF3D6"];
 
   CG.CATEGORIAS = [
     {id: "cintillos", nombre: "Cintillos", icono: "barra", ayuda: "Barras con mensajes abajo de la pantalla"},
@@ -268,6 +268,7 @@
       {k: "ocultarAlFinal", l: "Ocultar al terminar", t: "toggle", g: "Reproducción", si: "bucle=false"},
       {k: "audio", l: "Con sonido", t: "toggle", g: "Reproducción", ayuda: "Desactivado por defecto. En OBS activa «Controlar audio vía OBS» si lo usas."},
       {k: "volumen", l: "Volumen", t: "range", min: 0, max: 100, step: 1, u: "%", g: "Reproducción", si: "audio=true"},
+      {k: "esTrans", l: "Es transición o cortina (va siempre encima de todo)", t: "toggle", g: "Capa", ayuda: "Actívalo si este video tapa la pantalla para un cambio de cámara. También lo puedes sumar al botón ⚡ Cortina."},
       {k: "entrada", l: "Entrada", t: "seg", g: "Animación", o: [["corte", "Corte"], ["fundido", "Fundido"], ["deslizar", "Deslizar"], ["mascara", "Máscara"], ["escala", "Escala"]]},
       {k: "salida", l: "Salida", t: "seg", g: "Animación", o: [["corte", "Corte"], ["fundido", "Fundido"], ["deslizar", "Deslizar"], ["mascara", "Máscara"], ["escala", "Escala"]]},
       {k: "ajuste", l: "Encuadre", t: "seg", g: "Posición", o: [["completo", "Pantalla completa"], ["libre", "Libre"]]},
@@ -344,8 +345,8 @@
   };
 
   /* ===================== FONDO ANIMADO (compartido por Fondo y Placa) ===================== */
-  var CORD = {programa: ["#6B4166", "#99668F"], bloque2: ["#C24A12", "#E9801F"], cierre: ["#4C1F4D", "#7E3462"], tropical: ["#1A7F4D", "#4DB34D"]};
-  var GOTAS = {ketchup: "#E02A12", mostaza: "#F59A23", mayo: "#FFF3D6", palta: "#6AA832"};
+  var CORD = {programa: ["#6B4166", "#99668F"], bloque2: ["#C24A12", "#E9801F"], cierre: ["#4C1F4D", "#7E3462"], tropical: ["#1F6E6A", "#2E9A8E"]};
+  var GOTAS = {ketchup: "#E02A12", mostaza: "#F59A23", mayo: "#FFF3D6", palta: "#A6B23A"}; /* verde seguro para el chroma */
   function onda(col, w) {
     var d = "M0 70", x; for (x = 0; x <= 2400; x += 200) { d += " Q" + (x + 100) + " " + (x / 200 % 2 ? 110 : 30) + " " + (x + 200) + " 70"; }
     return '<svg viewBox="0 0 2400 150" preserveAspectRatio="none"><path d="' + d + '" fill="none" stroke="#2A1204" stroke-width="' + (w + 12) + '" stroke-linecap="round"/><path d="' + d + '" fill="none" stroke="' + col + '" stroke-width="' + w + '" stroke-linecap="round"/></svg>';

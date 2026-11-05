@@ -707,3 +707,24 @@ body.mini-abierto .bot-grid{padding-right:432px}
 #monitores .pantalla{width:min(100%, calc((100vh - 190px) / 2 * 16 / 9));height:auto;aspect-ratio:16/9;margin:0 auto}
 body.tab-boton #monitores .pantalla{width:min(100%, calc((100vh - 150px) * 16 / 9))}
 @media (max-width:1280px){body.tab-visual #monitores .monitor{flex:1 1 0;min-width:0}}
+/* ---------- botones con varias gráficas, capas y atajo de la cortina ---------- */
+.bi-modo{margin-bottom:8px}
+.bi-grupo{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 8px}
+.bi-gch{display:inline-flex;align-items:center;gap:6px;padding:5px 6px 5px 10px;border-radius:999px;background:var(--panel2,#1d2130);border:1px solid var(--borde,#2a2f3c);font-size:12.5px;font-weight:700}
+.bi-gch button{border:0;background:rgba(255,255,255,.12);color:inherit;width:22px;height:22px;border-radius:50%;cursor:pointer;font-size:11px}
+.bi-sub{display:block;font-size:12px;opacity:.75;margin:6px 0 4px}
+.bi-chk{flex:none;width:22px;height:22px;border-radius:6px;border:2px solid var(--borde,#3a3f4e);display:grid;place-items:center;font-size:11px;font-weight:800}
+.bi-op.on .bi-chk{background:var(--pvw,#22c27a);border-color:var(--pvw,#22c27a);color:#04140c}
+.bi-capa,.mini-capa{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.mini-capa{padding:8px 14px;border-bottom:1px solid var(--borde,#2a2f3c)}
+.mini-capa:empty{display:none}
+.capa-tit{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;opacity:.75}
+.capa-seg{flex:1}
+.capa-trans{font-size:12.5px;font-weight:700;color:#ffd166}
+.mini-tabs{display:flex;gap:6px;overflow-x:auto;padding:8px 14px 0;scrollbar-width:none}
+.mini-tabs[hidden]{display:none}
+.mini-tabs button{flex:none;border:1px solid var(--borde,#2a2f3c);background:var(--panel2,#1d2130);color:inherit;border-radius:999px;padding:6px 12px;font-weight:700;font-size:12.5px;cursor:pointer;white-space:nowrap}
+.mini-tabs button.on{background:#fff;color:#111;border-color:#fff}
+.cort-tecla{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.cort-k{min-width:90px;text-align:center;font:800 15px/1 ui-monospace,monospace;padding:10px 14px;border-radius:10px;background:var(--panel2,#1d2130);border:1px solid var(--borde,#2a2f3c)}
+#cortCap.esperando{background:#f5a623;color:#1b1200}
