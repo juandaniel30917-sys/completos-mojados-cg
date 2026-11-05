@@ -125,7 +125,7 @@
     if (t.plantilla === "cortina") { return 0.75 / gl; }
     if (t.plantilla === "transicion") { var es = (CG.ESCENAS || {})[t.datos.escena] || {}, v = ((+t.datos.vel || 100) / 100) * gl; return (es.corte || (es.dur || 2) * 0.4) / v; }
     var m = (estado.biblioteca || []).filter(function (x) { return x.id === t.datos.media; })[0];
-    return m && m.dur ? m.dur / 2 : 1;
+    return m && m.dur ? m.dur / 2 / (+t.datos.ritmo || 1) : 1;
   }
   function tipoTrans(t) { return t.plantilla === "cortina" ? "Cortina" : t.plantilla === "transicion" ? "Animada" : "Video"; }
   /* lanza la transición y devuelve los milisegundos hasta el punto donde la pantalla queda tapada */
@@ -747,7 +747,7 @@
       var it = lista.filter(function (t) { return grupo(t) === g; }); if (!it.length) { return; }
       h += "<h3 class='cfg-h3'>" + g + "</h3><div class='cort-lista'>" + it.map(function (t) {
         var sin = t.plantilla === "video" && !t.datos.media;
-        return "<label class='cort-it" + (sin ? " sin" : "") + "'><input type='checkbox' data-id='" + esc(t.id) + "'" + (c.ids.indexOf(t.id) >= 0 ? " checked" : "") + (sin ? " disabled" : "") + "><span>" + esc(t.nombre) + (sin ? " <small>(sin video)</small>" : "") + "</span><button type='button' class='btn mini' data-probar='" + esc(t.id) + "'>Probar</button></label>";
+        return "<div class='cort-it" + (sin ? " sin" : "") + "'><label class='cort-sel'><input type='checkbox' data-id='" + esc(t.id) + "'" + (c.ids.indexOf(t.id) >= 0 ? " checked" : "") + (sin ? " disabled" : "") + "><span>" + esc(t.nombre) + (sin ? " <small>(sin video)</small>" : "") + "</span></label>" + tiempoHTML(t) + "<button type='button' class='btn mini' data-probar='" + esc(t.id) + "'>Probar</button></div>";
       }).join("") + "</div>";
     });
     var otros = estado.elementos.filter(function (e) { return e.plantilla === "video" && !esTransicion(e) && e.datos.media; });
@@ -761,6 +761,11 @@
     function contar() { var n = c.ids.filter(function (id) { return el(id); }).length; $("#cortN", m).textContent = n ? n + (n === 1 ? " cortina elegida" : " cortinas elegidas") : "Ninguna: el botón lanzará la cortina de salsa básica"; }
     $$(".cort-modo button", m).forEach(function (b) { b.onclick = function () { c.modo = b.dataset.m; $$(".cort-modo button", m).forEach(function (x) { x.classList.toggle("on", x === b); }); publicar(); }; });
     $$("input[data-id]", m).forEach(function (i) { i.onchange = function () { var id = i.dataset.id; c.ids = c.ids.filter(function (x) { return x !== id; }); if (i.checked) { c.ids.push(id); } publicar(); contar(); }; });
+    $$("[data-tiempo]", m).forEach(function (i) { i.onchange = function () {
+      var t = el(i.dataset.tiempo); if (!t) { return; }
+      fijarTiempo(t, i.value); i.value = +tiempoDe(t).s.toFixed(1);
+      toast("«" + t.nombre + "»: " + (t.plantilla === "cortina" ? "tapa " : "dura ") + i.value + " s", "ok");
+    }; });
     $$("[data-probar]", m).forEach(function (b) { b.onclick = function (ev) { ev.preventDefault(); pasarTrans(b.dataset.probar); toast("Probando: " + el(b.dataset.probar).nombre + " (sale al aire)", "ok"); }; });
     $$("input[data-vid]", m).forEach(function (i) { i.onchange = function () {
       var t = el(i.dataset.vid); if (!t || !i.checked) { return; }
@@ -798,6 +803,29 @@
       alListo(ev.key);
     };
     document.addEventListener("keydown", f, true);
+  }
+  /* ---------- tiempo de cada cortina (independiente) ----------
+     dibujada: segundos tapando la pantalla · animada: duración total (cambia su velocidad) · video: duración (cambia su velocidad de reproducción) */
+  function durVideo(t) { var m = (estado.biblioteca || []).filter(function (x) { return x.id === t.datos.media; })[0]; return m && m.dur ? +m.dur : 0; }
+  function tiempoDe(t) {
+    var d = t.datos || {};
+    if (t.plantilla === "cortina") { var tp = d.tapado; var auto = tp == null || tp === "" || isNaN(+tp) || +tp === 2.5; return {tipo: "tapa", s: auto ? (d.estilo === "iris" ? 0.2 : 0.8) : +tp, base: null}; }
+    if (t.plantilla === "transicion") { var es = (CG.ESCENAS || {})[d.escena] || {}, base = es.dur || 0; return {tipo: "dura", s: base ? base / (((+d.vel || 100)) / 100) : 0, base: base}; }
+    var bv = durVideo(t); return {tipo: "video", s: bv ? bv / (+d.ritmo || 1) : 0, base: bv};
+  }
+  function tiempoHTML(t) {
+    var x = tiempoDe(t); if (!x.s && x.tipo !== "tapa") { return "<span class='cort-t vacio'>—</span>"; }
+    var et = x.tipo === "tapa" ? "Tapa" : "Dura", mn = x.tipo === "tapa" ? 0 : +(x.base / 2).toFixed(1), mx = x.tipo === "tapa" ? 10 : +(x.base * 2).toFixed(1);
+    return "<label class='cort-t' title='" + (x.tipo === "tapa" ? "Segundos que la cortina se queda tapando toda la pantalla" : "Duración total (se ajusta la velocidad: entre la mitad y el doble de la original, " + x.base + " s)") + "'>" + et +
+      " <input type='number' data-tiempo='" + esc(t.id) + "' min='" + mn + "' max='" + mx + "' step='0.1' value='" + (+x.s.toFixed(1)) + "'> s</label>";
+  }
+  function fijarTiempo(t, seg) {
+    var x = tiempoDe(t), d = t.datos; seg = +seg; if (isNaN(seg)) { return; }
+    if (x.tipo === "tapa") { d.tapado = Math.max(0, Math.min(10, seg)); if (d.tapado === 2.5) { d.tapado = 2.6; } }
+    else if (x.tipo === "dura") { d.vel = Math.round(Math.max(50, Math.min(200, x.base / Math.max(0.1, seg) * 100))); }
+    else { d.ritmo = +Math.max(0.5, Math.min(2, x.base / Math.max(0.1, seg))).toFixed(3); }
+    if (borr[t.id]) { ["tapado", "vel", "ritmo"].forEach(function (k) { if (d[k] !== undefined) { borr[t.id][k] = d[k]; } }); guardarBorr(); }
+    publicar();
   }
   function asignarTeclaCortina(k) {
     var c = cfgCortina(), quitado = null;

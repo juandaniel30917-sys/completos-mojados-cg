@@ -215,6 +215,8 @@
       error("Los archivos .MOV (ProRes) no se pueden reproducir en navegadores ni en OBS-navegador. Expórtalo como MP4 (H.264) con fondo verde o WebM VP9 con transparencia.");
     }
     v.muted = !d.audio; v.volume = Math.min(1, Math.max(0, (+d.volumen || 0) / 100)); v.loop = !!d.bucle; v.playsInline = true; v.preload = "auto";
+    var ritmoV = function () { var r = +d.ritmo || 1; v.defaultPlaybackRate = r; v.playbackRate = r; };   /* duración elegida para cortinas en video */
+    ritmoV(); v.addEventListener("loadedmetadata", ritmoV);
     v.crossOrigin = "anonymous"; v.setAttribute("playsinline", "");
     v.addEventListener("error", function () { if (vivo) { error("No se pudo cargar el video. Revisa el archivo o tu conexión."); } });
     v.addEventListener("ended", function () { if (vivo && !d.bucle && d.ocultarAlFinal) { ctx.fin(); } });
@@ -235,7 +237,7 @@
     }, function (e) { error((e && e.message) || "No se pudo abrir el video."); });
     return {
       actualizar: function (nd) {
-        d = nd; v.loop = !!d.bucle; v.muted = !d.audio; v.volume = Math.min(1, Math.max(0, (+d.volumen || 0) / 100));
+        d = nd; ritmoV(); v.loop = !!d.bucle; v.muted = !d.audio; v.volume = Math.min(1, Math.max(0, (+d.volumen || 0) / 100));
         if (keyer) { keyer.config(d); }
         var c = d.cmd;
         if (c && c.id && c.id !== ultCmd) {

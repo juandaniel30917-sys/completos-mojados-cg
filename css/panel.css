@@ -764,3 +764,11 @@ body.tab-boton #monitores .pantalla{width:min(100%, calc((100vh - 150px) * 16 / 
 .lim-princ{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px;padding:10px;border:1px dashed var(--borde,#2a2f3c);border-radius:10px}
 .lim-princ>span:first-child{flex:1;min-width:160px;display:flex;flex-direction:column}
 .lim-princ small{opacity:.7;font-size:12px}
+
+/* tiempo de cada cortina en Botón Cortina ▾ */
+.cort-it{cursor:default}
+.cort-sel{flex:1;display:flex;align-items:center;gap:10px;cursor:pointer;min-width:0}
+.cort-sel span{flex:1;min-width:0}
+.cort-t{display:flex;align-items:center;gap:6px;font-size:12.5px;opacity:.9;white-space:nowrap}
+.cort-t input{width:66px;height:30px;padding:0 6px;border-radius:8px;border:1px solid var(--borde,#2a2f3c);background:var(--panel2,#1d2130);color:inherit;font:700 13px/1 ui-monospace,monospace;text-align:right}
+.cort-t.vacio{opacity:.4;width:92px;justify-content:center}
