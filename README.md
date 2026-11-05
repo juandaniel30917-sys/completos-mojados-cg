@@ -143,6 +143,8 @@ El botón **Limpiar salida** de arriba (y el botón *Limpiar salida* de la boton
 - **✨ Solo transiciones:** corta transiciones, cortinas y avisos; las gráficas quedan.
 - **☑️ Los que yo elija:** solo las gráficas que marques con ☑️ en la lista.
 
+**Atajos de teclado:** en la misma ventana, **⌨️ Tecla** al lado de cada opción la deja en una tecla propia (por ejemplo F9 = solo transiciones, F10 = todo), y **Tecla del botón Limpiar** limpia con la opción elegida. El botón muestra su tecla (*Limpiar · Solo botonera · F10*). Una tecla hace una sola cosa: si un botón o la Cortina ya la usaba, se le quita.
+
 En la misma ventana: **🔒 Proteger** deja una gráfica fuera de cualquier limpieza (por ejemplo el logo o el fondo), y **Limpiar ahora** limpia al tiro con cualquier opción. El botón muestra la opción elegida (*Limpiar · Solo botonera*). En la botonera también hay botones de acción para cada opción (*Limpiar solo botonera*, *Limpiar botonera + transiciones*, *Limpiar solo transiciones*, *Limpiar los que elegí*). Después de limpiar aparece **Deshacer**.
 
 ### Botón ⚡ Cortina (cortinas al azar)
@@ -151,10 +153,10 @@ El botón **⚡ Cortina** de arriba (y el botón *Cortina* de la botonera) lanza
 
 - **Qué cortinas usa:** las de salsa dibujadas, las cortinas en video y las transiciones animadas. Cada una tiene **Probar** (sale al aire).
 - **Cómo las elige:** **🎲 Al azar** (nunca repite la misma dos veces seguidas), **🔁 En orden** o **📌 Siempre la primera**.
-- **Tiempo tapando:** las cortinas de salsa dibujadas (bandas y círculos) se quedan tapando la pantalla el tiempo que elijas en su **EDIT** → *Tiempo tapando la pantalla* (por defecto 2,5 s, hasta 10 s), para cambiar de cámara con calma.
+- **Tiempo tapando:** la cortina de bandas de salsa se queda un poco más tapando la pantalla (0,8 s); los círculos, como siempre. Si necesitas más tiempo para cambiar de cámara, súbelo en su **EDIT** → *Tiempo tapando la pantalla* (hasta 10 s).
 - **Atajo de teclado:** en la misma ventana, **⌨️ Presionar una tecla** (por ejemplo F12 o una tecla del Stream Deck). El botón muestra la tecla (*Cortina · F12*). Si un botón de la botonera usaba esa tecla, se le quita.
 - **Tus videos como cortina:** abajo aparecen tus videos; al marcarlos pasan a ser cortina y van encima de todo. En **EDIT** de un video también está el interruptor *Es transición o cortina*.
-- **Transiciones largas nuevas** (misma estética): *Lluvia de ingredientes* (8 s), *El gran completo* (9 s), *Desde Talca para el Maule* (8 s), *Ya volvemos* (10 s, para comerciales) y *Noticiero ¡Extra, extra!* (8 s). Las cuatro primeras ya vienen en el botón Cortina.
+- **Transiciones largas nuevas** (misma estética): *Lluvia de ingredientes* (8 s), *El gran completo* (9 s), *Desde Talca para el Maule* (8 s), *Ya volvemos* (10 s, para comerciales) y *Noticiero ¡Extra, extra!* (8 s). No vienen marcadas en el botón Cortina (son largas): márcalas en ▾ si las quieres ahí, o ponlas en un botón de la botonera.
 
 Vienen listas tres **cortinas en video** de salsa (*Salsa noticiero*, *Salsa VTR 02*, *Salsa VTR 03*), con el verde palta cambiado por un **verde oliva (#A6B23A) que el chroma del ATEM no toma**. El fondo sigue siendo verde chroma. La cortina de salsa dibujada usa el mismo verde.
 

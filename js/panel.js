@@ -710,7 +710,8 @@
   function cfgCortina() {
     var c = estado.cortinaBoton;
     if (!c || !Array.isArray(c.ids)) { c = estado.cortinaBoton = {modo: "aleatoria", ids: CORT_DEF.filter(function (id) { return el(id); }), ultima: "", v: 1}; }
-    if ((c.v || 1) < 2) { CORT_NUEVAS.forEach(function (id) { if (el(id) && c.ids.indexOf(id) < 0) { c.ids.push(id); } }); c.v = 2; }
+    /* v3: las transiciones largas (8–10 s) ya no entran solas al botón Cortina (quedan en la lista para marcarlas si se quiere) */
+    if ((c.v || 1) < 3) { c.ids = c.ids.filter(function (id) { return CORT_NUEVAS.indexOf(id) < 0; }); c.v = 3; }
     return c;
   }
   function elegirCortina() {
@@ -779,9 +780,28 @@
     if ($("#cortSin", m)) { $("#cortSin", m).onclick = function () { asignarTeclaCortina(""); configCortina(); }; }
     $("[data-r='1']", m).onclick = cerrarModal; contar();
   }
+  /* una tecla solo puede hacer una cosa: se quita de botones, de la Cortina y de Limpiar antes de asignarla */
+  function liberarTecla(k) {
+    var quien = "";
+    if (!k) { return quien; }
+    botones().forEach(function (x) { if (x.tecla === k) { x.tecla = ""; quien = "«" + (x.etiqueta || estadoBoton(x).txt) + "»"; } });
+    if (estado.cortinaBoton && estado.cortinaBoton.tecla === k) { estado.cortinaBoton.tecla = ""; quien = "Cortina"; }
+    var lc = estado.limpiarCfg; if (lc && lc.teclas) { Object.keys(lc.teclas).forEach(function (m) { if (lc.teclas[m] === k) { lc.teclas[m] = ""; quien = "Limpiar"; } }); }
+    return quien;
+  }
+  function capturarTecla(alListo) {
+    capturando = true; toast("Presiona la tecla ahora (Esc cancela)");
+    var f = function (ev) {
+      ev.preventDefault(); ev.stopPropagation(); document.removeEventListener("keydown", f, true); capturando = null;
+      if (ev.key === "Escape") { alListo(null); return; }
+      if (/^(Tab|Enter|Shift|Control|Alt|Meta|CapsLock| )$/.test(ev.key)) { toast("Esa tecla no se puede usar. Prueba otra.", "err"); alListo(null); return; }
+      alListo(ev.key);
+    };
+    document.addEventListener("keydown", f, true);
+  }
   function asignarTeclaCortina(k) {
     var c = cfgCortina(), quitado = null;
-    if (k) { botones().forEach(function (x) { if (x.tecla === k) { x.tecla = ""; quitado = x; } }); }
+    if (k) { var q = liberarTecla(k); if (q && q !== "Cortina") { quitado = {etiqueta: q}; } }
     c.tecla = k || ""; publicar(); dibujarBotonera(); etiquetaCortina();
     toast(k ? "Botón Cortina: tecla " + nombreTecla(k) + (quitado ? " (quitada de «" + (quitado.etiqueta || estadoBoton(quitado).txt) + "»)" : "") : "Botón Cortina sin tecla", "ok");
   }
@@ -801,6 +821,7 @@
     var c = estado.limpiarCfg;
     if (!c || typeof c !== "object") { c = estado.limpiarCfg = {modo: "todo", prot: [], elegidos: []}; }
     if (!Array.isArray(c.prot)) { c.prot = []; } if (!Array.isArray(c.elegidos)) { c.elegidos = []; }
+    if (!c.teclas || typeof c.teclas !== "object") { c.teclas = {}; }
     return c;
   }
   function idsEnBotonera() { var m = {}; botones().forEach(function (b) { idsBoton(b).forEach(function (id) { m[id] = 1; }); }); return m; }
@@ -827,7 +848,8 @@
   function etiquetaLimpiar() {
     var c = estado && estado.limpiarCfg, sp = $("#bLimpiar span"); if (!sp) { return; }
     var m = c && c.modo && c.modo !== "todo" ? (MODOS_LIMPIAR.filter(function (x) { return x[0] === c.modo; })[0] || [])[1] : "";
-    sp.textContent = m ? "Limpiar · " + m.replace(/^\S+\s/, "") : "Limpiar salida";
+    var tk = c && c.teclas && c.teclas.principal;
+    sp.textContent = (m ? "Limpiar · " + m.replace(/^\S+\s/, "") : "Limpiar salida") + (tk ? " · " + nombreTecla(tk) : "");
   }
   function configLimpiar() {
     var c = cfgLimpiar(), enBot = idsEnBotonera();
@@ -835,9 +857,15 @@
       .sort(function (a, b) { return (b.on - a.on) || ((enBot[b.id] ? 1 : 0) - (enBot[a.id] ? 1 : 0)) || a.nombre.localeCompare(b.nombre); });
     var h = "<h2>Limpiar salida</h2><p class='lead'>Elige qué hace el botón <b>Limpiar salida</b> (y el botón «Limpiar salida» de la botonera). También puedes limpiar ahora con cualquier opción.</p>" +
       "<div class='lim-modos'>" + MODOS_LIMPIAR.map(function (m) {
+        var tk = c.teclas[m[0]];
         return "<div class='lim-modo" + (c.modo === m[0] ? " on" : "") + "'><label><input type='radio' name='limModo' value='" + m[0] + "'" + (c.modo === m[0] ? " checked" : "") + "><span><b>" + m[1] + "</b><small>" + m[2] + "</small></span></label>" +
+          "<button type='button' class='btn mini lim-tk" + (tk ? " con" : "") + "' data-tk='" + m[0] + "' title='Tecla que limpia con esta opción'>⌨️ " + (tk ? esc(nombreTecla(tk)) : "Tecla") + "</button>" +
+          (tk ? "<button type='button' class='btn mini' data-tkq='" + m[0] + "' title='Quitar la tecla'>✕</button>" : "") +
           "<button type='button' class='btn mini' data-ahora='" + m[0] + "'>Limpiar ahora</button></div>";
       }).join("") + "</div>" +
+      "<div class='lim-princ'><span><b>Tecla del botón Limpiar</b><small>Limpia con la opción elegida arriba</small></span><span class='cort-k'>" + esc(c.teclas.principal ? nombreTecla(c.teclas.principal) : "Sin tecla") + "</span>" +
+        "<button type='button' class='btn' data-tk='principal'>⌨️ Presionar una tecla</button>" + (c.teclas.principal ? "<button type='button' class='btn mini' data-tkq='principal'>Quitar</button>" : "") + "</div>" +
+      "<p class='nota-m'>Sirve cualquier tecla de tu teclado o Stream Deck. Si un botón, la Cortina u otra opción ya usaba esa tecla, se le quita.</p>" +
       "<h3 class='cfg-h3'>Gráficas</h3><p class='nota-m'><b>🔒 Proteger</b>: nunca se limpia (por ejemplo el logo o el fondo). <b>☑️ Elegir</b>: entra en la opción «Los que yo elija».</p>" +
       "<div class='lim-lista'>" + lista.map(function (e) {
         return "<div class='lim-it'><span class='lim-nom'>" + (e.on ? "<i class='lim-aire'>AIRE</i>" : "") + (enBot[e.id] ? "<i class='lim-bot'>BOTÓN</i>" : "") + esc(e.nombre) + "</span>" +
@@ -848,6 +876,14 @@
     var m = modal(h, {ancho: true, sinFoco: true});
     $$("input[name=limModo]", m).forEach(function (r) { r.onchange = function () { c.modo = r.value; publicar(); etiquetaLimpiar(); $$(".lim-modo", m).forEach(function (x) { x.classList.toggle("on", $("input", x).checked); }); }; });
     $$("[data-ahora]", m).forEach(function (b) { b.onclick = function () { limpiarSalida(b.dataset.ahora); }; });
+    $$("[data-tk]", m).forEach(function (b) { b.onclick = function () {
+      b.textContent = "Presiona la tecla… (Esc cancela)"; b.classList.add("esperando");
+      capturarTecla(function (k) {
+        if (k) { var q = liberarTecla(k); c.teclas[b.dataset.tk] = k; publicar(); dibujarBotonera(); etiquetaCortina(); etiquetaLimpiar(); toast("Limpiar" + (b.dataset.tk === "principal" ? "" : " (" + ((MODOS_LIMPIAR.filter(function (x) { return x[0] === b.dataset.tk; })[0] || [])[1] || "") + ")") + ": tecla " + nombreTecla(k) + (q ? " (quitada de " + q + ")" : ""), "ok"); }
+        configLimpiar();
+      });
+    }; });
+    $$("[data-tkq]", m).forEach(function (b) { b.onclick = function () { c.teclas[b.dataset.tkq] = ""; publicar(); etiquetaLimpiar(); configLimpiar(); }; });
     function alternar(lista2, id, si) { var i = lista2.indexOf(id); if (si && i < 0) { lista2.push(id); } if (!si && i >= 0) { lista2.splice(i, 1); } }
     $$("[data-prot]", m).forEach(function (i) { i.onchange = function () { alternar(c.prot, i.dataset.prot, i.checked); publicar(); }; });
     $$("[data-eleg]", m).forEach(function (i) { i.onchange = function () { alternar(c.elegidos, i.dataset.eleg, i.checked); publicar(); }; });
@@ -863,6 +899,11 @@
     if (e.key === "Escape" && !$("#modal").hidden) { cerrarModal(); return; }
     if (e.key === "Escape" && miniId) { cerrarMini(); return; }
     if (!escribiendo && !capturando && $("#modal").hidden && estado && !e.repeat && !e.ctrlKey && !e.altKey && !e.metaKey && estado.cortinaBoton && estado.cortinaBoton.tecla && e.key === estado.cortinaBoton.tecla) { e.preventDefault(); $("#bCortina").click(); return; }
+    if (!escribiendo && !capturando && $("#modal").hidden && estado && !e.repeat && !e.ctrlKey && !e.altKey && !e.metaKey && estado.limpiarCfg && estado.limpiarCfg.teclas) {
+      var lt = estado.limpiarCfg.teclas, modoT = null;
+      Object.keys(lt).forEach(function (mm) { if (lt[mm] && lt[mm] === e.key) { modoT = mm; } });
+      if (modoT) { e.preventDefault(); limpiarSalida(modoT === "principal" ? null : modoT); return; }
+    }
     if (teclaBotonera(e, escribiendo)) { return; }
     if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && sel && $("#modal").hidden) { e.preventDefault(); if (e.shiftKey) { ocultar(sel); } else { $("#aMostrar").click(); } }
   });
@@ -1643,6 +1684,7 @@
     var quitado = null;
     if (k) { botones().forEach(function (x) { if (x !== b && x.tecla === k) { x.tecla = ""; quitado = x; } }); }
     if (k && estado.cortinaBoton && estado.cortinaBoton.tecla === k) { estado.cortinaBoton.tecla = ""; etiquetaCortina(); toast("La tecla " + nombreTecla(k) + " ya no lanza la Cortina", "ok"); }
+    if (k && estado.limpiarCfg && estado.limpiarCfg.teclas) { var lc = estado.limpiarCfg.teclas; Object.keys(lc).forEach(function (m) { if (lc[m] === k) { lc[m] = ""; toast("La tecla " + nombreTecla(k) + " ya no limpia la salida", "ok"); } }); etiquetaLimpiar(); }
     b.tecla = k || "";
     cambioBot(true);
     if (quitado) { toast("Tecla " + nombreTecla(k) + " movida desde «" + (quitado.etiqueta || estadoBoton(quitado).txt) + "»", "ok"); }

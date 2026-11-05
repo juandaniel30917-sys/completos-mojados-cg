@@ -173,9 +173,11 @@
     var tCort = [];
     function cortina(estilo, tapado) {
       var el = cajaCortina, cols = ["#E02A12", "#FFF3D6", "#F59A23", COL.palta], v = Math.max(0.25, CG.velocidad || 1);
-      var hold = Math.max(0, Math.min(15, tapado == null || tapado === "" || isNaN(+tapado) ? 2.5 : +tapado)) * 1000;
-      var esc = (estilo === "iris" ? 200 : 350) / v;   /* desfase entre la primera y la última pieza */
-      var ent = 700 / v, sal = 700 / v; hold += esc + (hold > 0 ? 250 / v : 0); var total = ent + hold + sal;
+      /* por defecto: bandas un poco más tapadas que antes (0,8 s), círculos igual que siempre (0,17 s).
+         2,5 era el valor por defecto anterior (nadie lo eligió): se trata como «por defecto». */
+      var auto = tapado == null || tapado === "" || isNaN(+tapado) || +tapado === 2.5;
+      var hold = (auto ? (estilo === "iris" ? 0.17 : 0.8) : Math.max(0, Math.min(15, +tapado))) * 1000 / v;
+      var ent = (estilo === "iris" ? 765 : 675) / v, sal = ent, total = ent + hold + sal;
       tCort.forEach(clearTimeout); tCort = [];
       el.className = "capa"; el.innerHTML = "";
       var piezas = [];

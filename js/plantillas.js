@@ -300,8 +300,8 @@
     nombre: "Cortina de salsa", cat: "transiciones", icono: "rayo", evento: true,
     desc: "Bandas o círculos de ketchup, mayo y mostaza que cubren toda la pantalla un instante.",
     campos: [{k: "estilo", l: "Estilo", t: "seg", g: "Estilo", o: [["bandas", "Bandas"], ["iris", "Círculos"]]},
-      {k: "tapado", l: "Tiempo tapando la pantalla", t: "range", min: 0, max: 10, step: 0.5, u: " s", g: "Estilo", ayuda: "Cuánto se queda la cortina cubriendo todo para que alcances a cambiar de cámara."}],
-    defaults: {estilo: "bandas", tapado: 2.5}
+      {k: "tapado", l: "Tiempo tapando la pantalla", t: "range", min: 0, max: 10, step: 0.1, u: " s", g: "Estilo", ayuda: "Cuánto se queda la cortina cubriendo todo. Sin tocar: bandas 0,8 s y círculos como siempre. Súbelo si necesitas más tiempo para cambiar de cámara."}],
+    defaults: {estilo: "bandas"}
   };
 
   /* ===================== elementos iniciales de una sala ===================== */
