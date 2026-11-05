@@ -728,3 +728,31 @@ body.tab-boton #monitores .pantalla{width:min(100%, calc((100vh - 150px) * 16 / 
 .cort-tecla{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .cort-k{min-width:90px;text-align:center;font:800 15px/1 ui-monospace,monospace;padding:10px 14px;border-radius:10px;background:var(--panel2,#1d2130);border:1px solid var(--borde,#2a2f3c)}
 #cortCap.esperando{background:#f5a623;color:#1b1200}
+
+/* ---------- Limpiar salida con opciones ---------- */
+.split-limpiar{display:inline-flex}
+.split-limpiar #bLimpiar{border-top-right-radius:0;border-bottom-right-radius:0}
+.split-limpiar .lim-cfg{border-top-left-radius:0;border-bottom-left-radius:0;border-left-width:0;padding:0 9px;min-width:0}
+.lim-modos{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.lim-modo{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--borde,#2a2f3c);border-radius:10px}
+.lim-modo.on{border-color:var(--pgm,#E02A12);background:rgba(224,42,18,.08)}
+.lim-modo label{flex:1;display:flex;align-items:center;gap:10px;cursor:pointer}
+.lim-modo input{width:18px;height:18px;accent-color:var(--pgm,#E02A12)}
+.lim-modo span{display:flex;flex-direction:column}
+.lim-modo small{opacity:.7;font-size:12px}
+.lim-lista{display:flex;flex-direction:column;gap:4px;max-height:42vh;overflow:auto;margin-top:6px}
+.lim-it{display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--borde,#2a2f3c);border-radius:8px}
+.lim-nom{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13.5px}
+.lim-nom i{font-style:normal;font-size:10px;font-weight:800;letter-spacing:.05em;padding:2px 5px;border-radius:4px;margin-right:6px}
+.lim-aire{background:#ff3b3b;color:#fff}.lim-bot{background:#2a2f3c;color:#cfd3dc}
+.lim-chk{display:flex;align-items:center;gap:4px;font-size:14px;cursor:pointer}
+.lim-chk input{width:17px;height:17px}
+/* botones divididos (Cortina ▾ / Limpiar ▾) dentro de la barra: nunca ensanchan la pantalla del celular */
+.split-cortina,.split-limpiar{min-width:0}
+.split-cortina #bCortina,.split-limpiar #bLimpiar{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:900px){
+  .acciones .split-cortina,.acciones .split-limpiar{display:flex}
+  .acciones .cort-cfg,.acciones .lim-cfg{flex:0 0 26px;width:26px!important;min-width:0!important;padding:0!important;font-size:11px}
+  .acciones #bCortina span,.acciones #bLimpiar span{overflow:hidden;text-overflow:ellipsis}
+}
+@media (max-width:480px){.acciones{grid-template-columns:1fr 1fr 1.2fr 44px}.acciones #bCortina span,.acciones #bLimpiar span{display:none}.acciones #bCortina,.acciones #bLimpiar{justify-content:center}}

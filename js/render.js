@@ -128,9 +128,9 @@
 
     function evento(e) {
       if (e.tipo === "aviso") { aviso(e.datos || {}); }
-      else if (e.tipo === "cortina") { cortina((e.datos && e.datos.estilo) || "bandas"); }
-      else if (P[e.tipo] && P[e.tipo].lanzar) { P[e.tipo].lanzar(cajaCortina, e.datos || {}, ctx); }
-      else if (e.tipo === "limpiar") { if (P.transicion && P.transicion.cancelar) { P.transicion.cancelar(); } cajaAvisos.innerHTML = ""; cajaCortina.className = "capa"; cajaCortina.innerHTML = ""; cajaSalp.innerHTML = ""; }
+      else if (e.tipo === "cortina") { cortina((e.datos && e.datos.estilo) || "bandas", e.datos && e.datos.tapado); }
+      else if (P[e.tipo] && P[e.tipo].lanzar) { tCort.forEach(clearTimeout); tCort = []; P[e.tipo].lanzar(cajaCortina, e.datos || {}, ctx); }
+      else if (e.tipo === "limpiar") { tCort.forEach(clearTimeout); tCort = []; if (P.transicion && P.transicion.cancelar) { P.transicion.cancelar(); } cajaAvisos.innerHTML = ""; cajaCortina.className = "capa"; cajaCortina.innerHTML = ""; cajaSalp.innerHTML = ""; }
     }
     function limpiarTodo() { Object.keys(capas).forEach(salir); }
 
@@ -169,18 +169,31 @@
     }
 
     /* ---------- cortina de salsa ---------- */
-    function cortina(estilo) {
-      var el = cajaCortina, cols = ["#E02A12", "#FFF3D6", "#F59A23", COL.palta];
+    /* cortina de salsa: entra, se queda TAPANDO la pantalla «tapado» segundos (para cambiar de cámara tranquilo) y sale */
+    var tCort = [];
+    function cortina(estilo, tapado) {
+      var el = cajaCortina, cols = ["#E02A12", "#FFF3D6", "#F59A23", COL.palta], v = Math.max(0.25, CG.velocidad || 1);
+      var hold = Math.max(0, Math.min(15, tapado == null || tapado === "" || isNaN(+tapado) ? 2.5 : +tapado)) * 1000;
+      var esc = (estilo === "iris" ? 200 : 350) / v;   /* desfase entre la primera y la última pieza */
+      var ent = 700 / v, sal = 700 / v; hold += esc + (hold > 0 ? 250 / v : 0); var total = ent + hold + sal;
+      tCort.forEach(clearTimeout); tCort = [];
       el.className = "capa"; el.innerHTML = "";
+      var piezas = [];
       if (estilo === "iris") {
-        ["#F59A23", "#FFF3D6", "#E02A12"].forEach(function (c, i) { el.insertAdjacentHTML("beforeend", '<i class="circ" style="background:' + c + ';--s:' + (5.6 - i * 0.7) + ';animation-delay:' + i * 0.1 + 's"></i>'); });
-        el.classList.add("iris");
+        ["#F59A23", "#FFF3D6", "#E02A12"].forEach(function (c, i) { el.insertAdjacentHTML("beforeend", '<i class="circ" style="background:' + c + '"></i>'); piezas.push({n: el.lastChild, d: i * 100, s: 5.6 - i * 0.7}); });
       } else {
-        [-520, -160, 200, 560, 900, 1260].forEach(function (y, i) { el.insertAdjacentHTML("beforeend", '<i class="banda" style="top:' + y + 'px;background:' + cols[i % 4] + ';animation-delay:' + i * 0.07 + 's"></i>'); });
+        [-520, -160, 200, 560, 900, 1260].forEach(function (y, i) { el.insertAdjacentHTML("beforeend", '<i class="banda" style="top:' + y + 'px;background:' + cols[i % 4] + '"></i>'); piezas.push({n: el.lastChild, d: i * 70}); });
       }
-      void el.offsetWidth; el.classList.add("anda");
-      setTimeout(function () { salpicar(960, 540, ["#E02A12", "#F59A23", "#FFF3D6"], 16, 620); }, 700);
-      setTimeout(function () { el.className = "capa"; el.innerHTML = ""; }, 2100);
+      piezas.forEach(function (p) {
+        var a = estilo === "iris" ? ["scale(0)", "scale(" + p.s + ")", "scale(" + p.s + ")", "scale(0)"] : ["translateX(-140%) rotate(-8deg)", "translateX(0) rotate(-8deg)", "translateX(0) rotate(-8deg)", "translateX(140%) rotate(-8deg)"];
+        /* la curva va por tramo (entrar / quedarse / salir) para que el tiempo tapado sea exacto */
+        var ez = "cubic-bezier(.55,0,.35,1)";
+        p.n.animate([{transform: a[0], easing: ez}, {transform: a[1], offset: ent / total, easing: "linear"}, {transform: a[2], offset: (ent + hold) / total, easing: ez}, {transform: a[3]}],
+          {duration: total, delay: p.d / v, fill: "both"});
+      });
+      el.classList.add("anda", "waapi");   /* «anda» marca que la cortina está corriendo (la animación va por WAAPI) */
+      tCort.push(setTimeout(function () { salpicar(960, 540, ["#E02A12", "#F59A23", "#FFF3D6"], 16, 620); }, ent));
+      tCort.push(setTimeout(function () { el.className = "capa"; el.innerHTML = ""; }, total + 500 / v + 80));
     }
 
     return {

@@ -789,13 +789,70 @@
     var k = estado && estado.cortinaBoton && estado.cortinaBoton.tecla, sp = $("#bCortina span");
     if (sp) { sp.textContent = k ? "Cortina · " + nombreTecla(k) : "Cortina"; }
   }
-  $("#bLimpiar").onclick = function () {
-    var on = estado.elementos.filter(function (e) { return e.on; });
-    estado.ev = (estado.ev || []).concat({id: CG.nuevoId(), tipo: "limpiar", t: Date.now()}).slice(-12);
+  /* ---------- LIMPIAR SALIDA con opciones: qué se limpia y qué queda protegido ---------- */
+  var MODOS_LIMPIAR = [
+    ["todo", "🧹 Todo", "Todas las gráficas al aire + transiciones, cortinas y avisos"],
+    ["botonera", "🎛️ Solo botonera", "Solo las gráficas que están en botones de la botonera"],
+    ["botonera_trans", "🎛️✨ Botonera + transiciones", "Gráficas de la botonera + transiciones, cortinas y avisos en curso"],
+    ["trans", "✨ Solo transiciones", "Solo transiciones, cortinas y avisos en curso (las gráficas quedan)"],
+    ["elegidos", "☑️ Los que yo elija", "Solo las gráficas que marques en la lista"]
+  ];
+  function cfgLimpiar() {
+    var c = estado.limpiarCfg;
+    if (!c || typeof c !== "object") { c = estado.limpiarCfg = {modo: "todo", prot: [], elegidos: []}; }
+    if (!Array.isArray(c.prot)) { c.prot = []; } if (!Array.isArray(c.elegidos)) { c.elegidos = []; }
+    return c;
+  }
+  function idsEnBotonera() { var m = {}; botones().forEach(function (b) { idsBoton(b).forEach(function (id) { m[id] = 1; }); }); return m; }
+  function limpiarSalida(modo) {
+    var c = cfgLimpiar(); modo = modo || c.modo || "todo";
+    var enBot = idsEnBotonera(), prot = {}; c.prot.forEach(function (id) { prot[id] = 1; });
+    var conTrans = modo === "todo" || modo === "botonera_trans" || modo === "trans";
+    var on = estado.elementos.filter(function (e) {
+      if (!e.on || prot[e.id]) { return false; }
+      if (esTransicion(e)) { return conTrans; }
+      if (modo === "todo") { return true; }
+      if (modo === "botonera" || modo === "botonera_trans") { return !!enBot[e.id]; }
+      if (modo === "elegidos") { return c.elegidos.indexOf(e.id) >= 0; }
+      return false;
+    });
+    if (conTrans) { estado.ev = (estado.ev || []).concat({id: CG.nuevoId(), tipo: "limpiar", t: Date.now()}).slice(-12); }
     on.forEach(function (e) { e.on = false; }); publicar();
-    if (!on.length) { toast("Salida limpia (avisos y cortinas retirados)"); return; }
-    toast("Se ocultaron " + on.length + " gráfica(s)", "", {txt: "Deshacer", fn: function () { on.forEach(function (e) { var x = el(e.id); if (x) { x.on = true; } }); publicar(); }});
-  };
+    var nom = (MODOS_LIMPIAR.filter(function (m) { return m[0] === modo; })[0] || [])[1] || "";
+    if (!on.length) { toast(conTrans ? "Limpiado (" + nom + "): transiciones, cortinas y avisos retirados" : "Nada que limpiar (" + nom + ")"); return; }
+    toast("Limpiado (" + nom + "): " + on.length + " gráfica(s)", "", {txt: "Deshacer", fn: function () { on.forEach(function (e) { var x = el(e.id); if (x) { x.on = true; } }); publicar(); }});
+  }
+  $("#bLimpiar").onclick = function () { limpiarSalida(); };
+  $("#bLimpiarCfg").onclick = configLimpiar;
+  function etiquetaLimpiar() {
+    var c = estado && estado.limpiarCfg, sp = $("#bLimpiar span"); if (!sp) { return; }
+    var m = c && c.modo && c.modo !== "todo" ? (MODOS_LIMPIAR.filter(function (x) { return x[0] === c.modo; })[0] || [])[1] : "";
+    sp.textContent = m ? "Limpiar · " + m.replace(/^\S+\s/, "") : "Limpiar salida";
+  }
+  function configLimpiar() {
+    var c = cfgLimpiar(), enBot = idsEnBotonera();
+    var lista = estado.elementos.filter(function (e) { return P[e.plantilla] && !esEvento(e) && !esTransicion(e); })
+      .sort(function (a, b) { return (b.on - a.on) || ((enBot[b.id] ? 1 : 0) - (enBot[a.id] ? 1 : 0)) || a.nombre.localeCompare(b.nombre); });
+    var h = "<h2>Limpiar salida</h2><p class='lead'>Elige qué hace el botón <b>Limpiar salida</b> (y el botón «Limpiar salida» de la botonera). También puedes limpiar ahora con cualquier opción.</p>" +
+      "<div class='lim-modos'>" + MODOS_LIMPIAR.map(function (m) {
+        return "<div class='lim-modo" + (c.modo === m[0] ? " on" : "") + "'><label><input type='radio' name='limModo' value='" + m[0] + "'" + (c.modo === m[0] ? " checked" : "") + "><span><b>" + m[1] + "</b><small>" + m[2] + "</small></span></label>" +
+          "<button type='button' class='btn mini' data-ahora='" + m[0] + "'>Limpiar ahora</button></div>";
+      }).join("") + "</div>" +
+      "<h3 class='cfg-h3'>Gráficas</h3><p class='nota-m'><b>🔒 Proteger</b>: nunca se limpia (por ejemplo el logo o el fondo). <b>☑️ Elegir</b>: entra en la opción «Los que yo elija».</p>" +
+      "<div class='lim-lista'>" + lista.map(function (e) {
+        return "<div class='lim-it'><span class='lim-nom'>" + (e.on ? "<i class='lim-aire'>AIRE</i>" : "") + (enBot[e.id] ? "<i class='lim-bot'>BOTÓN</i>" : "") + esc(e.nombre) + "</span>" +
+          "<label class='lim-chk' title='Nunca se limpia'><input type='checkbox' data-prot='" + esc(e.id) + "'" + (c.prot.indexOf(e.id) >= 0 ? " checked" : "") + ">🔒</label>" +
+          "<label class='lim-chk' title='Se limpia con «Los que yo elija»'><input type='checkbox' data-eleg='" + esc(e.id) + "'" + (c.elegidos.indexOf(e.id) >= 0 ? " checked" : "") + ">☑️</label></div>";
+      }).join("") + "</div>" +
+      "<div class='modal-pie'><button class='btn prim' data-r='1'>Listo</button></div>";
+    var m = modal(h, {ancho: true, sinFoco: true});
+    $$("input[name=limModo]", m).forEach(function (r) { r.onchange = function () { c.modo = r.value; publicar(); etiquetaLimpiar(); $$(".lim-modo", m).forEach(function (x) { x.classList.toggle("on", $("input", x).checked); }); }; });
+    $$("[data-ahora]", m).forEach(function (b) { b.onclick = function () { limpiarSalida(b.dataset.ahora); }; });
+    function alternar(lista2, id, si) { var i = lista2.indexOf(id); if (si && i < 0) { lista2.push(id); } if (!si && i >= 0) { lista2.splice(i, 1); } }
+    $$("[data-prot]", m).forEach(function (i) { i.onchange = function () { alternar(c.prot, i.dataset.prot, i.checked); publicar(); }; });
+    $$("[data-eleg]", m).forEach(function (i) { i.onchange = function () { alternar(c.elegidos, i.dataset.eleg, i.checked); publicar(); }; });
+    $("[data-r='1']", m).onclick = cerrarModal;
+  }
   $("#bNuevo").onclick = nuevaGrafica;
   $("#bRemoto").onclick = remoto;
   $("#bAjustes").onclick = function () { config(); };
@@ -1359,7 +1416,7 @@
   addEventListener("beforeunload", function (e) { if (con && con.hayPendiente && con.hayPendiente()) { e.preventDefault(); e.returnValue = ""; } });
   /* ======================= BOTONERA (teclera con botones y teclas F13–F24) ======================= */
   var TECLAS_F = ["F13", "F14", "F15", "F16", "F17", "F18", "F19", "F20", "F21", "F22", "F23", "F24"];
-  var ESPECIALES = {limpiar: "Limpiar salida", siguiente: "Paso siguiente", anterior: "Paso anterior", cortina: "Cortina rápida"};
+  var ESPECIALES = {limpiar: "Limpiar salida", limpiarBot: "Limpiar solo botonera", limpiarBotTrans: "Limpiar botonera + transiciones", limpiarTrans: "Limpiar solo transiciones", limpiarElegidos: "Limpiar los que elegí", siguiente: "Paso siguiente", anterior: "Paso anterior", cortina: "Cortina rápida"};
   var COLORES_B = ["#E02A12", "#F59A23", "#6AA832", "#0B3A8C", "#5B2A63", "#B8527A", "#F7B500", "#3A3F4E"];
   var editarBotonera = false, capturando = null;
   function nuevoBoton(o) { return Object.assign({id: "b" + Math.random().toString(36).slice(2, 8), el: "", esp: "", accion: "alternar", etiqueta: "", color: "", tecla: ""}, o); }
@@ -1455,7 +1512,7 @@
         (editarBotonera ? '<span class="bt-asa" title="Arrastrar para mover">⠿</span>' : (s2.e ? '<span class="bt-edit' + (miniId && idsBoton(b).indexOf(miniId) >= 0 ? ' on' : '') + '" data-edit="' + i + '" role="button" title="Editar textos, fotos y video de esta gráfica">EDIT</span>' : '')) + '</button>';
     }).join("") + (editarBotonera ? '<button class="bt bt-mas" id="btMas"><span class="bt-mas-ico">+</span><span class="bt-sub">AGREGAR BOTÓN</span></button>' : '');
     if (!botones().length && !editarBotonera) { cont.innerHTML = '<div class="lista-vacia">No hay botones. Toca «Editar botones» para agregarlos.</div>'; }    if (miniId) { if (!el(miniId)) { cerrarMini(); } else { miniEstado(); } }
-    etiquetaCortina();
+    etiquetaCortina(); etiquetaLimpiar();
   }
   /* guarda y redibuja sin perder lo que se está escribiendo en el panel lateral */
   var tGuardarBot = null;
@@ -1608,6 +1665,10 @@
     if (!b) { return; }
     if (nodo) { nodo.classList.remove("pulso"); void nodo.offsetWidth; nodo.classList.add("pulso"); }
     if (b.esp === "limpiar") { $("#bLimpiar").click(); return; }
+    if (b.esp === "limpiarBot") { limpiarSalida("botonera"); return; }
+    if (b.esp === "limpiarBotTrans") { limpiarSalida("botonera_trans"); return; }
+    if (b.esp === "limpiarTrans") { limpiarSalida("trans"); return; }
+    if (b.esp === "limpiarElegidos") { limpiarSalida("elegidos"); return; }
     if (b.esp === "siguiente") { moverPaso(1); return; }
     if (b.esp === "anterior") { moverPaso(-1); return; }
     if (b.esp === "cortina") { $("#bCortina").click(); return; }
