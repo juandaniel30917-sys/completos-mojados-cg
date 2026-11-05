@@ -133,12 +133,25 @@ La pestaña **Botonera** es un panel de botones grandes, uno por gráfica, para 
 - **Varias gráficas en un botón (hasta 5):** en **Editar botones**, sección 1, elige **Varias a la vez** y toca en la lista las gráficas (por ejemplo 3 GC de invitados). Al tocar el botón salen todas juntas (no se reemplazan entre sí) y con otro toque se van todas. En **Cómo se acomodan** eliges *Cada una en su lugar*, *En fila (lado a lado)* o *En columna (una sobre otra)*. En un botón así, **EDIT** muestra una pestañita por cada gráfica.
 - **Capas:** en **Editar botones** (sección *Capa*) o en **EDIT** eliges si la gráfica va **⬇ Al fondo** (las demás pasan por encima), **Normal** o **⬆ Arriba** (sobre todas las gráficas). Las transiciones y cortinas van **siempre encima de todo**, también los videos marcados como transición o sumados al botón Cortina.
 
+### Limpiar salida (con opciones)
+
+El botón **Limpiar salida** de arriba (y el botón *Limpiar salida* de la botonera) limpia según la opción que elijas con la flechita **▾**:
+
+- **🧹 Todo:** todas las gráficas al aire + transiciones, cortinas y avisos.
+- **🎛️ Solo botonera:** solo las gráficas que están en botones de la botonera (lo que sacaste desde *Control* queda).
+- **🎛️✨ Botonera + transiciones:** lo anterior + transiciones, cortinas y avisos en curso.
+- **✨ Solo transiciones:** corta transiciones, cortinas y avisos; las gráficas quedan.
+- **☑️ Los que yo elija:** solo las gráficas que marques con ☑️ en la lista.
+
+En la misma ventana: **🔒 Proteger** deja una gráfica fuera de cualquier limpieza (por ejemplo el logo o el fondo), y **Limpiar ahora** limpia al tiro con cualquier opción. El botón muestra la opción elegida (*Limpiar · Solo botonera*). En la botonera también hay botones de acción para cada opción (*Limpiar solo botonera*, *Limpiar botonera + transiciones*, *Limpiar solo transiciones*, *Limpiar los que elegí*). Después de limpiar aparece **Deshacer**.
+
 ### Botón ⚡ Cortina (cortinas al azar)
 
 El botón **⚡ Cortina** de arriba (y el botón *Cortina* de la botonera) lanza una cortina elegida de una lista. Con la flechita **▾** al lado eliges:
 
 - **Qué cortinas usa:** las de salsa dibujadas, las cortinas en video y las transiciones animadas. Cada una tiene **Probar** (sale al aire).
 - **Cómo las elige:** **🎲 Al azar** (nunca repite la misma dos veces seguidas), **🔁 En orden** o **📌 Siempre la primera**.
+- **Tiempo tapando:** las cortinas de salsa dibujadas (bandas y círculos) se quedan tapando la pantalla el tiempo que elijas en su **EDIT** → *Tiempo tapando la pantalla* (por defecto 2,5 s, hasta 10 s), para cambiar de cámara con calma.
 - **Atajo de teclado:** en la misma ventana, **⌨️ Presionar una tecla** (por ejemplo F12 o una tecla del Stream Deck). El botón muestra la tecla (*Cortina · F12*). Si un botón de la botonera usaba esa tecla, se le quita.
 - **Tus videos como cortina:** abajo aparecen tus videos; al marcarlos pasan a ser cortina y van encima de todo. En **EDIT** de un video también está el interruptor *Es transición o cortina*.
 - **Transiciones largas nuevas** (misma estética): *Lluvia de ingredientes* (8 s), *El gran completo* (9 s), *Desde Talca para el Maule* (8 s), *Ya volvemos* (10 s, para comerciales) y *Noticiero ¡Extra, extra!* (8 s). Las cuatro primeras ya vienen en el botón Cortina.
