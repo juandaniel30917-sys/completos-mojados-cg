@@ -756,3 +756,11 @@ body.tab-boton #monitores .pantalla{width:min(100%, calc((100vh - 150px) * 16 / 
   .acciones #bCortina span,.acciones #bLimpiar span{overflow:hidden;text-overflow:ellipsis}
 }
 @media (max-width:480px){.acciones{grid-template-columns:1fr 1fr 1.2fr 44px}.acciones #bCortina span,.acciones #bLimpiar span{display:none}.acciones #bCortina,.acciones #bLimpiar{justify-content:center}}
+
+/* atajos de teclado de Limpiar */
+.lim-tk{white-space:nowrap}
+.lim-tk.con{background:#2a2f3c;color:#fff;border-color:#4a5163}
+.lim-tk.esperando,[data-tk].esperando{background:#f5a623;color:#1b1200}
+.lim-princ{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px;padding:10px;border:1px dashed var(--borde,#2a2f3c);border-radius:10px}
+.lim-princ>span:first-child{flex:1;min-width:160px;display:flex;flex-direction:column}
+.lim-princ small{opacity:.7;font-size:12px}
