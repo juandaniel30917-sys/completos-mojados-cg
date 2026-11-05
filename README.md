@@ -152,6 +152,7 @@ En la misma ventana: **🔒 Proteger** deja una gráfica fuera de cualquier limp
 El botón **⚡ Cortina** de arriba (y el botón *Cortina* de la botonera) lanza una cortina elegida de una lista. Con la flechita **▾** al lado eliges:
 
 - **Qué cortinas usa:** las de salsa dibujadas, las cortinas en video y las transiciones animadas. Cada una tiene **Probar** (sale al aire).
+- **Tiempo de cada cortina:** en la misma lista, al lado de cada una: **Tapa N s** en las de salsa dibujadas (cuánto se queda tapando la pantalla) y **Dura N s** en las animadas y en video (cambia su velocidad, entre la mitad y el doble de la original). Cada cortina guarda su propio tiempo.
 - **Cómo las elige:** **🎲 Al azar** (nunca repite la misma dos veces seguidas), **🔁 En orden** o **📌 Siempre la primera**.
 - **Tiempo tapando:** la cortina de bandas de salsa se queda un poco más tapando la pantalla (0,8 s); los círculos, como siempre. Si necesitas más tiempo para cambiar de cámara, súbelo en su **EDIT** → *Tiempo tapando la pantalla* (hasta 10 s).
 - **Atajo de teclado:** en la misma ventana, **⌨️ Presionar una tecla** (por ejemplo F12 o una tecla del Stream Deck). El botón muestra la tecla (*Cortina · F12*). Si un botón de la botonera usaba esa tecla, se le quita.
