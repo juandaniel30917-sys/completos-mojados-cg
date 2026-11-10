@@ -502,7 +502,9 @@
     var d = borrador(sel); if (!d) { return; }
     $$((miniId ? "#miniCampos" : "#campos") + " .campo[data-si]").forEach(function (c) { c.hidden = !visible({si: c.dataset.si}, d); });
   }
+  var cambioAlt = null; /* el módulo ⬇️ Descargar usa los mismos campos, pero sobre su propia copia */
   function cambio(k, v, sinRedibujar) {
+    if (cambioAlt) { cambioAlt(k, v); return; }
     var d = borrador(sel); d[k] = v;
     guardarBorr(); pvw(); estadoFicha(); condicionales(); marcarItem(); if (miniId) { miniCambio(); }
     var e = el(sel);
@@ -537,7 +539,7 @@
         break;
       case "toggle":
         w.innerHTML = '<label class="tog"><input type="checkbox" id="' + id + '"><span class="sw2"></span><span>' + esc(f.l) + '</span>' + (f.ayuda ? ' <span class="ay" title="' + esc(f.ayuda) + '">?</span>' : '') + '</label>';
-        var cb = $("input", w); cb.checked = !!v; cb.onchange = function () { cambio(f.k, cb.checked); if (f.k === "revelar") { var e = el(sel); if (e && e.on) { e.datos.revelar = cb.checked; publicar(); toast(cb.checked ? "Respuesta revelada en pantalla" : "Respuesta oculta", "ok"); } } };
+        var cb = $("input", w); cb.checked = !!v; cb.onchange = function () { cambio(f.k, cb.checked); if (f.k === "revelar") { var e = !cambioAlt && el(sel); if (e && e.on) { e.datos.revelar = cb.checked; publicar(); toast(cb.checked ? "Respuesta revelada en pantalla" : "Respuesta oculta", "ok"); } } };
         break;
       case "seg":
         w.innerHTML = lab + '<div class="seg" role="radiogroup">' + f.o.map(function (o) { return '<button type="button" data-v="' + esc(o[0]) + '" class="' + (String(v) === o[0] ? "on" : "") + '">' + esc(o[1]) + '</button>'; }).join("") + '</div>';
@@ -548,7 +550,7 @@
         w.innerHTML = lab + '<div class="lista-items"></div><button type="button" class="btn mini" style="align-self:flex-start"><svg><use href="#i-mas"/></svg>Agregar</button>';
         var li = $(".lista-items", w);
         var pintar = function () {
-          var arr = borrador(sel)[f.k] || [];
+          var arr = d[f.k] || [];
           li.innerHTML = "";
           arr.forEach(function (it, i) {
             var row = document.createElement("div"); row.className = "li";
@@ -562,7 +564,7 @@
           if (!arr.length) { li.innerHTML = '<span class="nota">Vacío. Usa «Agregar».</span>'; }
         };
         pintar();
-        $("button.btn", w).onclick = function () { var arr = (borrador(sel)[f.k] || []).slice(); arr.push(clon(f.nuevo)); cambio(f.k, arr); pintar(); var ins = $$(".li input[type=text]", li); if (ins.length) { ins[ins.length - subs.filter(function (x) { return x.t !== "color"; }).length].focus(); } };
+        $("button.btn", w).onclick = function () { var arr = (d[f.k] || []).slice(); arr.push(clon(f.nuevo)); cambio(f.k, arr); pintar(); var ins = $$(".li input[type=text]", li); if (ins.length) { ins[ins.length - subs.filter(function (x) { return x.t !== "color"; }).length].focus(); } };
         break;
       case "select":
         w.innerHTML = lab + '<select id="' + id + '">' + f.o.map(function (o) { return '<option value="' + esc(o[0]) + '">' + esc(o[1]) + '</option>'; }).join("") + '</select>';
@@ -572,13 +574,13 @@
         w.innerHTML = lab + '<div class="cupos-ed"></div><span class="nota">Toca cada llamada para cambiar: libre → llamando → correcto → incorrecto. Si está al aire se actualiza al instante.</span>';
         var ce = $(".cupos-ed", w), N = {libre: "Libre", llamando: "Llamando", correcto: "Correcto", incorrecto: "Incorrecto"};
         var pintarC = function () {
-          var arr = borrador(sel)[f.k] || [];
+          var arr = d[f.k] || [];
           ce.innerHTML = arr.map(function (c, i) { return '<button type="button" class="ce c-' + esc(c) + '" data-i="' + i + '"><b>' + (i + 1) + '</b><span>' + N[c] + '</span></button>'; }).join("");
           $$("button", ce).forEach(function (b) {
             b.onclick = function () {
-              var a2 = (borrador(sel)[f.k] || []).slice(), i = +b.dataset.i; a2[i] = CG.ESTADOS_CUPO[(CG.ESTADOS_CUPO.indexOf(a2[i]) + 1) % CG.ESTADOS_CUPO.length];
+              var a2 = (d[f.k] || []).slice(), i = +b.dataset.i; a2[i] = CG.ESTADOS_CUPO[(CG.ESTADOS_CUPO.indexOf(a2[i]) + 1) % CG.ESTADOS_CUPO.length];
               cambio(f.k, a2); pintarC();
-              var e = el(sel); if (e && e.on) { e.datos[f.k] = a2.slice(); publicar(); }
+              var e = !cambioAlt && el(sel); if (e && e.on) { e.datos[f.k] = a2.slice(); publicar(); }
             };
           });
         };
@@ -939,6 +941,138 @@
     };
     raf = requestAnimationFrame(lazo); pinta();
   }
+  /* ---------- ⬇️ DESCARGAR: una gráfica como MP4 con fondo verde ----------
+     Elige la gráfica, cambia sus textos (sin tocar la del programa), la duración y si lleva animación de entrada, de salida,
+     ambas o ninguna. El video se arma en exportar.html (mismo motor de la salida, cuadro a cuadro) y se codifica a H.264. */
+  var EX_ANIM = [["ambas", "Entrada y salida"], ["entrada", "Solo entrada"], ["salida", "Solo salida"], ["nada", "Sin animación"]];
+  function exportables() {
+    return (estado.elementos || []).filter(function (e) { var p = P[e.plantilla]; return p && e.plantilla !== "video" && !p.oculta; });
+  }
+  function nombreArchivo(s) { return String(s || "grafica").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "_").slice(0, 60) || "grafica"; }
+  function abrirDescargar(idIni) {
+    var lista = exportables(); if (!lista.length) { toast("No hay gráficas para descargar.", "err"); return; }
+    var pref = leerLS("cg_exportar", {anim: "ambas", dur: 6, fps: 30});
+    var cur = {id: null, d: null, anim: pref.anim || "ambas", dur: +pref.dur || 6, fps: +pref.fps || 30, med: null, trabajando: false, url: null};
+    var cats = {}, orden = [];
+    lista.forEach(function (e) { var c = P[e.plantilla].nombre || e.plantilla; if (!cats[c]) { cats[c] = []; orden.push(c); } cats[c].push(e); });
+    var opciones = orden.map(function (c) { return "<optgroup label='" + esc(c) + "'>" + cats[c].map(function (e) { return "<option value='" + esc(e.id) + "'>" + esc(e.nombre) + "</option>"; }).join("") + "</optgroup>"; }).join("");
+    var h = "<h2>⬇️ Descargar gráfica en MP4</h2><p class='lead'>Video 1920×1080 con <b>fondo verde</b> para ponerlo arriba de cualquier video (DaVinci, Premiere, CapCut, ATEM…). Lo que cambies aquí <b>no</b> cambia la gráfica del programa.</p>" +
+      "<div class='ex-grid'><div class='ex-izq'>" +
+        "<label class='ex-lab'>Gráfica</label><select id='exSel'>" + opciones + "</select>" +
+        "<div class='ex-vista' id='exVista'><iframe id='exIf' src='exportar.html?v=202611101000' title='Vista de la gráfica' tabindex='-1'></iframe><div class='ex-barra' id='exBarra'><i></i></div></div>" +
+        "<div class='ex-fila'><button type='button' class='btn' id='exVer'>▶ Ver animación</button><span class='ex-info' id='exInfo'></span></div>" +
+        "<div class='ex-op' id='exOpAnim'><label class='ex-lab'>Animación</label><div class='seg' id='exAnim'>" + EX_ANIM.map(function (a) { return "<button type='button' data-v='" + a[0] + "'>" + a[1] + "</button>"; }).join("") + "</div></div>" +
+        "<div class='ex-op ex-dos'><div><label class='ex-lab' for='exDur'>Duración del video</label><div class='rango'><input type='range' id='exDurR' min='1' max='60' step='0.5'><input class='num' type='number' id='exDur' min='1' max='600' step='0.5'><span class='u'>s</span></div></div>" +
+        "<div><label class='ex-lab'>Cuadros por segundo</label><div class='seg' id='exFps'><button type='button' data-v='30'>30</button><button type='button' data-v='60'>60</button></div></div></div>" +
+        "<div class='ex-op'><label class='ex-lab' for='exNom'>Nombre del archivo</label><input type='text' id='exNom' autocomplete='off'></div>" +
+      "</div><div class='ex-der'><div class='ex-lab'>Textos y opciones</div><div id='exCampos'></div></div></div>" +
+      "<div class='ex-prog' id='exProg' hidden><div class='ex-pbar'><i id='exPbar'></i></div><span id='exPtxt'>Preparando…</span></div>" +
+      "<div class='ex-listo' id='exListo' hidden><video id='exVid' controls playsinline muted></video><p id='exLtxt'></p></div>" +
+      "<div class='modal-pie'><span class='ex-nota' id='exNota'></span><span style='flex:1'></span><button type='button' class='btn' id='exNo'>Cerrar</button><button type='button' class='btn prim' id='exOk'>⬇️ Exportar MP4</button></div>";
+    var m = modal(h, {ancho: true, sinFoco: true, clase: "ex-modal", alCerrar: function () { cambioAlt = null; try { X() && X().cancelar(); } catch (e) {} if (cur.url) { URL.revokeObjectURL(cur.url); } }});
+    var ifr = $("#exIf", m), vista = $("#exVista", m);
+    function X() { try { return ifr.contentWindow && ifr.contentWindow.CG_EXPORT; } catch (e) { return null; } }
+    function escala() { var k = vista.clientWidth / 1920; ifr.style.transform = "scale(" + k + ")"; }
+    escala(); var ro = window.ResizeObserver ? new ResizeObserver(escala) : null; if (ro) { ro.observe(vista); }
+    function listo() { return new Promise(function (r) { (function mira() { if (X()) { r(X()); } else { setTimeout(mira, 60); } })(); }); }
+    function opExp(extra) {
+      var e = el(cur.id), c = clon(e); c.datos = clon(cur.d);
+      return Object.assign({el: c, biblioteca: estado.biblioteca || [], logo: estado.logo || "", ajustes: estado.ajustes || {}, fps: cur.fps, duracion: cur.dur,
+        entrada: cur.anim === "ambas" || cur.anim === "entrada", salida: cur.anim === "ambas" || cur.anim === "salida"}, extra || {});
+    }
+    function esEv() { var e = el(cur.id); return !!(e && P[e.plantilla].evento); }
+    function info() {
+      var t = cur.med; if (!t) { $("#exInfo", m).textContent = ""; return; }
+      $("#exInfo", m).textContent = t.evento ? "Animación completa: " + (t.entrada / 1000).toFixed(1) + " s" : "Entrada " + (t.entrada / 1000).toFixed(1) + " s · Salida " + (t.salida / 1000).toFixed(1) + " s";
+      var aviso = "";
+      if (!t.evento && cur.anim !== "nada") {
+        var need = (cur.anim !== "salida" ? t.entrada : 0) + (cur.anim !== "entrada" ? t.salida + 250 : 0);
+        if (cur.dur * 1000 < need + 300) { aviso = "⚠ La duración es muy corta para la animación elegida."; }
+      }
+      $("#exNota", m).textContent = aviso;
+    }
+    var tQuieto = 0;
+    function quieto() {
+      clearTimeout(tQuieto);
+      tQuieto = setTimeout(function () {
+        if (cur.trabajando) { return; }
+        listo().then(function (x) { x.detener(); return x.medir(opExp()).then(function (t) { cur.med = t; info(); }); });
+      }, 250);
+    }
+    function guardarPref() { guardarLS("cg_exportar", {anim: cur.anim, dur: cur.dur, fps: cur.fps}); }
+    function pintarSeg(cont, v) { $$("button", cont).forEach(function (b) { b.classList.toggle("on", b.dataset.v === String(v)); }); }
+    function elegir(id) {
+      var e = el(id); if (!e) { return; }
+      cur.id = id; cur.d = clon(borrador(id)); cur.med = null;
+      if (e.plantilla === "temporizador" && e.datos.run) { cur.d.run = clon(e.datos.run); }
+      $("#exSel", m).value = id; $("#exNom", m).value = nombreArchivo(e.nombre) + "_verde";
+      $("#exOpAnim", m).hidden = !!P[e.plantilla].evento;
+      /* los campos de siempre, pero escriben en la copia del módulo */
+      var cont = $("#exCampos", m), p = P[e.plantilla]; cont.innerHTML = "";
+      p.campos.forEach(function (f) { var w = campo(f, cur.d); cont.appendChild(w); });
+      function cond() { $$("#exCampos .campo[data-si]").forEach(function (c) { c.hidden = !visible({si: c.dataset.si}, cur.d); }); }
+      cond();
+      cambioAlt = function (k, v) { cur.d[k] = v; cond(); quieto(); };
+      $("#exListo", m).hidden = true;
+      listo().then(function (x) { return x.medir(opExp()); }).then(function (t) {
+        cur.med = t;
+        if (t.evento) { cur.dur = Math.max(1, Math.ceil((t.entrada + 400) / 500) / 2); pintarDur(); }
+        info();
+      });
+    }
+    function pintarDur() { $("#exDur", m).value = cur.dur; $("#exDurR", m).value = Math.min(60, cur.dur); info(); }
+    $("#exSel", m).onchange = function () { elegir(this.value); };
+    $$("#exAnim button", m).forEach(function (b) { b.onclick = function () { cur.anim = b.dataset.v; pintarSeg($("#exAnim", m), cur.anim); guardarPref(); info(); }; });
+    $$("#exFps button", m).forEach(function (b) { b.onclick = function () { cur.fps = +b.dataset.v; pintarSeg($("#exFps", m), cur.fps); guardarPref(); }; });
+    $("#exDurR", m).oninput = function () { cur.dur = +this.value; $("#exDur", m).value = cur.dur; guardarPref(); info(); };
+    $("#exDur", m).onchange = function () { cur.dur = Math.min(600, Math.max(1, +String(this.value).replace(",", ".") || 1)); pintarDur(); guardarPref(); };
+    pintarSeg($("#exAnim", m), cur.anim); pintarSeg($("#exFps", m), cur.fps); pintarDur();
+    $("#exVer", m).onclick = function () {
+      if (cur.trabajando) { return; }
+      var bt = this, barra = $("#exBarra i", m);
+      listo().then(function (x) {
+        bt.disabled = true; bt.textContent = "▶ Reproduciendo…";
+        return x.previsualizar(opExp({
+          alAvanzar: function (a) { barra.style.width = (a * 100) + "%"; },
+          alTerminar: function () { barra.style.width = "100%"; bt.disabled = false; bt.textContent = "▶ Ver animación"; }
+        }));
+      });
+    };
+    $("#exNo", m).onclick = function () { if (cur.trabajando) { var x = X(); if (x) { x.cancelar(); } return; } cerrarModal(); };
+    $("#exOk", m).onclick = function () {
+      if (cur.trabajando) { return; }
+      var nom = nombreArchivo($("#exNom", m).value) || "grafica";
+      cur.trabajando = true; $("#exOk", m).disabled = true; $("#exNo", m).textContent = "Cancelar"; $("#exListo", m).hidden = true; $("#exProg", m).hidden = false;
+      $("#exPbar", m).style.width = "0%"; $("#exPtxt", m).textContent = "Preparando…";
+      var t0 = Date.now();
+      listo().then(function (x) {
+        x.detener();
+        return x.exportar(opExp(), function (pr) {
+          $("#exPbar", m).style.width = (pr.avance * 100).toFixed(1) + "%";
+          $("#exPtxt", m).textContent = "Creando video… " + Math.round(pr.avance * 100) + "% · cuadro " + pr.cuadro + " de " + pr.total + (pr.quedan != null ? " · faltan ~" + Math.max(1, Math.round(pr.quedan)) + " s" : "");
+        });
+      }).then(function (r) {
+        if (cur.url) { URL.revokeObjectURL(cur.url); }
+        cur.url = URL.createObjectURL(r.blob);
+        var a = document.createElement("a"); a.href = cur.url; a.download = nom + ".mp4"; document.body.appendChild(a); a.click(); a.remove();
+        $("#exVid", m).src = cur.url; $("#exListo", m).hidden = false;
+        $("#exLtxt", m).innerHTML = "✅ <b>" + esc(nom) + ".mp4</b> descargado · " + (r.cuadros / r.fps).toFixed(1) + " s · " + r.fps + " cuadros/s · " + (r.blob.size / 1048576).toFixed(1) + " MB · listo en " + Math.round((Date.now() - t0) / 1000) + " s" +
+          (r.h264 ? "" : "<br>⚠ Tu navegador no tiene H.264: el MP4 va en VP9 (algunos editores no lo abren). Para H.264 usa Chrome o Edge.") +
+          " <a href='" + cur.url + "' download='" + esc(nom) + ".mp4'>Descargar de nuevo</a>";
+        toast("Video listo: " + nom + ".mp4", "ok");
+      }).catch(function (e) {
+        var msg = e && e.message === "cancelado" ? "Exportación cancelada." : "No se pudo crear el video: " + ((e && e.message) || e);
+        toast(msg, e && e.message === "cancelado" ? "" : "err"); $("#exPtxt", m).textContent = msg;
+      }).then(function () {
+        cur.trabajando = false; $("#exOk", m).disabled = false; $("#exNo", m).textContent = "Cerrar";
+        setTimeout(function () { if (!cur.trabajando) { $("#exProg", m).hidden = true; } }, 2500);
+        quieto();
+      });
+    };
+    var ini = idIni && el(idIni) && exportables().indexOf(el(idIni)) >= 0 ? idIni : (sel && el(sel) && el(sel).plantilla !== "video" ? sel : lista[0].id);
+    elegir(ini);
+  }
+  $("#bDescargar").onclick = function () { abrirDescargar(); };
   function asignarTeclaCortina(k) {
     var c = cfgCortina(), quitado = null;
     if (k) { var q = liberarTecla(k); if (q && q !== "Cortina") { quitado = {etiqueta: q}; } }

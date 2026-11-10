@@ -424,13 +424,14 @@ kbd{font:11px ui-monospace,monospace;background:var(--panel3);border:1px solid v
 @media (max-width:760px){
   #barra{flex-wrap:wrap;height:98px;align-content:center;row-gap:8px;padding:6px 8px}
   .estado{flex:1;min-width:0;justify-content:flex-end;overflow:hidden}
-  .acciones{width:100%;display:grid;grid-template-columns:1fr 1.25fr 1fr 44px;gap:6px}
+  .acciones{width:100%;display:grid;grid-template-columns:1fr 1.25fr 40px 1fr 44px;gap:6px}
+  .acciones #bDescargar{width:40px;padding:0;justify-content:center}.acciones #bDescargar span{display:none}
   .acciones .btn{width:auto;height:38px;padding:0 8px}
   .acciones .btn span{display:inline;font-size:12px}
   #bAjustes{width:44px}
   #main{height:calc(100% - 98px - 62px - env(safe-area-inset-bottom))}
 }
-@media (max-width:360px){.acciones .btn span{display:none}.acciones{grid-template-columns:repeat(4,1fr)}}
+@media (max-width:360px){.acciones .btn span{display:none}.acciones{grid-template-columns:repeat(5,1fr)}.acciones #bDescargar{width:auto}}
 
 /* =================== BOTONERA =================== */
 #botonera{display:none}
@@ -755,7 +756,7 @@ body.tab-boton #monitores .pantalla{width:min(100%, calc((100vh - 150px) * 16 / 
   .acciones .cort-cfg,.acciones .lim-cfg{flex:0 0 26px;width:26px!important;min-width:0!important;padding:0!important;font-size:11px}
   .acciones #bCortina span,.acciones #bLimpiar span{overflow:hidden;text-overflow:ellipsis}
 }
-@media (max-width:480px){.acciones{grid-template-columns:1fr 1fr 1.2fr 44px}.acciones #bCortina span,.acciones #bLimpiar span{display:none}.acciones #bCortina,.acciones #bLimpiar{justify-content:center}}
+@media (max-width:480px){.acciones{grid-template-columns:1fr 1fr 40px 1.2fr 44px}.acciones #bCortina span,.acciones #bLimpiar span{display:none}.acciones #bCortina,.acciones #bLimpiar{justify-content:center}}
 
 /* atajos de teclado de Limpiar */
 .lim-tk{white-space:nowrap}
@@ -794,3 +795,30 @@ body.tab-boton #monitores .pantalla{width:min(100%, calc((100vh - 150px) * 16 / 
 .rec-c input{width:76px;height:30px;text-align:center;border-radius:6px;border:1px solid var(--borde2);background:var(--fondo);color:var(--txt);font-variant-numeric:tabular-nums}
 .rec-dur{text-align:center;color:var(--txt2);margin:10px 0 0}.rec-dur b{color:var(--txt)}
 @media (max-width:620px){.rec-campos{grid-template-columns:1fr}.rec-c span{min-width:60px}}
+
+/* ⬇️ módulo Descargar (MP4 con fondo verde) */
+.btn.descargar svg{color:#7ee0a0}
+#modal.ex-modal .caja{width:min(1120px,100%)}
+.ex-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:18px;margin-top:6px}
+.ex-lab{display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--txt2);margin:10px 0 5px}
+.ex-izq select,.ex-izq input[type=text]{width:100%;height:36px;border-radius:8px;border:1px solid var(--borde2);background:var(--fondo);color:var(--txt);padding:0 10px}
+.ex-vista{position:relative;aspect-ratio:16/9;margin-top:10px;background:#00FF00;border-radius:8px;overflow:hidden;border:1px solid var(--borde)}
+.ex-vista iframe{position:absolute;left:0;top:0;width:1920px;height:1080px;border:0;transform-origin:0 0;pointer-events:none;background:#00FF00}
+.ex-barra{position:absolute;left:0;right:0;bottom:0;height:4px;background:rgba(0,0,0,.25)}
+.ex-barra i{display:block;height:100%;width:0;background:var(--acento)}
+.ex-fila{display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap}
+.ex-info{color:var(--txt2);font-size:13px}
+.ex-dos{display:grid;grid-template-columns:1fr auto;gap:14px;align-items:end}
+.ex-der{min-width:0;max-height:min(62vh,640px);overflow:auto;padding-right:4px}
+.ex-der .campo{margin-bottom:8px}
+.ex-prog{display:flex;align-items:center;gap:12px;margin-top:14px}
+.ex-pbar{flex:1;height:10px;border-radius:6px;background:var(--panel3);overflow:hidden}
+.ex-pbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--acento),var(--acento2));transition:width .15s}
+#exPtxt{font-size:13px;color:var(--txt2);min-width:260px}
+.ex-listo{display:flex;gap:14px;align-items:center;margin-top:14px;padding:10px;border-radius:10px;background:var(--panel2);border:1px solid var(--borde)}
+.ex-listo video{width:240px;aspect-ratio:16/9;border-radius:6px;background:#000}
+.ex-listo p{margin:0;font-size:14px;line-height:1.5}
+.ex-nota{color:#ffb020;font-size:13px}
+@media (max-width:820px){.ex-grid{grid-template-columns:1fr}.ex-der{max-height:none}.ex-listo{flex-direction:column;align-items:stretch}.ex-listo video{width:100%}}
+@media (max-width:480px){.btn.descargar span{display:none}}
+.ex-listo a{color:var(--acento2);font-weight:700}

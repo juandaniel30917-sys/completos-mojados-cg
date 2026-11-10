@@ -365,3 +365,12 @@ En **⚡ Cortina ▾** cada video tiene el botón **✂️ Recortar**: vista pre
 
 ## Barra del concurso + participante al mismo tiempo
 La **barra del concurso (mechadas)**, el **participante (JUGANDO)** y los **GC de nombre** pueden estar al aire juntos. Si la barra está abajo, los GC suben solos por encima de ella. Dos barras o dos participantes sí se reemplazan entre sí.
+
+## ⬇️ Descargar una gráfica en MP4 con fondo verde
+Botón **Descargar** en la barra superior del panel:
+1. Elige la gráfica (cualquiera menos videos; también cortinas y transiciones dibujadas).
+2. Cambia textos, colores y opciones: es una **copia**, la gráfica del programa no cambia.
+3. Elige **Animación**: entrada y salida, solo entrada, solo salida o sin animación; la **duración** del video (1–600 s) y **30 o 60 cuadros/s**.
+4. **Exportar MP4** → se descarga un MP4 H.264 1920×1080 con fondo verde **#00FF00** (el mismo de `salida.html?verde=1`), listo para ponerlo sobre cualquier video y quitar el verde con chroma.
+
+Cómo funciona: `exportar.html` usa el mismo motor de la salida con un **reloj virtual** (cada cuadro queda exacto aunque el PC sea lento), fotografía cada cuadro con *html-to-image* y lo codifica con *WebCodecs* + *mp4-muxer* (en `js/vendor/`). Funciona en Chrome y Edge actualizados; tarda unos 0,1 s por cuadro.

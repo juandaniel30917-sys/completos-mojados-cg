@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<title>Exportar gráfica · Completos Mojados CG</title>
+<!-- EXPORTADOR: lo usa el panel (módulo ⬇️ Descargar) dentro de un iframe de 1920×1080.
+     Dibuja UNA gráfica con el mismo motor de la salida, con un reloj virtual que avanza cuadro a cuadro:
+     así cada cuadro queda exacto aunque el computador sea lento, y se codifica a MP4 (H.264) con fondo verde. -->
+<script>
+/* ---------- RELOJ VIRTUAL (antes que cualquier otro script) ----------
+   setTimeout / setInterval / requestAnimationFrame / performance.now / Date.now avanzan solo cuando el exportador
+   lo pide. Las animaciones CSS y WAAPI se pausan y se colocan en el tiempo exacto de cada cuadro. */
+(function () {
+  "use strict";
+  var T = 0, cola = [], nid = 1, rafs = [], base0 = Date.now(), pNow = performance.now.bind(performance), dNow = Date.now;
+  var reales = {setTimeout: window.setTimeout, clearTimeout: window.clearTimeout, setInterval: window.setInterval, clearInterval: window.clearInterval, requestAnimationFrame: window.requestAnimationFrame, cancelAnimationFrame: window.cancelAnimationFrame};
+  var virtuales = null;
+  function agenda(fn, ms, args, cada) { var id = nid++; cola.push({id: id, t: T + Math.max(0, +ms || 0), fn: fn, args: args, cada: cada}); return id; }
+  window.setTimeout = function (fn, ms) { return typeof fn === "function" ? agenda(fn, ms, [].slice.call(arguments, 2), 0) : 0; };
+  window.setInterval = function (fn, ms) { return typeof fn === "function" ? agenda(fn, ms, [].slice.call(arguments, 2), Math.max(1, +ms || 1)) : 0; };
+  window.clearTimeout = window.clearInterval = function (id) { cola = cola.filter(function (x) { return x.id !== id; }); };
+  window.requestAnimationFrame = function (fn) { var id = nid++; rafs.push({id: id, fn: fn}); return id; };
+  window.cancelAnimationFrame = function (id) { rafs = rafs.filter(function (x) { return x.id !== id; }); };
+  performance.now = function () { return T; };
+  Date.now = function () { return base0 + T; };
+  var nacidas = new WeakMap();
+  function fijarAnimaciones() {
+    var as = []; try { as = document.getAnimations(); } catch (e) {}
+    as.forEach(function (a) {
+      if (!nacidas.has(a)) { nacidas.set(a, T); try { a.pause(); } catch (e) {} }
+      try { a.currentTime = (T - nacidas.get(a)) * (a.playbackRate || 1); } catch (e) {}
+    });
+  }
+  window.RELOJ = {
+    ahora: function () { return T; },
+    /* avanza dt milisegundos: corre los temporizadores en orden, un cuadro de rAF y fija las animaciones */
+    avanzar: function (dt) {
+      var meta = T + dt, guard = 0;
+      fijarAnimaciones();
+      while (guard++ < 5000) {
+        var prox = null; cola.forEach(function (x) { if (x.t <= meta && (!prox || x.t < prox.t)) { prox = x; } });
+        if (!prox) { break; }
+        T = Math.max(T, prox.t);
+        if (prox.cada) { prox.t = T + prox.cada; } else { cola = cola.filter(function (x) { return x !== prox; }); }
+        try { prox.fn.apply(window, prox.args || []); } catch (e) { console.warn(e); }
+        fijarAnimaciones();
+      }
+      T = meta;
+      var r = rafs; rafs = []; r.forEach(function (x) { try { x.fn(T); } catch (e) { console.warn(e); } });
+      fijarAnimaciones();
+    },
+    reiniciar: function () { cola = []; rafs = []; T = 0; nacidas = new WeakMap(); },
+    real: {now: pNow, date: dNow},
+    /* la librería que fotografía los cuadros usa temporizadores: mientras trabaja, corren con el reloj real */
+    conRelojReal: function (fn) {
+      if (!virtuales) { virtuales = {}; Object.keys(reales).forEach(function (k) { virtuales[k] = window[k]; }); }
+      Object.keys(reales).forEach(function (k) { window[k] = reales[k]; });
+      var vuelve = function () { Object.keys(virtuales).forEach(function (k) { window[k] = virtuales[k]; }); };
+      var pr; try { pr = Promise.resolve(fn()); } catch (e) { vuelve(); return Promise.reject(e); }
+      return pr.then(function (x) { vuelve(); return x; }, function (e) { vuelve(); throw e; });
+    }
+  };
+})();
+</script>
+<link rel="stylesheet" href="css/salida.css?v=202611101000">
+<link rel="stylesheet" href="css/paquete.css?v=202611101000">
+<style>
+html,body{width:1920px;height:1080px;background:transparent}
+#stage{transform:none!important;left:0;top:0}
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<script src="js/config.js?v=202611101000"></script>
+<script src="js/plantillas.js?v=202611101000"></script>
+<script src="js/paquete.js?v=202611101000"></script>
+<script src="js/chroma.js?v=202611101000"></script>
+<script src="js/render.js?v=202611101000"></script>
+<script src="js/conexion.js?v=202611101000"></script>
+<script src="js/vendor/html-to-image.js?v=1.11.13"></script>
+<script src="js/vendor/mp4-muxer.js?v=5.2.2"></script>
+<script>
+(function () {
+  "use strict";
+  var CG = window.CG, P = CG.PLANTILLAS, R = window.RELOJ, base = location.href.replace(/[^/]*([?#].*)?$/, "");
+  var VERDE = "#00FF00", salida = null, stage = null, cfg = null, plan = null, fontCSS = null;
+
+  function nuevoEscenario() {
+    R.reiniciar();
+    var viejo = document.getElementById("stage"); if (viejo) { viejo.remove(); }
+    stage = document.createElement("div"); stage.id = "stage"; document.body.appendChild(stage);
+    salida = CG.crearSalida({stage: stage, base: base, monitor: false, resolverMedia: function (m) { return CG.resolverMedia(m, base); }});
+  }
+  function estadoCon(on) {
+    var e = JSON.parse(JSON.stringify(cfg.el)); e.on = !!on; delete e.lay; delete e.capaUsr;
+    return {elementos: [e], biblioteca: cfg.biblioteca || [], logo: cfg.logo || "", ajustes: cfg.ajustes || {}, cortinaBoton: {ids: []}, ev: []};
+  }
+  /* largo de las animaciones que están corriendo ahora (las infinitas no cuentan) */
+  function largoAnimaciones() {
+    var max = 0;
+    try {
+      stage.getAnimations({subtree: true}).forEach(function (a) {
+        var t = a.effect && a.effect.getComputedTiming ? a.effect.getComputedTiming() : null;
+        if (t && isFinite(t.endTime)) { max = Math.max(max, t.endTime / Math.abs(a.playbackRate || 1)); }
+      });
+    } catch (e) {}
+    return max;
+  }
+  function esperarListo() {
+    /* imágenes y fuentes cargadas antes de dibujar el primer cuadro (estas esperas usan el reloj real) */
+    var imgs = [].slice.call(stage.querySelectorAll("img")).filter(function (i) { return !i.complete; });
+    return Promise.all([document.fonts ? document.fonts.ready : null].concat(imgs.map(function (i) {
+      return new Promise(function (r) { i.addEventListener("load", r, {once: true}); i.addEventListener("error", r, {once: true}); });
+    })));
+  }
+
+  /* ---------- prepara la línea de tiempo de la gráfica ----------
+     op: {el, biblioteca, logo, ajustes, fps, duracion (s), entrada (bool), salida (bool)} */
+  function preparar(op) {
+    cfg = op; nuevoEscenario();
+    var p = P[op.el.plantilla] || {}, fps = op.fps || 30, dt = 1000 / fps, evento = !!p.evento;
+    var r = Math.max(0.25, ((+(op.el.datos && op.el.datos.vel) || 100) / 100) * (((op.ajustes && op.ajustes.velocidad) || 100) / 100));
+    plan = {fps: fps, dt: dt, total: Math.round((op.duracion || 5) * fps), evento: evento, saleEn: -1, entradaMs: 0, salidaMs: (p.salidaMs || 600) / r};
+    if (evento) {
+      /* cortinas, transiciones dibujadas, avisos: se lanzan una vez */
+      salida.aplicar({elementos: [], ev: [], biblioteca: op.biblioteca || [], logo: op.logo || "", ajustes: op.ajustes || {}});
+      salida.evento({tipo: op.el.plantilla, datos: JSON.parse(JSON.stringify(op.el.datos || {}))});
+      return esperarListo().then(function () { R.avanzar(0); plan.entradaMs = largoAnimaciones(); });
+    }
+    salida.aplicar(estadoCon(true));
+    return esperarListo().then(function () {
+      R.avanzar(0);
+      plan.entradaMs = Math.max(largoAnimaciones(), 0);
+      if (!op.entrada) {
+        /* sin entrada: se adelanta (sin grabar) hasta que la gráfica quedó quieta en pantalla */
+        var pre = Math.max(plan.entradaMs + 100, 2700);
+        for (var t = 0; t < pre; t += dt) { R.avanzar(dt); }
+      }
+      if (op.salida) {
+        var cuadrosSalida = Math.ceil((plan.salidaMs + 250) / dt);
+        plan.saleEn = Math.max(1, plan.total - cuadrosSalida);
+      }
+    });
+  }
+  /* cuadro i: aplica la salida en su momento y avanza el reloj un cuadro */
+  function cuadro(i) {
+    if (i === plan.saleEn) { salida.aplicar(estadoCon(false)); }
+    if (i > 0) { R.avanzar(plan.dt); } else { R.avanzar(0); }
+  }
+  function capturar(canvas) {
+    var op = {width: 1920, height: 1080, canvasWidth: 1920, canvasHeight: 1080, pixelRatio: 1, skipAutoScale: true, backgroundColor: VERDE,
+      /* en la copia que se fotografía, nada se anima: cada nodo lleva el estilo exacto de este cuadro */
+      fontEmbedCSS: (fontCSS || "") + "\n*,*::before,*::after{animation:none!important;transition:none!important}"};
+    return R.conRelojReal(function () { return htmlToImage.toCanvas(stage, op); }).then(function (c) {
+      var g = canvas.getContext("2d"); g.fillStyle = VERDE; g.fillRect(0, 0, 1920, 1080); g.drawImage(c, 0, 0, 1920, 1080); return canvas;
+    });
+  }
+  function elegirCodec(fps) {
+    if (!window.VideoEncoder) { return Promise.resolve(null); }
+    var lista = [["avc", "avc1.640028"], ["avc", "avc1.4d0028"], ["avc", "avc1.42e028"], ["vp9", "vp09.00.40.08"]];
+    var i = 0;
+    function prueba() {
+      if (i >= lista.length) { return null; }
+      var c = lista[i++], conf = {codec: c[1], width: 1920, height: 1080, bitrate: 16e6, framerate: fps};
+      if (c[0] === "avc") { conf.avc = {format: "avc"}; }
+      return VideoEncoder.isConfigSupported(conf).then(function (s) { return s && s.supported ? {tipo: c[0], conf: conf} : prueba(); }, prueba);
+    }
+    return prueba();
+  }
+
+  /* ---------- exportar a MP4 ---------- */
+  var cancelado = false;
+  function exportar(op, progreso) {
+    cancelado = false; progreso = progreso || function () {};
+    var fps = op.fps || 30, canvas = document.createElement("canvas"), enc = null, mux = null, err = null, codec = null;
+    canvas.width = 1920; canvas.height = 1080;
+    return elegirCodec(fps).then(function (c) {
+      if (!c) { throw new Error("Este navegador no puede crear MP4. Usa Google Chrome o Microsoft Edge actualizados."); }
+      codec = c;
+      mux = new Mp4Muxer.Muxer({target: new Mp4Muxer.ArrayBufferTarget(), video: {codec: c.tipo, width: 1920, height: 1080, frameRate: fps}, fastStart: "in-memory"});
+      enc = new VideoEncoder({output: function (ch, meta) { mux.addVideoChunk(ch, meta); }, error: function (e) { err = e; }});
+      enc.configure(c.conf);
+      return preparar(op);
+    }).then(function () {
+      return R.conRelojReal(function () { return htmlToImage.getFontEmbedCSS(stage); }).then(function (f) { fontCSS = f; }, function () { fontCSS = ""; });
+    }).then(function () {
+      var i = 0, n = plan.total, t0 = R.real.now();
+      function siguiente() {
+        if (err) { throw err; }
+        if (cancelado) { throw new Error("cancelado"); }
+        if (i >= n) { return enc.flush(); }
+        cuadro(i);
+        return capturar(canvas).then(function () {
+          var vf = new VideoFrame(canvas, {timestamp: Math.round(i * 1e6 / fps), duration: Math.round(1e6 / fps)});
+          enc.encode(vf, {keyFrame: i % (fps * 2) === 0}); vf.close();
+          i++;
+          var hecho = i / n, seg = (R.real.now() - t0) / 1000;
+          progreso({cuadro: i, total: n, avance: hecho, quedan: hecho > 0.02 ? seg / hecho - seg : null});
+          if (enc.encodeQueueSize > 6) { return new Promise(function (r) { enc.addEventListener("dequeue", r, {once: true}); }).then(siguiente); }
+          return siguiente();
+        });
+      }
+      return siguiente();
+    }).then(function () {
+      mux.finalize();
+      try { enc.close(); } catch (e) {}
+      return {blob: new Blob([mux.target.buffer], {type: "video/mp4"}), codec: codec.conf.codec, h264: codec.tipo === "avc", cuadros: plan.total, fps: fps};
+    }, function (e) { try { enc && enc.close(); } catch (x) {} throw e; });
+  }
+
+  /* ---------- vista previa en tiempo real (mismo reloj, avanzado por el panel) ---------- */
+  var prev = null;
+  function previsualizar(op) {
+    detener();
+    return preparar(op).then(function () {
+      var i = 0, ultimo = R.real.now();
+      prev = {vivo: true};
+      var yo = prev;
+      (function paso() {
+        if (!yo.vivo) { return; }
+        var ahora = R.real.now(), n = Math.min(4, Math.floor((ahora - ultimo) / plan.dt));
+        for (var k = 0; k < n && i < plan.total; k++) { cuadro(i++); ultimo += plan.dt; }
+        if (i >= plan.total) { yo.vivo = false; if (op.alTerminar) { op.alTerminar(); } return; }
+        if (op.alAvanzar) { op.alAvanzar(i / plan.total); }
+        parent.requestAnimationFrame(paso);
+      })();
+      return plan;
+    });
+  }
+  function detener() { if (prev) { prev.vivo = false; prev = null; } }
+
+  window.CG_EXPORT = {
+    exportar: exportar, previsualizar: previsualizar, detener: detener,
+    cancelar: function () { cancelado = true; },
+    /* mide la entrada y la salida, y deja la gráfica quieta en pantalla como vista previa */
+    medir: function (op) {
+      detener();
+      return preparar(Object.assign({}, op, {entrada: true, salida: false})).then(function () {
+        var r = {entrada: plan.entradaMs, salida: plan.salidaMs, evento: plan.evento};
+        var hasta = plan.evento ? plan.entradaMs * 0.45 : Math.max(plan.entradaMs + 100, 2700);
+        for (var t = 0; t < hasta; t += plan.dt) { R.avanzar(plan.dt); }
+        return r;
+      });
+    },
+    soporte: function () { return elegirCodec(30).then(function (c) { return c ? {ok: true, h264: c.tipo === "avc", codec: c.conf.codec} : {ok: false}; }); }
+  };
+  nuevoEscenario();
+  window.dispatchEvent(new Event("exportador-listo"));
+})();
+</script>
+</body>
+</html>
