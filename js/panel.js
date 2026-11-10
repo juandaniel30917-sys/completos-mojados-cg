@@ -506,6 +506,12 @@
   function cambio(k, v, sinRedibujar) {
     if (cambioAlt) { cambioAlt(k, v); return; }
     var d = borrador(sel); d[k] = v;
+    /* temporizador: al cambiar los segundos (sin estar corriendo) el reloj se pone en ese tiempo al tiro, también al aire */
+    var et = el(sel);
+    if (et && et.plantilla === "temporizador" && k === "segundos" && (!et.datos.run || et.datos.run.estado !== "corriendo")) {
+      et.datos.segundos = +v; et.datos.run = {estado: "detenido", restante: +v, marca: CG.nuevoId()}; d.run = clon(et.datos.run);
+      if (et.on) { publicar(); } relojBotones();
+    }
     guardarBorr(); pvw(); estadoFicha(); condicionales(); marcarItem(); if (miniId) { miniCambio(); }
     var e = el(sel);
     if ($("#aVivo").checked && e.on && !esEvento(e)) { vivoDeb(); }
@@ -533,7 +539,7 @@
         break;
       case "range":
         w.innerHTML = lab + '<div class="rango"><input type="range" id="' + id + '" min="' + f.min + '" max="' + f.max + '" step="' + (f.step || 1) + '"><input class="num" type="number" min="' + f.min + '" max="' + f.max + '" step="' + (f.step || 1) + '"><span class="u">' + esc(f.u || "") + '</span></div>';
-        var r = $("input[type=range]", w), n = $(".num", w); r.value = n.value = v;
+        var r = $("input[type=range]", w), n = $(".num", w); r.value = n.value = v == null || v === "" ? (f.k === "ritmo" ? 1 : f.min) : v;
         r.oninput = function () { n.value = r.value; cambio(f.k, +r.value); };
         n.onchange = function () { var x = Math.min(f.max, Math.max(f.min, +n.value || 0)); n.value = r.value = x; cambio(f.k, x); };
         break;
@@ -1719,7 +1725,7 @@
       if (!LOCAL) { outKey = r.outKey; guardarSala(sala, token, r.nombre); }
       borr = leerLS("cg_borr_" + sala, {}); Object.keys(borr).forEach(function (id) { if (!el(id)) { delete borr[id]; } });
       if (nuevo || estado._sembrado) { delete estado._sembrado; publicar(); if (!nuevo) { toast("Se agregó la escaleta del libreto a esta sala (tus gráficas anteriores siguen en Categorías)", "ok"); } } else { pgm(); }
-      dibujarLista();
+      dibujarLista(); dibujarBotonera();   /* también al recargar: si no, la botonera del celular quedaba vacía hasta el primer cambio */
       var s = leerLS("cg_sel_" + sala, null); if (s && el(s)) { seleccionar(s); }
       if (!LOCAL && !nuevo) { /* nada */ }
       if (nuevo) { setTimeout(ayuda, 400); }
@@ -1823,11 +1829,14 @@
       var s2 = estadoBoton(b), col = b.color || "#3A3F4E";
       return '<button class="bt' + (s2.on ? " on" : "") + (s2.ev ? " ev" : "") + (s2.falta ? " falta" : "") + (b.esp ? " esp" : "") + (editarBotonera && i === selB ? " sel" : "") + '" data-i="' + i + '" style="--c:' + esc(col) + '" title="' + esc(s2.txt) + '">' +
         '<span class="bt-tec">' + esc(nombreTecla(b.tecla)) + '</span>' + (s2.pend || s2.falta ? '<span class="bt-pend" title="Tiene datos o archivos pendientes">⚠</span>' : '') +
-        '<span class="bt-et">' + esc(b.etiqueta || s2.txt) + '</span><span class="bt-sub">' + (s2.e && s2.e.tr && (s2.e.tr.entra || s2.e.tr.sale) ? '<span title="Entra o sale con transición">✨ </span>' : '') + esc(s2.tipo) + (s2.ev ? " · se lanza" : s2.on ? (salidas === 0 ? " · PROG." : " · AL AIRE") : "") + '</span>' +
+        '<span class="bt-et">' + esc(b.etiqueta || s2.txt) + '</span><span class="bt-sub">' + (s2.e && s2.e.tr && (s2.e.tr.entra || s2.e.tr.sale) ? '<span title="Entra o sale con transición">✨ </span>' : '') + (s2.e && s2.e.plantilla === "temporizador" ? '<b class="bt-rj-t2"></b>' : '') + esc(s2.tipo) + (s2.ev ? " · se lanza" : s2.on ? (salidas === 0 ? " · PROG." : " · AL AIRE") : "") + '</span>' +
+        (!editarBotonera && s2.e && s2.e.plantilla === "video" && idsBoton(b).length === 1 ? '<span class="bt-vel" data-vel="' + esc(s2.e.id) + '" role="button" title="Velocidad del video (toca para cambiar)">' + textoVel(s2.e) + '</span>' : '') +
+        (!editarBotonera && s2.e && s2.e.plantilla === "temporizador" && idsBoton(b).length === 1 ? '<span class="bt-rj" data-rj="' + esc(s2.e.id) + '"><span class="bt-rj-play" data-play="' + esc(s2.e.id) + '" role="button" title="Iniciar o pausar la cuenta">▶</span><span class="bt-rj-t">0:00</span><span class="bt-rj-re" data-re="' + esc(s2.e.id) + '" role="button" title="Volver al inicio">↺</span></span>' : '') +
         (editarBotonera ? '<span class="bt-asa" title="Arrastrar para mover">⠿</span>' : (s2.e ? '<span class="bt-edit' + (miniId && idsBoton(b).indexOf(miniId) >= 0 ? ' on' : '') + '" data-edit="' + i + '" role="button" title="Editar textos, fotos y video de esta gráfica">EDIT</span>' : '')) + '</button>';
     }).join("") + (editarBotonera ? '<button class="bt bt-mas" id="btMas"><span class="bt-mas-ico">+</span><span class="bt-sub">AGREGAR BOTÓN</span></button>' : '');
     if (!botones().length && !editarBotonera) { cont.innerHTML = '<div class="lista-vacia">No hay botones. Toca «Editar botones» para agregarlos.</div>'; }    if (miniId) { if (!el(miniId)) { cerrarMini(); } else { miniEstado(); } }
     etiquetaCortina(); etiquetaLimpiar();
+    relojBotones();
   }
   /* guarda y redibuja sin perder lo que se está escribiendo en el panel lateral */
   var tGuardarBot = null;
@@ -2125,11 +2134,50 @@
   $("#botGrid").addEventListener("pointerdown", function (ev) {
     if (editarBotonera || ev.button > 0 || ev.isPrimary === false) { return; }
     if (ev.target.closest(".bt-edit")) { return; }
+    var vl = ev.target.closest(".bt-vel");
+    if (vl) { ev.preventDefault(); tocado = Date.now(); cambiarVel(vl.dataset.vel); return; }
+    var rj = ev.target.closest(".bt-rj-play,.bt-rj-re");
+    if (rj) { ev.preventDefault(); tocado = Date.now(); relojToque(rj); return; }
+    if (ev.target.closest(".bt-rj")) { return; }
     var t = ev.target.closest(".bt[data-i]"); if (!t) { return; }
     if (ev.pointerType === "touch" && conScroll($("#botGrid"))) { return; }
     tocado = Date.now(); disparar(botones()[+t.dataset.i], t);
   });
+  /* ⏩ velocidad de un video desde su botón: x1 → x1.5 → x2 → x2.5 → x3 → x1 (al aire cambia al tiro) */
+  var VELS = [1, 1.5, 2, 2.5, 3];
+  function velDe(e) { return +(e.datos && e.datos.ritmo) || 1; }
+  function textoVel(e) { var v = velDe(e); return "x" + (Math.round(v * 100) / 100).toFixed(v * 10 % 1 ? 2 : 1); }
+  function cambiarVel(id) {
+    var e = el(id); if (!e) { return; }
+    var v = velDe(e), nv = VELS.filter(function (x) { return x > v + 0.001; })[0] || VELS[0];
+    e.datos.ritmo = nv; if (borr[id]) { borr[id].ritmo = nv; guardarBorr(); }
+    publicar(); dibujarBotonera(); if (miniId === id) { abrirMini(miniId, miniGrupo || [miniId]); }
+    toast("«" + e.nombre + "» a " + textoVel(e) + (e.on ? " (al aire)" : ""), "ok");
+  }
+  /* ⏱ temporizador en la botonera: ▶/⏸ inicia o pausa la cuenta, ↺ vuelve al inicio (el botón mismo lo muestra u oculta) */
+  function relojToque(n) {
+    var id = n.dataset.play || n.dataset.re, e = el(id); if (!e) { return; }
+    if (n.dataset.re) { comando(id, "reiniciar"); }
+    else { comando(id, e.datos.run && e.datos.run.estado === "corriendo" ? "pausar" : "iniciar"); }
+    relojBotones(); dibujarBotoneraLuego();
+  }
+  var dibujarBotoneraLuego = debounce(function () { dibujarBotonera(); }, 60);
+  function fmtReloj(x) { x = Math.max(0, Math.ceil(x)); var m = Math.floor(x / 60), sg = x % 60; return m + ":" + (sg < 10 ? "0" : "") + sg; }
+  function relojBotones() {
+    $$("#botGrid .bt-rj").forEach(function (r) {
+      var e = el(r.dataset.rj); if (!e) { return; }
+      var d = e.on ? e.datos : borrador(e.id), run = e.datos.run || {estado: "detenido"}, corre = run.estado === "corriendo";
+      var x = CG.restante({segundos: +d.segundos || 0, run: run});
+      $(".bt-rj-t", r).textContent = fmtReloj(x);
+      var t2 = r.parentNode && $(".bt-rj-t2", r.parentNode); if (t2) { t2.textContent = fmtReloj(x) + " · "; }
+      $(".bt-rj-play", r).textContent = corre ? "⏸" : "▶";
+      r.classList.toggle("corre", corre); r.classList.toggle("pausa", run.estado === "pausado"); r.classList.toggle("cero", corre && x <= 0);
+    });
+  }
+  setInterval(function () { if (document.querySelector("#botGrid .bt-rj")) { relojBotones(); } }, 200);
   $("#botGrid").addEventListener("click", function (ev) {
+    if (ev.target.closest(".bt-vel")) { ev.preventDefault(); if (Date.now() - tocado > 900) { cambiarVel(ev.target.closest(".bt-vel").dataset.vel); } return; }
+    if (ev.target.closest(".bt-rj")) { ev.preventDefault(); if (Date.now() - tocado > 900) { var rj = ev.target.closest(".bt-rj-play,.bt-rj-re"); if (rj) { relojToque(rj); } } return; }
     var ed = ev.target.closest(".bt-edit");
     if (ed && !editarBotonera) { ev.preventDefault(); var bb = botones()[+ed.dataset.edit], gi = idsBoton(bb).filter(function (x) { return el(x); }); if (gi.length) { if (miniId && gi.indexOf(miniId) >= 0) { cerrarMini(); } else { abrirMini(gi[0], gi); } } return; }
     if (!editarBotonera && Date.now() - tocado < 900) { return; } /* ya se disparó al tocar */

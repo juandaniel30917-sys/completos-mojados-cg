@@ -154,7 +154,7 @@
     nombre: "Temporizador", cat: "concurso", icono: "reloj", capa: 56, salidaMs: 500, reloj: true,
     desc: "Cuenta regresiva en un círculo. Inicia, pausa y reinicia en vivo.",
     campos: [
-      {k: "segundos", l: "Duración", t: "range", min: 3, max: 600, step: 1, u: "s", g: "Texto"},
+      {k: "segundos", l: "Segundos", t: "range", min: 1, max: 3600, step: 1, u: "s", g: "Texto", ayuda: "Escribe los segundos en la cajita (ej. 90 = 1:30). Si el reloj no está corriendo, cambia al tiro, también al aire."},
       {k: "alTerminar", l: "Al llegar a cero", t: "seg", g: "Texto", o: [["parpadear", "Parpadear"], ["ocultar", "Ocultar"], ["nada", "Nada"]]},
       {k: "color", l: "Color", t: "color", g: "Estilo"}, {k: "colorFin", l: "Color al final", t: "color", g: "Estilo"}
     ].concat(POS(80, 84), [ESCALA]),
@@ -264,6 +264,7 @@
       {k: "similitud", l: "Similitud", t: "range", min: 1, max: 100, step: 1, g: "Chroma", si: "modo=chroma", ayuda: "Sube si queda verde; baja si se borra la persona."},
       {k: "suavizado", l: "Suavizar bordes", t: "range", min: 1, max: 100, step: 1, g: "Chroma", si: "modo=chroma"},
       {k: "derrame", l: "Quitar reflejo verde", t: "range", min: 1, max: 100, step: 1, g: "Chroma", si: "modo=chroma"},
+      {k: "ritmo", l: "Velocidad", t: "range", min: 0.25, max: 4, step: 0.05, u: "×", g: "Reproducción", ayuda: "1 = normal · 1,5 · 2 · 2,5 · 3… También se cambia tocando la píldora x1.0 del botón en la botonera."},
       {k: "bucle", l: "Repetir en bucle", t: "toggle", g: "Reproducción"},
       {k: "ocultarAlFinal", l: "Ocultar al terminar", t: "toggle", g: "Reproducción", si: "bucle=false"},
       {k: "audio", l: "Con sonido", t: "toggle", g: "Reproducción", ayuda: "Desactivado por defecto. En OBS activa «Controlar audio vía OBS» si lo usas."},
@@ -276,7 +277,7 @@
       {k: "y", l: "Centro vertical", t: "range", min: 0, max: 1080, step: 2, u: "px", g: "Posición", si: "ajuste=libre"},
       {k: "escala", l: "Tamaño", t: "range", min: 10, max: 200, step: 1, u: "%", g: "Posición", si: "ajuste=libre"}
     ],
-    defaults: {media: "", modo: "chroma", keyColor: "#00FF00", similitud: 40, suavizado: 8, derrame: 10, bucle: false, ocultarAlFinal: true, audio: false, volumen: 80,
+    defaults: {media: "", modo: "chroma", keyColor: "#00FF00", similitud: 40, suavizado: 8, derrame: 10, bucle: false, ocultarAlFinal: true, audio: false, volumen: 80, ritmo: 1,
       entrada: "fundido", salida: "fundido", ajuste: "completo", x: 960, y: 540, escala: 50, cmd: null},
     render: function (d) {
       var libre = d.ajuste === "libre";

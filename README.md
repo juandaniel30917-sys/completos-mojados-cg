@@ -374,3 +374,8 @@ Botón **Descargar** en la barra superior del panel:
 4. **Exportar MP4** → se descarga un MP4 H.264 1920×1080 con fondo verde **#00FF00** (el mismo de `salida.html?verde=1`), listo para ponerlo sobre cualquier video y quitar el verde con chroma.
 
 Cómo funciona: `exportar.html` usa el mismo motor de la salida con un **reloj virtual** (cada cuadro queda exacto aunque el PC sea lento), fotografía cada cuadro con *html-to-image* y lo codifica con *WebCodecs* + *mp4-muxer* (en `js/vendor/`). Funciona en Chrome y Edge actualizados; tarda unos 0,1 s por cuadro.
+
+## ⏱ Temporizador y ⏩ velocidad de videos desde la botonera
+- **Botón de temporizador**: tocar el botón lo muestra u oculta; arriba al medio **▶ / ⏸** inicia o pausa la cuenta, **↺** vuelve al inicio y se ve el tiempo restante. En **EDIT** se escriben los **segundos** (1 a 3600); si el reloj no está corriendo, cambia al tiro, también al aire.
+- **Botón de video**: la píldora **x1.0** cambia la velocidad en cada toque: x1 → x1.5 → x2 → x2.5 → x3 → x1. Si el video está al aire, cambia al instante. También está en EDIT como «Velocidad».
+- Arreglo: al recargar el panel en el celular, la botonera ya no queda vacía.
