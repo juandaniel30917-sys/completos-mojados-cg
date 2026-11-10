@@ -119,6 +119,12 @@
       st.elementos.forEach(function (el) { if (el.on && P[el.plantilla] && !P[el.plantilla].evento) { quiero[el.id] = el; } });
       /* si hay un zócalo al aire, los GC de abajo suben solos para no taparse */
       stage.classList.toggle("con-zocalo", Object.keys(quiero).some(function (id) { return quiero[id].plantilla === "zocalo"; }));
+      /* si la barra del concurso está al aire, los GC de abajo suben por encima de ella para que ambas se vean */
+      var barra = Object.keys(quiero).map(function (id) { return quiero[id]; }).filter(function (x) { return x.plantilla === "barraConcurso"; })[0];
+      var by = barra ? +barra.datos.y : 0; if (barra && isNaN(by)) { by = 798; }
+      /* solo si la barra está abajo (donde van los GC); si la subiste al medio, los GC se quedan en su lugar */
+      stage.classList.toggle("con-barra", !!barra && by >= 600);
+      if (barra) { stage.style.setProperty("--sube-barra", Math.max(0, 1080 - by + 18) + "px"); }
       Object.keys(capas).forEach(function (id) { if (!quiero[id]) { salir(id); } });
       Object.keys(quiero).forEach(function (id) { if (capas[id]) { cambiar(quiero[id]); } else { entrar(quiero[id]); } });
       /* eventos de un disparo (avisos, cortinas, órdenes): solo los nuevos */
@@ -219,7 +225,28 @@
     ritmoV(); v.addEventListener("loadedmetadata", ritmoV);
     v.crossOrigin = "anonymous"; v.setAttribute("playsinline", "");
     v.addEventListener("error", function () { if (vivo) { error("No se pudo cargar el video. Revisa el archivo o tu conexión."); } });
-    v.addEventListener("ended", function () { if (vivo && !d.bucle && d.ocultarAlFinal) { ctx.fin(); } });
+    /* Recorte (mini editor de la cortina): d.ini / d.fin en segundos del video original */
+    var ini = function () { return Math.max(0, +d.ini || 0); };
+    var fin = function () { var f = +d.fin || 0; return f > ini() + 0.05 ? f : 0; };
+    var terminado = false;
+    function alFinal() {
+      if (!vivo) { return; }
+      if (d.bucle) { v.currentTime = ini(); reproducir(); return; }
+      if (terminado) { return; }
+      terminado = true; v.pause();
+      if (d.ocultarAlFinal) { ctx.fin(); }
+    }
+    function lazo() {
+      if (!vivo) { return; }
+      var f = fin();
+      if (f && !v.paused && v.currentTime >= f - 0.01) { alFinal(); }
+      if (v.requestVideoFrameCallback) { v.requestVideoFrameCallback(lazo); } else { requestAnimationFrame(lazo); }
+    }
+    var bucleNativo = function () { v.loop = !!d.bucle && !fin() && !ini(); };
+    bucleNativo();
+    v.addEventListener("loadedmetadata", function () { if (ini() && v.currentTime < ini() - 0.05) { v.currentTime = ini(); } });
+    v.addEventListener("ended", function () { if (vivo && (d.bucle || d.ocultarAlFinal)) { alFinal(); } });
+    lazo();
     caja._video = v; /* acceso para pruebas y para el panel */
     var modo = d.modo || m.modo || "normal";
     if (modo === "chroma") {
@@ -233,16 +260,16 @@
     Promise.resolve(ctx.resolver ? ctx.resolver(m) : m.url).then(function (url) {
       if (!vivo) { return; }
       if (!url) { error("Este video está guardado solo en otro equipo (modo local). Súbelo a la sala para usarlo aquí."); return; }
-      v.src = url; reproducir();
+      v.src = ini() && !/^blob:|^data:/.test(url) ? url + "#t=" + ini().toFixed(3) : url; reproducir();
     }, function (e) { error((e && e.message) || "No se pudo abrir el video."); });
     return {
       actualizar: function (nd) {
-        d = nd; ritmoV(); v.loop = !!d.bucle; v.muted = !d.audio; v.volume = Math.min(1, Math.max(0, (+d.volumen || 0) / 100));
+        d = nd; ritmoV(); bucleNativo(); v.muted = !d.audio; v.volume = Math.min(1, Math.max(0, (+d.volumen || 0) / 100));
         if (keyer) { keyer.config(d); }
         var c = d.cmd;
         if (c && c.id && c.id !== ultCmd) {
           ultCmd = c.id;
-          if (c.a === "pausa") { v.pause(); } else if (c.a === "play") { reproducir(); } else if (c.a === "reiniciar") { v.currentTime = 0; reproducir(); }
+          if (c.a === "pausa") { v.pause(); } else if (c.a === "play") { if (terminado || (fin() && v.currentTime >= fin() - 0.02)) { v.currentTime = ini(); } terminado = false; reproducir(); } else if (c.a === "reiniciar") { terminado = false; v.currentTime = ini(); reproducir(); }
         }
       },
       destruir: function () { vivo = false; if (keyer) { keyer.destruir(); } v.pause(); v.removeAttribute("src"); v.load(); },

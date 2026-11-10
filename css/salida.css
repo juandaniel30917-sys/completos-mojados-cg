@@ -283,3 +283,8 @@ body.monitor{background:transparent}
 
 /* la cortina de salsa ahora se anima por JS (tiempo tapando configurable): sin la animación CSS antigua */
 #cortina.waapi .banda,#cortina.waapi .circ{animation:none!important}
+/* barra del concurso al aire: los GC de abajo suben sobre ella (ambas en pantalla a la vez) */
+.gp2,.gp{transition:translate .45s var(--suave)}
+.con-barra .gp2{translate:0 calc(80px - var(--sube-barra))}
+.con-barra .gn{translate:0 calc(-1 * var(--sube-barra))}
+.con-barra .gp{translate:0 calc(-1 * var(--sube-barra))}

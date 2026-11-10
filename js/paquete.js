@@ -141,7 +141,11 @@
     placa: "PLACA", mosca: "LOGO", enVivo: "IDENT", fondo: "FONDO", video: "VIDEO", aviso: "AVISO", cortina: "CORTINA"};
   Object.keys(tipoDe).forEach(function (k) { P[k].tipo = tipoDe[k]; });
   /* dos gráficas del mismo grupo no salen juntas: la nueva reemplaza a la anterior (así nunca se tapan dos GC de nombre) */
-  ["gcNoticiero", "gcPrograma", "barraConcurso", "participante"].forEach(function (k) { P[k].grupo = "tercio"; });
+  ["gcNoticiero", "gcPrograma"].forEach(function (k) { P[k].grupo = "tercio"; });
+  /* la barra del concurso (mechadas) convive con los GC de nombre y con el participante: si hay un GC al aire, este sube solo
+     por encima de la barra (render.js → clase «con-barra»). Dos barras o dos participantes sí se reemplazan entre sí. */
+  P.barraConcurso.grupo = "barra-concurso";
+  P.participante.grupo = "participante";
   P.placa.grupo = "pantalla"; P.fondo.grupo = "fondo"; P.etiqueta.grupo = "etiqueta";
   CG.grupoDe = function (e) { var p = P[e.plantilla]; if (!p) { return e.plantilla; } var g = typeof p.grupo === "function" ? p.grupo(e.datos || {}) : p.grupo; return g || e.plantilla; };
   CG.tipoDe = function (e) { return e.tipo || (P[e.plantilla] && P[e.plantilla].tipo) || "GC"; };

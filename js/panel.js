@@ -125,7 +125,14 @@
     if (t.plantilla === "cortina") { return 0.75 / gl; }
     if (t.plantilla === "transicion") { var es = (CG.ESCENAS || {})[t.datos.escena] || {}, v = ((+t.datos.vel || 100) / 100) * gl; return (es.corte || (es.dur || 2) * 0.4) / v; }
     var m = (estado.biblioteca || []).filter(function (x) { return x.id === t.datos.media; })[0];
-    return m && m.dur ? m.dur / 2 / (+t.datos.ritmo || 1) : 1;
+    var lv = largoVideo(t, m && m.dur);
+    return lv ? lv / 2 / (+t.datos.ritmo || 1) : 1;
+  }
+  /* largo útil de un video recortado (segundos del original, sin contar la velocidad) */
+  function largoVideo(t, dur) {
+    dur = +dur || 0; if (!dur) { return 0; }
+    var d = t.datos || {}, a = Math.max(0, Math.min(dur, +d.ini || 0)), b = +d.fin > a ? Math.min(dur, +d.fin) : dur;
+    return Math.max(0.1, b - a);
   }
   function tipoTrans(t) { return t.plantilla === "cortina" ? "Cortina" : t.plantilla === "transicion" ? "Animada" : "Video"; }
   /* lanza la transición y devuelve los milisegundos hasta el punto donde la pantalla queda tapada */
@@ -495,7 +502,9 @@
     var d = borrador(sel); if (!d) { return; }
     $$((miniId ? "#miniCampos" : "#campos") + " .campo[data-si]").forEach(function (c) { c.hidden = !visible({si: c.dataset.si}, d); });
   }
+  var cambioAlt = null; /* el módulo ⬇️ Descargar usa los mismos campos, pero sobre su propia copia */
   function cambio(k, v, sinRedibujar) {
+    if (cambioAlt) { cambioAlt(k, v); return; }
     var d = borrador(sel); d[k] = v;
     guardarBorr(); pvw(); estadoFicha(); condicionales(); marcarItem(); if (miniId) { miniCambio(); }
     var e = el(sel);
@@ -530,7 +539,7 @@
         break;
       case "toggle":
         w.innerHTML = '<label class="tog"><input type="checkbox" id="' + id + '"><span class="sw2"></span><span>' + esc(f.l) + '</span>' + (f.ayuda ? ' <span class="ay" title="' + esc(f.ayuda) + '">?</span>' : '') + '</label>';
-        var cb = $("input", w); cb.checked = !!v; cb.onchange = function () { cambio(f.k, cb.checked); if (f.k === "revelar") { var e = el(sel); if (e && e.on) { e.datos.revelar = cb.checked; publicar(); toast(cb.checked ? "Respuesta revelada en pantalla" : "Respuesta oculta", "ok"); } } };
+        var cb = $("input", w); cb.checked = !!v; cb.onchange = function () { cambio(f.k, cb.checked); if (f.k === "revelar") { var e = !cambioAlt && el(sel); if (e && e.on) { e.datos.revelar = cb.checked; publicar(); toast(cb.checked ? "Respuesta revelada en pantalla" : "Respuesta oculta", "ok"); } } };
         break;
       case "seg":
         w.innerHTML = lab + '<div class="seg" role="radiogroup">' + f.o.map(function (o) { return '<button type="button" data-v="' + esc(o[0]) + '" class="' + (String(v) === o[0] ? "on" : "") + '">' + esc(o[1]) + '</button>'; }).join("") + '</div>';
@@ -541,7 +550,7 @@
         w.innerHTML = lab + '<div class="lista-items"></div><button type="button" class="btn mini" style="align-self:flex-start"><svg><use href="#i-mas"/></svg>Agregar</button>';
         var li = $(".lista-items", w);
         var pintar = function () {
-          var arr = borrador(sel)[f.k] || [];
+          var arr = d[f.k] || [];
           li.innerHTML = "";
           arr.forEach(function (it, i) {
             var row = document.createElement("div"); row.className = "li";
@@ -555,7 +564,7 @@
           if (!arr.length) { li.innerHTML = '<span class="nota">Vacío. Usa «Agregar».</span>'; }
         };
         pintar();
-        $("button.btn", w).onclick = function () { var arr = (borrador(sel)[f.k] || []).slice(); arr.push(clon(f.nuevo)); cambio(f.k, arr); pintar(); var ins = $$(".li input[type=text]", li); if (ins.length) { ins[ins.length - subs.filter(function (x) { return x.t !== "color"; }).length].focus(); } };
+        $("button.btn", w).onclick = function () { var arr = (d[f.k] || []).slice(); arr.push(clon(f.nuevo)); cambio(f.k, arr); pintar(); var ins = $$(".li input[type=text]", li); if (ins.length) { ins[ins.length - subs.filter(function (x) { return x.t !== "color"; }).length].focus(); } };
         break;
       case "select":
         w.innerHTML = lab + '<select id="' + id + '">' + f.o.map(function (o) { return '<option value="' + esc(o[0]) + '">' + esc(o[1]) + '</option>'; }).join("") + '</select>';
@@ -565,13 +574,13 @@
         w.innerHTML = lab + '<div class="cupos-ed"></div><span class="nota">Toca cada llamada para cambiar: libre → llamando → correcto → incorrecto. Si está al aire se actualiza al instante.</span>';
         var ce = $(".cupos-ed", w), N = {libre: "Libre", llamando: "Llamando", correcto: "Correcto", incorrecto: "Incorrecto"};
         var pintarC = function () {
-          var arr = borrador(sel)[f.k] || [];
+          var arr = d[f.k] || [];
           ce.innerHTML = arr.map(function (c, i) { return '<button type="button" class="ce c-' + esc(c) + '" data-i="' + i + '"><b>' + (i + 1) + '</b><span>' + N[c] + '</span></button>'; }).join("");
           $$("button", ce).forEach(function (b) {
             b.onclick = function () {
-              var a2 = (borrador(sel)[f.k] || []).slice(), i = +b.dataset.i; a2[i] = CG.ESTADOS_CUPO[(CG.ESTADOS_CUPO.indexOf(a2[i]) + 1) % CG.ESTADOS_CUPO.length];
+              var a2 = (d[f.k] || []).slice(), i = +b.dataset.i; a2[i] = CG.ESTADOS_CUPO[(CG.ESTADOS_CUPO.indexOf(a2[i]) + 1) % CG.ESTADOS_CUPO.length];
               cambio(f.k, a2); pintarC();
-              var e = el(sel); if (e && e.on) { e.datos[f.k] = a2.slice(); publicar(); }
+              var e = !cambioAlt && el(sel); if (e && e.on) { e.datos[f.k] = a2.slice(); publicar(); }
             };
           });
         };
@@ -747,7 +756,8 @@
       var it = lista.filter(function (t) { return grupo(t) === g; }); if (!it.length) { return; }
       h += "<h3 class='cfg-h3'>" + g + "</h3><div class='cort-lista'>" + it.map(function (t) {
         var sin = t.plantilla === "video" && !t.datos.media;
-        return "<div class='cort-it" + (sin ? " sin" : "") + "'><label class='cort-sel'><input type='checkbox' data-id='" + esc(t.id) + "'" + (c.ids.indexOf(t.id) >= 0 ? " checked" : "") + (sin ? " disabled" : "") + "><span>" + esc(t.nombre) + (sin ? " <small>(sin video)</small>" : "") + "</span></label>" + tiempoHTML(t) + "<button type='button' class='btn mini' data-probar='" + esc(t.id) + "'>Probar</button></div>";
+        return "<div class='cort-it" + (sin ? " sin" : "") + "'><label class='cort-sel'><input type='checkbox' data-id='" + esc(t.id) + "'" + (c.ids.indexOf(t.id) >= 0 ? " checked" : "") + (sin ? " disabled" : "") + "><span>" + esc(t.nombre) + (sin ? " <small>(sin video)</small>" : "") + "</span></label>" + tiempoHTML(t) + (t.plantilla === "video" && !sin ? "<button type='button' class='btn mini cort-rec" + (recortado(t) ? " on" : "") + "' data-recortar='" + esc(t.id) + "' title='Elegir en qué segundo empieza y termina el video'>✂️ " + (recortado(t) ? textoRecorte(t) : "Recortar") + "</button>" : "") +
+          "<button type='button' class='btn mini' data-probar='" + esc(t.id) + "'>Probar</button></div>";
       }).join("") + "</div>";
     });
     var otros = estado.elementos.filter(function (e) { return e.plantilla === "video" && !esTransicion(e) && e.datos.media; });
@@ -766,6 +776,7 @@
       fijarTiempo(t, i.value); i.value = +tiempoDe(t).s.toFixed(1);
       toast("«" + t.nombre + "»: " + (t.plantilla === "cortina" ? "tapa " : "dura ") + i.value + " s", "ok");
     }; });
+    $$("[data-recortar]", m).forEach(function (b) { b.onclick = function (ev) { ev.preventDefault(); recortarVideo(b.dataset.recortar, configCortina); }; });
     $$("[data-probar]", m).forEach(function (b) { b.onclick = function (ev) { ev.preventDefault(); pasarTrans(b.dataset.probar); toast("Probando: " + el(b.dataset.probar).nombre + " (sale al aire)", "ok"); }; });
     $$("input[data-vid]", m).forEach(function (i) { i.onchange = function () {
       var t = el(i.dataset.vid); if (!t || !i.checked) { return; }
@@ -806,7 +817,8 @@
   }
   /* ---------- tiempo de cada cortina (independiente) ----------
      dibujada: segundos tapando la pantalla · animada: duración total (cambia su velocidad) · video: duración (cambia su velocidad de reproducción) */
-  function durVideo(t) { var m = (estado.biblioteca || []).filter(function (x) { return x.id === t.datos.media; })[0]; return m && m.dur ? +m.dur : 0; }
+  function mediaDe(t) { return (estado.biblioteca || []).filter(function (x) { return x.id === t.datos.media; })[0]; }
+  function durVideo(t) { var m = mediaDe(t); return m && m.dur ? largoVideo(t, m.dur) : 0; }
   function tiempoDe(t) {
     var d = t.datos || {};
     if (t.plantilla === "cortina") { var tp = d.tapado; var auto = tp == null || tp === "" || isNaN(+tp) || +tp === 2.5; return {tipo: "tapa", s: auto ? (d.estilo === "iris" ? 0.2 : 0.8) : +tp, base: null}; }
@@ -824,9 +836,243 @@
     if (x.tipo === "tapa") { d.tapado = Math.max(0, Math.min(10, seg)); if (d.tapado === 2.5) { d.tapado = 2.6; } }
     else if (x.tipo === "dura") { d.vel = Math.round(Math.max(50, Math.min(200, x.base / Math.max(0.1, seg) * 100))); }
     else { d.ritmo = +Math.max(0.5, Math.min(2, x.base / Math.max(0.1, seg))).toFixed(3); }
-    if (borr[t.id]) { ["tapado", "vel", "ritmo"].forEach(function (k) { if (d[k] !== undefined) { borr[t.id][k] = d[k]; } }); guardarBorr(); }
+    if (borr[t.id]) { ["tapado", "vel", "ritmo", "ini", "fin"].forEach(function (k) { if (d[k] !== undefined) { borr[t.id][k] = d[k]; } }); guardarBorr(); }
     publicar();
   }
+  /* ---------- ✂️ mini editor: recortar el inicio y el final de un video (cortinas) ----------
+     Guarda datos.ini / datos.fin en segundos del video original. La velocidad (datos.ritmo) se mantiene. */
+  function recortado(t) { var d = t.datos || {}; return (+d.ini || 0) > 0.001 || (+d.fin || 0) > 0; }
+  function fmtS(x) { return (Math.round(x * 100) / 100).toFixed(2); }
+  function textoRecorte(t) { var d = t.datos, m = mediaDe(t), f = +d.fin || (m && +m.dur) || 0; return fmtS(+d.ini || 0) + "–" + (f ? fmtS(f) : "fin") + " s"; }
+  function recortarVideo(id, volver) {
+    var t = el(id); if (!t) { return; }
+    var md = mediaDe(t); if (!md) { toast("Este video no está en la biblioteca.", "err"); return; }
+    var ritmo = +t.datos.ritmo || 1, CUADRO = 1 / 30, dur = +md.dur || 0;
+    var a = Math.max(0, +t.datos.ini || 0), b = +t.datos.fin || 0, rango = false, raf = 0;
+    var h = "<h2>✂️ Recortar video</h2><p class='lead'>" + esc(t.nombre) + " · elige en qué segundo <b class='rec-vi'>comienza</b> y en cuál <b class='rec-vf'>termina</b>. La velocidad elegida (" + (+ritmo.toFixed(2)) + "×) se mantiene.</p>" +
+      "<div class='rec-vista'><video id='recV' muted playsinline preload='auto'></video><span class='rec-reloj' id='recReloj'>0.00 s</span></div>" +
+      "<div class='rec-linea' id='recLinea' title='Toca para mover la reproducción · arrastra la manilla verde (inicio) o la roja (final)'>" +
+        "<div class='rec-fuera' id='recF1'></div><div class='rec-fuera' id='recF2'></div><div class='rec-sel' id='recSel'></div>" +
+        "<div class='rec-cab' id='recCab'></div><div class='rec-h ini' id='recHi' tabindex='0' aria-label='Inicio'></div><div class='rec-h fin' id='recHf' tabindex='0' aria-label='Final'></div></div>" +
+      "<div class='rec-ctrl'><button type='button' class='btn mini' id='recAtr' title='Un cuadro atrás'>⏮ Cuadro</button>" +
+        "<button type='button' class='btn' id='recPlay'>▶ Reproducir recorte</button>" +
+        "<button type='button' class='btn mini' id='recAde' title='Un cuadro adelante'>Cuadro ⏭</button></div>" +
+      "<div class='rec-campos'>" +
+        "<div class='rec-c ini'><span>Comienza</span><button type='button' class='btn mini' data-d='a-'>−</button><input type='number' id='recA' step='0.01' min='0'><button type='button' class='btn mini' data-d='a+'>+</button><button type='button' class='btn mini' id='recMa'>📍 Aquí</button></div>" +
+        "<div class='rec-c fin'><span>Termina</span><button type='button' class='btn mini' data-d='b-'>−</button><input type='number' id='recB' step='0.01' min='0'><button type='button' class='btn mini' data-d='b+'>+</button><button type='button' class='btn mini' id='recMb'>📍 Aquí</button></div>" +
+      "</div><p class='rec-dur' id='recDur'></p>" +
+      "<div class='modal-pie'><button type='button' class='btn' id='recReset'>Sin recorte</button><span style='flex:1'></span><button type='button' class='btn' id='recNo'>Cancelar</button><button type='button' class='btn prim' id='recOk'>Aceptar</button></div>";
+    var m = modal(h, {ancho: true, sinFoco: true, clase: "rec-modal", alCerrar: function () { cancelAnimationFrame(raf); try { v.pause(); v.removeAttribute("src"); v.load(); } catch (e) {} }});
+    var v = $("#recV", m), linea = $("#recLinea", m), inA = $("#recA", m), inB = $("#recB", m);
+    v.playbackRate = ritmo; v.defaultPlaybackRate = ritmo;
+    function fin() { return b > a ? b : dur; }
+    function limitar() {
+      if (!dur) { return; }
+      a = Math.max(0, Math.min(a, dur - 0.1)); b = b ? Math.max(a + 0.1, Math.min(b, dur)) : 0;
+    }
+    function pinta() {
+      limitar();
+      var D = dur || 1, pa = a / D * 100, pb = fin() / D * 100;
+      $("#recHi", m).style.left = pa + "%"; $("#recHf", m).style.left = pb + "%";
+      $("#recSel", m).style.left = pa + "%"; $("#recSel", m).style.width = (pb - pa) + "%";
+      $("#recF1", m).style.width = pa + "%"; $("#recF2", m).style.left = pb + "%"; $("#recF2", m).style.width = (100 - pb) + "%";
+      if (document.activeElement !== inA) { inA.value = fmtS(a); } if (document.activeElement !== inB) { inB.value = fmtS(fin()); }
+      inA.max = inB.max = dur ? fmtS(dur) : "";
+      var largo = fin() - a;
+      $("#recDur", m).innerHTML = dur ? "Duración del recorte: <b>" + fmtS(largo) + " s</b>" + (ritmo !== 1 ? " · al aire a " + (+ritmo.toFixed(2)) + "×: <b>" + fmtS(largo / ritmo) + " s</b>" : "") + " <small>(video completo: " + fmtS(dur) + " s)</small>" : "Cargando video…";
+    }
+    function cab() {
+      var D = dur || 1; $("#recCab", m).style.left = (Math.min(v.currentTime, D) / D * 100) + "%"; $("#recReloj", m).textContent = fmtS(v.currentTime) + " s";
+    }
+    function lazo() {
+      cab();
+      if (rango && !v.paused && v.currentTime >= fin() - 0.01) { v.pause(); v.currentTime = fin(); rango = false; $("#recPlay", m).textContent = "▶ Reproducir recorte"; }
+      raf = requestAnimationFrame(lazo);
+    }
+    function ir(x) { v.pause(); rango = false; $("#recPlay", m).textContent = "▶ Reproducir recorte"; v.currentTime = Math.max(0, Math.min(dur || x, x)); cab(); }
+    v.addEventListener("loadedmetadata", function () {
+      if (isFinite(v.duration) && v.duration > 0) { dur = v.duration; if (Math.abs((+md.dur || 0) - dur) > 0.05) { md.dur = +dur.toFixed(3); } }
+      v.playbackRate = ritmo; pinta(); ir(a);
+    });
+    CG.resolverMedia(md, base).then(function (u) { if (u) { v.src = u; } else { toast("Este video está guardado solo en otro equipo.", "err"); } });
+    /* arrastrar manillas / tocar la línea */
+    function tDe(ev) { var r = linea.getBoundingClientRect(); return Math.max(0, Math.min(1, (ev.clientX - r.left) / r.width)) * (dur || 0); }
+    var arrastre = null;
+    linea.addEventListener("pointerdown", function (ev) {
+      if (!dur) { return; }
+      ev.preventDefault(); linea.setPointerCapture(ev.pointerId);
+      arrastre = ev.target.id === "recHi" ? "a" : ev.target.id === "recHf" ? "b" : "cab";
+      mover(ev);
+    });
+    function mover(ev) {
+      if (!arrastre) { return; }
+      var x = tDe(ev);
+      if (arrastre === "a") { a = Math.min(x, fin() - 0.1); pinta(); ir(a); }
+      else if (arrastre === "b") { b = Math.max(x, a + 0.1); pinta(); ir(fin()); }
+      else { ir(x); }
+    }
+    linea.addEventListener("pointermove", mover);
+    linea.addEventListener("pointerup", function () { arrastre = null; });
+    linea.addEventListener("pointercancel", function () { arrastre = null; });
+    $$("[data-d]", m).forEach(function (bt) { bt.onclick = function () {
+      var k = bt.dataset.d, paso = k[1] === "+" ? CUADRO : -CUADRO;
+      if (k[0] === "a") { a += paso; pinta(); ir(a); } else { b = fin() + paso; pinta(); ir(fin()); }
+    }; });
+    inA.onchange = function () { var x = parseFloat(String(inA.value).replace(",", ".")); if (!isNaN(x)) { a = x; } inA.blur(); pinta(); ir(a); };
+    inB.onchange = function () { var x = parseFloat(String(inB.value).replace(",", ".")); if (!isNaN(x)) { b = x; } inB.blur(); pinta(); ir(fin()); };
+    $("#recMa", m).onclick = function () { a = Math.min(v.currentTime, fin() - 0.1); pinta(); };
+    $("#recMb", m).onclick = function () { b = Math.max(v.currentTime, a + 0.1); pinta(); };
+    $("#recAtr", m).onclick = function () { ir(v.currentTime - CUADRO); };
+    $("#recAde", m).onclick = function () { ir(v.currentTime + CUADRO); };
+    $("#recPlay", m).onclick = function () {
+      if (!v.paused) { v.pause(); rango = false; this.textContent = "▶ Reproducir recorte"; return; }
+      if (v.currentTime < a - 0.01 || v.currentTime >= fin() - 0.02) { v.currentTime = a; }
+      v.playbackRate = ritmo; rango = true; this.textContent = "⏸ Pausa"; v.play().catch(function () {});
+    };
+    $("#recReset", m).onclick = function () { a = 0; b = 0; pinta(); ir(0); };
+    $("#recNo", m).onclick = function () { cerrarModal(); if (volver) { volver(); } };
+    $("#recOk", m).onclick = function () {
+      limitar();
+      var d = t.datos; d.ini = a > 0.005 ? +a.toFixed(3) : 0; d.fin = b && dur && b < dur - 0.02 ? +b.toFixed(3) : 0;
+      if (borr[t.id]) { borr[t.id].ini = d.ini; borr[t.id].fin = d.fin; guardarBorr(); }
+      publicar(); cerrarModal();
+      toast(recortado(t) ? "«" + t.nombre + "» recortado: " + textoRecorte(t) : "«" + t.nombre + "» sin recorte", "ok");
+      if (volver) { volver(); }
+    };
+    raf = requestAnimationFrame(lazo); pinta();
+  }
+  /* ---------- ⬇️ DESCARGAR: una gráfica como MP4 con fondo verde ----------
+     Elige la gráfica, cambia sus textos (sin tocar la del programa), la duración y si lleva animación de entrada, de salida,
+     ambas o ninguna. El video se arma en exportar.html (mismo motor de la salida, cuadro a cuadro) y se codifica a H.264. */
+  var EX_ANIM = [["ambas", "Entrada y salida"], ["entrada", "Solo entrada"], ["salida", "Solo salida"], ["nada", "Sin animación"]];
+  function exportables() {
+    return (estado.elementos || []).filter(function (e) { var p = P[e.plantilla]; return p && e.plantilla !== "video" && !p.oculta; });
+  }
+  function nombreArchivo(s) { return String(s || "grafica").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "_").slice(0, 60) || "grafica"; }
+  function abrirDescargar(idIni) {
+    var lista = exportables(); if (!lista.length) { toast("No hay gráficas para descargar.", "err"); return; }
+    var pref = leerLS("cg_exportar", {anim: "ambas", dur: 6, fps: 30});
+    var cur = {id: null, d: null, anim: pref.anim || "ambas", dur: +pref.dur || 6, fps: +pref.fps || 30, med: null, trabajando: false, url: null};
+    var cats = {}, orden = [];
+    lista.forEach(function (e) { var c = P[e.plantilla].nombre || e.plantilla; if (!cats[c]) { cats[c] = []; orden.push(c); } cats[c].push(e); });
+    var opciones = orden.map(function (c) { return "<optgroup label='" + esc(c) + "'>" + cats[c].map(function (e) { return "<option value='" + esc(e.id) + "'>" + esc(e.nombre) + "</option>"; }).join("") + "</optgroup>"; }).join("");
+    var h = "<h2>⬇️ Descargar gráfica en MP4</h2><p class='lead'>Video 1920×1080 con <b>fondo verde</b> para ponerlo arriba de cualquier video (DaVinci, Premiere, CapCut, ATEM…). Lo que cambies aquí <b>no</b> cambia la gráfica del programa.</p>" +
+      "<div class='ex-grid'><div class='ex-izq'>" +
+        "<label class='ex-lab'>Gráfica</label><select id='exSel'>" + opciones + "</select>" +
+        "<div class='ex-vista' id='exVista'><iframe id='exIf' src='exportar.html?v=202611101000' title='Vista de la gráfica' tabindex='-1'></iframe><div class='ex-barra' id='exBarra'><i></i></div></div>" +
+        "<div class='ex-fila'><button type='button' class='btn' id='exVer'>▶ Ver animación</button><span class='ex-info' id='exInfo'></span></div>" +
+        "<div class='ex-op' id='exOpAnim'><label class='ex-lab'>Animación</label><div class='seg' id='exAnim'>" + EX_ANIM.map(function (a) { return "<button type='button' data-v='" + a[0] + "'>" + a[1] + "</button>"; }).join("") + "</div></div>" +
+        "<div class='ex-op ex-dos'><div><label class='ex-lab' for='exDur'>Duración del video</label><div class='rango'><input type='range' id='exDurR' min='1' max='60' step='0.5'><input class='num' type='number' id='exDur' min='1' max='600' step='0.5'><span class='u'>s</span></div></div>" +
+        "<div><label class='ex-lab'>Cuadros por segundo</label><div class='seg' id='exFps'><button type='button' data-v='30'>30</button><button type='button' data-v='60'>60</button></div></div></div>" +
+        "<div class='ex-op'><label class='ex-lab' for='exNom'>Nombre del archivo</label><input type='text' id='exNom' autocomplete='off'></div>" +
+      "</div><div class='ex-der'><div class='ex-lab'>Textos y opciones</div><div id='exCampos'></div></div></div>" +
+      "<div class='ex-prog' id='exProg' hidden><div class='ex-pbar'><i id='exPbar'></i></div><span id='exPtxt'>Preparando…</span></div>" +
+      "<div class='ex-listo' id='exListo' hidden><video id='exVid' controls playsinline muted></video><p id='exLtxt'></p></div>" +
+      "<div class='modal-pie'><span class='ex-nota' id='exNota'></span><span style='flex:1'></span><button type='button' class='btn' id='exNo'>Cerrar</button><button type='button' class='btn prim' id='exOk'>⬇️ Exportar MP4</button></div>";
+    var m = modal(h, {ancho: true, sinFoco: true, clase: "ex-modal", alCerrar: function () { cambioAlt = null; try { X() && X().cancelar(); } catch (e) {} if (cur.url) { URL.revokeObjectURL(cur.url); } }});
+    var ifr = $("#exIf", m), vista = $("#exVista", m);
+    function X() { try { return ifr.contentWindow && ifr.contentWindow.CG_EXPORT; } catch (e) { return null; } }
+    function escala() { var k = vista.clientWidth / 1920; ifr.style.transform = "scale(" + k + ")"; }
+    escala(); var ro = window.ResizeObserver ? new ResizeObserver(escala) : null; if (ro) { ro.observe(vista); }
+    function listo() { return new Promise(function (r) { (function mira() { if (X()) { r(X()); } else { setTimeout(mira, 60); } })(); }); }
+    function opExp(extra) {
+      var e = el(cur.id), c = clon(e); c.datos = clon(cur.d);
+      return Object.assign({el: c, biblioteca: estado.biblioteca || [], logo: estado.logo || "", ajustes: estado.ajustes || {}, fps: cur.fps, duracion: cur.dur,
+        entrada: cur.anim === "ambas" || cur.anim === "entrada", salida: cur.anim === "ambas" || cur.anim === "salida"}, extra || {});
+    }
+    function esEv() { var e = el(cur.id); return !!(e && P[e.plantilla].evento); }
+    function info() {
+      var t = cur.med; if (!t) { $("#exInfo", m).textContent = ""; return; }
+      $("#exInfo", m).textContent = t.evento ? "Animación completa: " + (t.entrada / 1000).toFixed(1) + " s" : "Entrada " + (t.entrada / 1000).toFixed(1) + " s · Salida " + (t.salida / 1000).toFixed(1) + " s";
+      var aviso = "";
+      if (!t.evento && cur.anim !== "nada") {
+        var need = (cur.anim !== "salida" ? t.entrada : 0) + (cur.anim !== "entrada" ? t.salida + 250 : 0);
+        if (cur.dur * 1000 < need + 300) { aviso = "⚠ La duración es muy corta para la animación elegida."; }
+      }
+      $("#exNota", m).textContent = aviso;
+    }
+    var tQuieto = 0;
+    function quieto() {
+      clearTimeout(tQuieto);
+      tQuieto = setTimeout(function () {
+        if (cur.trabajando) { return; }
+        listo().then(function (x) { x.detener(); return x.medir(opExp()).then(function (t) { cur.med = t; info(); }); });
+      }, 250);
+    }
+    function guardarPref() { guardarLS("cg_exportar", {anim: cur.anim, dur: cur.dur, fps: cur.fps}); }
+    function pintarSeg(cont, v) { $$("button", cont).forEach(function (b) { b.classList.toggle("on", b.dataset.v === String(v)); }); }
+    function elegir(id) {
+      var e = el(id); if (!e) { return; }
+      cur.id = id; cur.d = clon(borrador(id)); cur.med = null;
+      if (e.plantilla === "temporizador" && e.datos.run) { cur.d.run = clon(e.datos.run); }
+      $("#exSel", m).value = id; $("#exNom", m).value = nombreArchivo(e.nombre) + "_verde";
+      $("#exOpAnim", m).hidden = !!P[e.plantilla].evento;
+      /* los campos de siempre, pero escriben en la copia del módulo */
+      var cont = $("#exCampos", m), p = P[e.plantilla]; cont.innerHTML = "";
+      p.campos.forEach(function (f) { var w = campo(f, cur.d); cont.appendChild(w); });
+      function cond() { $$("#exCampos .campo[data-si]").forEach(function (c) { c.hidden = !visible({si: c.dataset.si}, cur.d); }); }
+      cond();
+      cambioAlt = function (k, v) { cur.d[k] = v; cond(); quieto(); };
+      $("#exListo", m).hidden = true;
+      listo().then(function (x) { return x.medir(opExp()); }).then(function (t) {
+        cur.med = t;
+        if (t.evento) { cur.dur = Math.max(1, Math.ceil((t.entrada + 400) / 500) / 2); pintarDur(); }
+        info();
+      });
+    }
+    function pintarDur() { $("#exDur", m).value = cur.dur; $("#exDurR", m).value = Math.min(60, cur.dur); info(); }
+    $("#exSel", m).onchange = function () { elegir(this.value); };
+    $$("#exAnim button", m).forEach(function (b) { b.onclick = function () { cur.anim = b.dataset.v; pintarSeg($("#exAnim", m), cur.anim); guardarPref(); info(); }; });
+    $$("#exFps button", m).forEach(function (b) { b.onclick = function () { cur.fps = +b.dataset.v; pintarSeg($("#exFps", m), cur.fps); guardarPref(); }; });
+    $("#exDurR", m).oninput = function () { cur.dur = +this.value; $("#exDur", m).value = cur.dur; guardarPref(); info(); };
+    $("#exDur", m).onchange = function () { cur.dur = Math.min(600, Math.max(1, +String(this.value).replace(",", ".") || 1)); pintarDur(); guardarPref(); };
+    pintarSeg($("#exAnim", m), cur.anim); pintarSeg($("#exFps", m), cur.fps); pintarDur();
+    $("#exVer", m).onclick = function () {
+      if (cur.trabajando) { return; }
+      var bt = this, barra = $("#exBarra i", m);
+      listo().then(function (x) {
+        bt.disabled = true; bt.textContent = "▶ Reproduciendo…";
+        return x.previsualizar(opExp({
+          alAvanzar: function (a) { barra.style.width = (a * 100) + "%"; },
+          alTerminar: function () { barra.style.width = "100%"; bt.disabled = false; bt.textContent = "▶ Ver animación"; }
+        }));
+      });
+    };
+    $("#exNo", m).onclick = function () { if (cur.trabajando) { var x = X(); if (x) { x.cancelar(); } return; } cerrarModal(); };
+    $("#exOk", m).onclick = function () {
+      if (cur.trabajando) { return; }
+      var nom = nombreArchivo($("#exNom", m).value) || "grafica";
+      cur.trabajando = true; $("#exOk", m).disabled = true; $("#exNo", m).textContent = "Cancelar"; $("#exListo", m).hidden = true; $("#exProg", m).hidden = false;
+      $("#exPbar", m).style.width = "0%"; $("#exPtxt", m).textContent = "Preparando…";
+      var t0 = Date.now();
+      listo().then(function (x) {
+        x.detener();
+        return x.exportar(opExp(), function (pr) {
+          $("#exPbar", m).style.width = (pr.avance * 100).toFixed(1) + "%";
+          $("#exPtxt", m).textContent = "Creando video… " + Math.round(pr.avance * 100) + "% · cuadro " + pr.cuadro + " de " + pr.total + (pr.quedan != null ? " · faltan ~" + Math.max(1, Math.round(pr.quedan)) + " s" : "");
+        });
+      }).then(function (r) {
+        if (cur.url) { URL.revokeObjectURL(cur.url); }
+        cur.url = URL.createObjectURL(r.blob);
+        var a = document.createElement("a"); a.href = cur.url; a.download = nom + ".mp4"; document.body.appendChild(a); a.click(); a.remove();
+        $("#exVid", m).src = cur.url; $("#exListo", m).hidden = false;
+        $("#exLtxt", m).innerHTML = "✅ <b>" + esc(nom) + ".mp4</b> descargado · " + (r.cuadros / r.fps).toFixed(1) + " s · " + r.fps + " cuadros/s · " + (r.blob.size / 1048576).toFixed(1) + " MB · listo en " + Math.round((Date.now() - t0) / 1000) + " s" +
+          (r.h264 ? "" : "<br>⚠ Tu navegador no tiene H.264: el MP4 va en VP9 (algunos editores no lo abren). Para H.264 usa Chrome o Edge.") +
+          " <a href='" + cur.url + "' download='" + esc(nom) + ".mp4'>Descargar de nuevo</a>";
+        toast("Video listo: " + nom + ".mp4", "ok");
+      }).catch(function (e) {
+        var msg = e && e.message === "cancelado" ? "Exportación cancelada." : "No se pudo crear el video: " + ((e && e.message) || e);
+        toast(msg, e && e.message === "cancelado" ? "" : "err"); $("#exPtxt", m).textContent = msg;
+      }).then(function () {
+        cur.trabajando = false; $("#exOk", m).disabled = false; $("#exNo", m).textContent = "Cerrar";
+        setTimeout(function () { if (!cur.trabajando) { $("#exProg", m).hidden = true; } }, 2500);
+        quieto();
+      });
+    };
+    var ini = idIni && el(idIni) && exportables().indexOf(el(idIni)) >= 0 ? idIni : (sel && el(sel) && el(sel).plantilla !== "video" ? sel : lista[0].id);
+    elegir(ini);
+  }
+  $("#bDescargar").onclick = function () { abrirDescargar(); };
   function asignarTeclaCortina(k) {
     var c = cfgCortina(), quitado = null;
     if (k) { var q = liberarTecla(k); if (q && q !== "Cortina") { quitado = {etiqueta: q}; } }
