@@ -379,3 +379,8 @@ Cómo funciona: `exportar.html` usa el mismo motor de la salida con un **reloj v
 - **Botón de temporizador**: tocar el botón lo muestra u oculta; arriba al medio **▶ / ⏸** inicia o pausa la cuenta, **↺** vuelve al inicio y se ve el tiempo restante. En **EDIT** se escriben los **segundos** (1 a 3600); si el reloj no está corriendo, cambia al tiro, también al aire.
 - **Botón de video**: la píldora **x1.0** cambia la velocidad en cada toque: x1 → x1.5 → x2 → x2.5 → x3 → x1. Si el video está al aire, cambia al instante. También está en EDIT como «Velocidad».
 - Arreglo: al recargar el panel en el celular, la botonera ya no queda vacía.
+
+## Varios participantes al mismo tiempo
+- **Duplicar** un botón (Editar botones → Duplicar) ahora crea también una **copia de su gráfica** («Participante jugando 2»…): cada botón prende y apaga solo la suya y se edita aparte con EDIT.
+- Si a un botón le eliges una gráfica que ya usa otro botón, aparece el aviso con **«Usar una copia»**.
+- Los participantes ya no se reemplazan entre sí: con 2 o más al aire, la salida los achica y los pone en fila desde la derecha (si uno se apaga, los demás vuelven a su tamaño).
