@@ -462,6 +462,20 @@
   }
   $("#fNombre").addEventListener("change", function () { var e = el(sel); if (e && this.value.trim()) { e.nombre = this.value.trim().slice(0, 60); publicar(); } });
   $("#fFav").onclick = function () { var e = el(sel); e.fav = !e.fav; publicar(); fichaCab(); };
+  /* copia independiente de una gráfica (para tener otro participante, otro GC, etc.) */
+  function copiarElemento(id, nombre) {
+    var e = el(id); if (!e) { return null; }
+    var c = clon(e); c.id = CG.nuevoId(); c.on = false; c.nombre = (nombre || e.nombre + " (copia)").slice(0, 60); c.datos = clon(borrador(id)); delete c.datos.cmd; delete c.lay; delete c.gb;
+    if (c.datos.run) { c.datos.run = {estado: "detenido", restante: c.datos.segundos, marca: 0}; }
+    estado.elementos.splice(estado.elementos.indexOf(e) + 1, 0, c);
+    return c;
+  }
+  function nombreSiguiente(nom) {
+    var base = String(nom).replace(/\s*(\(copia\)|\d+)$/, "").trim() || nom, n = 2, usados = {};
+    estado.elementos.forEach(function (x) { usados[x.nombre] = 1; });
+    while (usados[base + " " + n]) { n++; }
+    return base + " " + n;
+  }
   $("#fDuplicar").onclick = function () {
     var e = el(sel), c = clon(e); c.id = CG.nuevoId(); c.on = false; c.nombre = (e.nombre + " (copia)").slice(0, 60); c.datos = clon(borrador(sel)); delete c.datos.cmd;
     if (c.datos.run) { c.datos.run = {estado: "detenido", restante: c.datos.segundos, marca: 0}; }
@@ -1916,8 +1930,17 @@
         if (k >= 0) { l.splice(k, 1); } else if (l.length >= MAX_GRUPO) { toast("Máximo " + MAX_GRUPO + " gráficas por botón", "err"); return; } else { l.push(nv); }
         b.els = l; b.el = l[0] || ""; cambioBot(true); return;
       }
+      /* si otro botón ya usa esa gráfica, los dos se prenderían juntos: se ofrece hacer una copia para este botón */
+      var otro = nv.charAt(0) !== ":" && botones().filter(function (x) { return x !== b && idsBoton(x).indexOf(nv) >= 0; })[0];
       b.el = nv.charAt(0) === ":" ? "" : nv; b.esp = nv.charAt(0) === ":" ? nv.slice(1) : ""; b.etiqueta = ""; filtroBot = ""; delete b.els;
       cambioBot(true);
+      if (otro) {
+        var bb = b;
+        toast("Otro botón ya usa «" + el(nv).nombre + "»: se prenden juntos.", "", {txt: "Usar una copia", fn: function () {
+          var x = copiarElemento(nv, nombreSiguiente(el(nv).nombre)); if (!x) { return; }
+          bb.el = x.id; cambioBot(true); publicar(); toast("Listo: este botón tiene su propia «" + x.nombre + "»", "ok");
+        }});
+      }
     };
     $("#biEt").oninput = function () { b.etiqueta = this.value.toUpperCase(); $(".bi-cab b", a).textContent = b.etiqueta || estadoBoton(b).txt; cambioBot(false, true); };
     $$(".bi-col[data-c]", a).forEach(function (x) { x.onclick = function () { b.color = x.dataset.c; cambioBot(true); }; });
@@ -1946,7 +1969,15 @@
     if ($("#biTrS")) { $("#biTrS").onchange = function () { s2.e.tr = Object.assign({}, s2.e.tr, {sale: this.value}); cambioBot(true); }; }
     $("#biIzq").onclick = function () { moverBoton(selB, selB - 1); };
     $("#biDer").onclick = function () { moverBoton(selB, selB + 1); };
-    $("#biDup").onclick = function () { var c = nuevoBoton(clon(b)); c.id = nuevoBoton({}).id; c.tecla = ""; botones().splice(selB + 1, 0, c); selB++; cambioBot(true); toast("Botón duplicado (sin tecla)", "ok"); };
+    /* duplicar = botón nuevo con su PROPIA copia de la(s) gráfica(s): así no se prenden los dos juntos */
+    $("#biDup").onclick = function () {
+      var c = nuevoBoton(clon(b)); c.id = nuevoBoton({}).id; c.tecla = "";
+      var ids = idsBoton(b).filter(function (id) { return el(id); }), nuevos = ids.map(function (id) { var x = copiarElemento(id, nombreSiguiente(el(id).nombre)); return x ? x.id : id; });
+      if (nuevos.length) { c.el = nuevos[0]; if (c.els) { c.els = nuevos; } }
+      if (b.etiqueta) { c.etiqueta = nombreSiguiente(b.etiqueta).toUpperCase(); }
+      botones().splice(selB + 1, 0, c); selB++; cambioBot(true); publicar();
+      toast(nuevos.length ? "Botón duplicado con su propia gráfica: edítala con EDIT y sale aparte" : "Botón duplicado (sin tecla)", "ok");
+    };
     $("#biDel").onclick = function () {
       var quit = botones().splice(selB, 1)[0], pos = selB; selB = -1; cambioBot(true);
       toast("Botón eliminado", "", {txt: "Deshacer", fn: function () { botones().splice(pos, 0, quit); selB = pos; cambioBot(true); }});

@@ -46,7 +46,22 @@
       return base;
     }
     /* acomodo de grupos (botón con varias gráficas): mueve y achica la capa completa, sin tocar sus datos */
+    /* 2 o más participantes al aire: se achican y se ponen en fila desde la derecha, sin taparse.
+       No toca a los que vienen en un botón con «Varias a la vez» (esos ya traen su acomodo). */
+    function acomodoParticipantes(quiero) {
+      var ps = Object.keys(quiero).map(function (id) { return quiero[id]; }).filter(function (e) { return e.plantilla === "participante" && !e.lay; });
+      if (ps.length < 2) { return; }
+      var n = ps.length, s = n === 2 ? 0.8 : n === 3 ? 0.66 : n === 4 ? 0.55 : 0.46, gap = 28;
+      var d0 = ps[0].datos, e0 = (+d0.escala || 100) / 100, der = (+d0.x || 0) + 525 * e0, top = +d0.y || 0;
+      ps.forEach(function (e, k) {
+        var d = e.datos, ex = (+d.escala || 100) / 100, x = +d.x || 0, y = +d.y || 0, w = 525 * ex * s;
+        var izq = der - (k + 1) * w - k * gap;
+        quiero[e.id] = Object.assign({}, e, {lay: {o: x + "px " + y + "px", s: s, x: Math.round(izq - x), y: Math.round(top - y)}, autoLay: true});
+      });
+    }
     function acomodo(capa, el) {
+      capa.style.transition = el.autoLay || capa.dataset.autoLay ? "transform .45s cubic-bezier(.2,.8,.2,1)" : "";
+      if (el.autoLay) { capa.dataset.autoLay = "1"; } else { delete capa.dataset.autoLay; }
       var l = el.lay;
       if (!l || (!l.x && !l.y && (l.s == null || l.s === 1))) { capa.style.transform = ""; return; }
       capa.style.transformOrigin = l.o || "0 100%";
@@ -125,6 +140,7 @@
       /* solo si la barra está abajo (donde van los GC); si la subiste al medio, los GC se quedan en su lugar */
       stage.classList.toggle("con-barra", !!barra && by >= 600);
       if (barra) { stage.style.setProperty("--sube-barra", Math.max(0, 1080 - by + 18) + "px"); }
+      acomodoParticipantes(quiero);
       Object.keys(capas).forEach(function (id) { if (!quiero[id]) { salir(id); } });
       Object.keys(quiero).forEach(function (id) { if (capas[id]) { cambiar(quiero[id]); } else { entrar(quiero[id]); } });
       /* eventos de un disparo (avisos, cortinas, órdenes): solo los nuevos */
