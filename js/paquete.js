@@ -464,14 +464,19 @@
       {k: "correcta", l: "Opción correcta (número)", t: "range", min: 0, max: 4, step: 1, g: "Respuesta", ayuda: "0 = ninguna."}, {k: "revelar", l: "Revelar la correcta en pantalla", t: "toggle", g: "Respuesta"},
       {k: "modo", l: "Formato", t: "seg", g: "Estilo", o: [["inferior", "Abajo"], ["completo", "Pantalla completa"]]}, {k: "fondo", l: "Fondo (pantalla completa)", t: "seg", g: "Estilo", o: [["programa", "Programa"], ["vtr", "VTR"], ["vino", "Bloque 2"], ["noticiero", "Noticiero"]], si: "modo=completo"}, COLOR, VEL],
     defaults: {etiqueta: "PREGUNTA", pregunta: "¿PREGUNTA?", opciones: [], correcta: 0, revelar: false, modo: "inferior", fondo: "programa", color: "ketchup", vel: 100},
-    firma: function (d) { var c = Object.assign({}, d); delete c.revelar; return c; },
+    firma: function (d) { var c = Object.assign({}, d); delete c.revelar; delete c.correcta; return c; },
     render: function (d, ctx) {
       var op = (d.opciones || []).filter(function (s) { return tx(s); }).slice(0, 4), L = "ABCD";
       var cuerpo = '<div class="pq-preg imp"><span data-fit="' + (d.modo === "completo" ? 1360 : 1500) + '">' + tx(d.pregunta) + '</span></div>' +
         (op.length ? '<div class="pq-ops n' + op.length + '">' + op.map(function (s, i) { return '<div class="pq-op' + (+d.correcta === i + 1 ? " ok" : "") + '" style="--i:' + i + '"><b class="imp">' + L[i] + '</b><span>' + tx(s) + '</span></div>'; }).join("") + '</div>' : '');
       return '<div class="pq m-' + esc(d.modo) + (d.revelar ? " revelada" : "") + '">' + (d.modo === "completo" ? CG.fondoHTML(d.fondo || "programa", {logo: false, maule: false}, false, ctx) : '') + tarjeta("pq-tj", d.color, tx(d.etiqueta), cuerpo) + '</div>';
     },
-    montar: function (el) { return {actualizar: function (nd) { var q = el.querySelector(".pq"); if (q) { q.classList.toggle("revelada", !!nd.revelar); } }}; }
+    /* revelar y cambiar la correcta en vivo, sin volver a animar la pregunta */
+    montar: function (el) { return {actualizar: function (nd) {
+      var q = el.querySelector(".pq"); if (!q) { return; }
+      [].forEach.call(q.querySelectorAll(".pq-op"), function (o, i) { o.classList.toggle("ok", +nd.correcta === i + 1); });
+      q.classList.toggle("revelada", !!nd.revelar);
+    }}; }
   };
 
   P.marcador = {

@@ -821,6 +821,7 @@
     var quien = "";
     if (!k) { return quien; }
     botones().forEach(function (x) { if (x.tecla === k) { x.tecla = ""; quien = "«" + (x.etiqueta || estadoBoton(x).txt) + "»"; } });
+    botones().forEach(function (x) { ["teclaOk", "teclaPlay"].forEach(function (c) { if (x[c] === k) { x[c] = ""; quien = "el mini botón de «" + (x.etiqueta || estadoBoton(x).txt) + "»"; } }); });
     if (estado.cortinaBoton && estado.cortinaBoton.tecla === k) { estado.cortinaBoton.tecla = ""; quien = "Cortina"; }
     var lc = estado.limpiarCfg; if (lc && lc.teclas) { Object.keys(lc.teclas).forEach(function (m) { if (lc.teclas[m] === k) { lc.teclas[m] = ""; quien = "Limpiar"; } }); }
     return quien;
@@ -1819,6 +1820,7 @@
     }
     var e = el(b.el); if (!e) { return {falta: true, txt: "Gráfica eliminada", tipo: "—"}; }
     var p = P[e.plantilla], pend = CG.pendientesDe(e);
+    if ((b.accion === "contar" || b.accion === "reiniciar") && e.plantilla === "temporizador") { var cor = e.datos.run && e.datos.run.estado === "corriendo"; return {on: b.accion === "contar" && cor, ev: false, pend: false, falta: false, txt: b.accion === "contar" ? (cor ? "⏸ Pausar conteo" : "▶ Iniciar conteo") : "↺ Reiniciar conteo", tipo: "CONTADOR · " + e.nombre.toUpperCase(), e: e, accion: true}; }
     return {on: e.on, ev: !!p.evento, pend: pend.length > 0, falta: e.plantilla === "video" && !e.datos.media, txt: e.nombre, tipo: (CG.TIPOS[CG.tipoDe(e)] || "").toUpperCase(), e: e};
   }
   var selB = -1, filtroBot = "";
@@ -1845,7 +1847,8 @@
         '<span class="bt-tec">' + esc(nombreTecla(b.tecla)) + '</span>' + (s2.pend || s2.falta ? '<span class="bt-pend" title="Tiene datos o archivos pendientes">⚠</span>' : '') +
         '<span class="bt-et">' + esc(b.etiqueta || s2.txt) + '</span><span class="bt-sub">' + (s2.e && s2.e.tr && (s2.e.tr.entra || s2.e.tr.sale) ? '<span title="Entra o sale con transición">✨ </span>' : '') + (s2.e && s2.e.plantilla === "temporizador" ? '<b class="bt-rj-t2"></b>' : '') + esc(s2.tipo) + (s2.ev ? " · se lanza" : s2.on ? (salidas === 0 ? " · PROG." : " · AL AIRE") : "") + '</span>' +
         (!editarBotonera && s2.e && s2.e.plantilla === "video" && idsBoton(b).length === 1 ? '<span class="bt-vel" data-vel="' + esc(s2.e.id) + '" role="button" title="Velocidad del video (toca para cambiar)">' + textoVel(s2.e) + '</span>' : '') +
-        (!editarBotonera && s2.e && s2.e.plantilla === "temporizador" && idsBoton(b).length === 1 ? '<span class="bt-rj" data-rj="' + esc(s2.e.id) + '"><span class="bt-rj-play" data-play="' + esc(s2.e.id) + '" role="button" title="Iniciar o pausar la cuenta">▶</span><span class="bt-rj-t">0:00</span><span class="bt-rj-re" data-re="' + esc(s2.e.id) + '" role="button" title="Volver al inicio">↺</span></span>' : '') +
+        (!editarBotonera && s2.e && s2.e.plantilla === "pregunta" && idsBoton(b).length === 1 ? '<span class="bt-ok' + (s2.e.on && s2.e.datos.revelar && +s2.e.datos.correcta === okDe(b, s2.e) ? " on" : "") + '" data-ok="' + i + '" role="button" title="Revelar la respuesta correcta (' + "ABCD"[okDe(b, s2.e) - 1] + ')' + (b.teclaOk ? ' · tecla ' + esc(nombreTecla(b.teclaOk)) : '') + '">✅ ' + "ABCD"[okDe(b, s2.e) - 1] + (b.teclaOk ? '<small>' + esc(nombreTecla(b.teclaOk)) + '</small>' : '') + '</span>' : '') +
+        (!editarBotonera && s2.e && s2.e.plantilla === "temporizador" && idsBoton(b).length === 1 && !s2.accion ? '<span class="bt-rj" data-rj="' + esc(s2.e.id) + '"><span class="bt-rj-play" data-play="' + esc(s2.e.id) + '" role="button" title="Iniciar o pausar la cuenta">▶</span><span class="bt-rj-t">0:00</span><span class="bt-rj-re" data-re="' + esc(s2.e.id) + '" role="button" title="Volver al inicio">↺</span></span>' : '') +
         (editarBotonera ? '<span class="bt-asa" title="Arrastrar para mover">⠿</span>' : (s2.e ? '<span class="bt-edit' + (miniId && idsBoton(b).indexOf(miniId) >= 0 ? ' on' : '') + '" data-edit="' + i + '" role="button" title="Editar textos, fotos y video de esta gráfica">EDIT</span>' : '')) + '</button>';
     }).join("") + (editarBotonera ? '<button class="bt bt-mas" id="btMas"><span class="bt-mas-ico">+</span><span class="bt-sub">AGREGAR BOTÓN</span></button>' : '');
     if (!botones().length && !editarBotonera) { cont.innerHTML = '<div class="lista-vacia">No hay botones. Toca «Editar botones» para agregarlos.</div>'; }    if (miniId) { if (!el(miniId)) { cerrarMini(); } else { miniEstado(); } }
@@ -1904,7 +1907,14 @@
         teclas.map(function (k) { var j = dueno[k], otro = j != null && j !== selB ? botones()[j] : null; return '<button class="bi-tecla' + (b.tecla === k ? " on" : "") + (otro ? " usada" : "") + '" data-k="' + esc(k) + '" title="' + (otro ? "La usa «" + esc(otro.etiqueta || estadoBoton(otro).txt) + "»: se le quitará" : "Libre") + '"><b>' + esc(nombreTecla(k)) + '</b><small>' + (b.tecla === k ? "este botón" : otro ? esc(otro.etiqueta || estadoBoton(otro).txt) : "libre") + '</small></button>'; }).join("") +
         '<button class="bi-tecla' + (!b.tecla ? " on" : "") + '" data-k=""><b>—</b><small>sin tecla</small></button></div>' +
         '<button class="btn bi-cap" id="biCap">⌨️ Presionar una tecla del teclado</button></div>' +
-      (mostrarAcc ? '<div class="bi-sec"><label class="bi-tit"><span>5</span>Al presionar</label><div class="seg bi-acc" id="biAcc">' + [["alternar", "Muestra / oculta"], ["mostrar", "Solo muestra"], ["ocultar", "Solo oculta"]].map(function (x) { return '<button data-v="' + x[0] + '" class="' + ((b.accion || "alternar") === x[0] ? "on" : "") + '">' + x[1] + '</button>'; }).join("") + '</div></div>' : '') +
+      (mostrarAcc ? '<div class="bi-sec"><label class="bi-tit"><span>5</span>Al presionar</label><div class="seg bi-acc" id="biAcc">' + accionesDe(s2.e).map(function (x) { return '<button data-v="' + x[0] + '" class="' + ((b.accion || "alternar") === x[0] ? "on" : "") + '">' + x[1] + '</button>'; }).join("") + '</div>' +
+        (b.accion === "contar" ? '<span class="nota">Al presionar el botón (o su tecla) inicia la cuenta; otra vez la pausa. Si el reloj no está al aire, sale y parte.</span>' : '') + '</div>' : '') +
+      (s2.e && !esGrupo(b) && s2.e.plantilla === "pregunta" ? '<div class="bi-sec bi-mini"><label class="bi-tit"><span>✅</span>Respuesta correcta de este botón</label><div class="seg bi-acc" id="biOk">' + letrasDe(s2.e).map(function (x, i) { return '<button data-v="' + (i + 1) + '" class="' + (okDe(b, s2.e) === i + 1 ? "on" : "") + '" title="' + esc(x[1]) + '">' + x[0] + (x[1] ? ' · ' + esc(String(x[1]).slice(0, 14)) : '') + '</button>'; }).join("") + '</div>' +
+        '<div class="bi-tkmini"><span>Tecla del ✅</span><b>' + esc(b.teclaOk ? nombreTecla(b.teclaOk) : "Sin tecla") + '</b><button class="btn mini" data-tkmini="teclaOk">⌨️ Presionar una tecla</button>' + (b.teclaOk ? '<button class="btn mini" data-tkminiq="teclaOk">Quitar</button>' : '') + '</div>' +
+        '<span class="nota">El mini botón ✅ (en la esquina del botón) o su tecla marca esta opción como correcta en pantalla; otra vez la quita. Cada botón guarda la suya.</span></div>' : '') +
+      (s2.e && !esGrupo(b) && s2.e.plantilla === "temporizador" && (b.accion || "alternar") === "alternar" ? '<div class="bi-sec bi-mini"><label class="bi-tit"><span>▶</span>Mini botón del conteo</label>' +
+        '<div class="bi-tkmini"><span>Tecla del ▶/⏸</span><b>' + esc(b.teclaPlay ? nombreTecla(b.teclaPlay) : "Sin tecla") + '</b><button class="btn mini" data-tkmini="teclaPlay">⌨️ Presionar una tecla</button>' + (b.teclaPlay ? '<button class="btn mini" data-tkminiq="teclaPlay">Quitar</button>' : '') + '</div>' +
+        '<span class="nota">Inicia o pausa la cuenta sin tocar el botón grande.</span></div>' : '') +
       (s2.e && !esGrupo(b) ? '<div class="bi-sec"><label class="bi-tit"><span>' + (mostrarAcc ? 6 : 5) + '</span>Transición</label><div class="bi-trs"><label><small>Entra con</small><select id="biTrE">' + opcionesTrans((s2.e.tr || {}).entra, s2.e.id) + '</select></label>' +
         (s2.ev ? '' : '<label><small>Sale con</small><select id="biTrS">' + opcionesTrans((s2.e.tr || {}).sale, s2.e.id) + '</select></label>') + '</div><span class="nota">Crea o sube transiciones en Configuración → Transiciones.</span></div>' : '') +
       (sel1.length ? '<div class="bi-sec"><label class="bi-tit"><span>◧</span>Capa</label><div id="biCapa" class="bi-capa"></div><span class="nota">Al fondo: las demás gráficas pasan por encima. Arriba: queda sobre todas. Las transiciones y cortinas van siempre encima de todo.</span></div>' : '') +
@@ -1965,6 +1975,15 @@
     if ($("#biDist")) { $$("#biDist button", a).forEach(function (x) { x.onclick = function () { b.dist = x.dataset.d; cambioBot(true); }; }); }
     if ($("#biCapa")) { pintarCapa($("#biCapa"), sel1); }
     if ($("#biAcc")) { $$("#biAcc button", a).forEach(function (x) { x.onclick = function () { b.accion = x.dataset.v; cambioBot(true); }; }); }
+    if ($("#biOk")) { $$("#biOk button", a).forEach(function (x) { x.onclick = function () { b.correcta = +x.dataset.v; cambioBot(true); }; }); }
+    /* tecla del mini botón (✅ respuesta correcta / ▶ conteo) de ESTE botón */
+    $$("[data-tkmini]", a).forEach(function (x) { x.onclick = function () {
+      var campo = x.dataset.tkmini; x.textContent = "Presiona la tecla… (Esc cancela)";
+      capturarTecla(function (k) {
+        if (k) { var q = liberarTecla(k); b[campo] = k; cambioBot(true); toast("Mini botón: tecla " + nombreTecla(k) + (q ? " (quitada de " + q + ")" : ""), "ok"); } else { pintarInsp(); }
+      });
+    }; });
+    $$("[data-tkminiq]", a).forEach(function (x) { x.onclick = function () { b[x.dataset.tkminiq] = ""; cambioBot(true); }; });
     if ($("#biTrE")) { $("#biTrE").onchange = function () { s2.e.tr = Object.assign({}, s2.e.tr, {entra: this.value}); cambioBot(true); }; }
     if ($("#biTrS")) { $("#biTrS").onchange = function () { s2.e.tr = Object.assign({}, s2.e.tr, {sale: this.value}); cambioBot(true); }; }
     $("#biIzq").onclick = function () { moverBoton(selB, selB - 1); };
@@ -2017,6 +2036,24 @@
     botones().push(b); selB = botones().length - 1; filtroBot = ""; cambioBot(true);
     setTimeout(function () { var s = $("#biBus"); if (s && !esMovil()) { s.focus(); } var n = $('#botGrid .bt[data-i="' + selB + '"]'); if (n) { n.scrollIntoView({block: "nearest"}); } }, 30);
   }
+  /* acciones especiales de un botón según su gráfica (Editar botones → Al presionar) */
+  function accionesDe(e) {
+    var l = [["alternar", "Muestra / oculta"], ["mostrar", "Solo muestra"], ["ocultar", "Solo oculta"]];
+    if (e && e.plantilla === "temporizador") { l.push(["contar", "▶/⏸ Inicia o pausa el conteo"], ["reiniciar", "↺ Reinicia el conteo"]); }
+    return l;
+  }
+  function okDe(b, e) { var n = +b.correcta || +e.datos.correcta || 1, m = letrasDe(e).length; return Math.min(Math.max(1, n), m); }
+  function letrasDe(e) { var op = (e.datos.opciones || []).filter(function (x) { return String(x || "").trim(); }); if (!op.length) { op = ["", "", ""]; } return op.slice(0, 4).map(function (t, i) { return ["ABCD"[i], t]; }); }
+  /* marca la opción n como correcta y la revela; si ya estaba revelada esa misma, quita la marca */
+  function revelarCorrecta(e, n) {
+    var d = e.datos, ya = d.revelar && +d.correcta === n && e.on;
+    d.correcta = n; d.revelar = !ya;
+    if (borr[e.id]) { borr[e.id].correcta = n; borr[e.id].revelar = d.revelar; guardarBorr(); }
+    if (!e.on) { mostrar(e.id, true, false, true); } else { publicar(); }
+    dibujarBotonera();
+    toast(ya ? "Respuesta oculta" : "✅ Correcta: " + "ABCD"[n - 1], "ok");
+  }
+  function okBoton(i) { var b = botones()[i]; if (!b) { return; } var e = el(b.el); if (e && e.plantilla === "pregunta") { revelarCorrecta(e, okDe(b, e)); } }
   function disparar(b, nodo) {
     if (!b) { return; }
     if (nodo) { nodo.classList.remove("pulso"); void nodo.offsetWidth; nodo.classList.add("pulso"); }
@@ -2032,6 +2069,8 @@
     var e = el(b.el); if (!e) { toast("Ese botón apunta a una gráfica que ya no existe. Edítalo.", "err"); return; }
     if (esEvento(e)) { lanzar(e.id, true); return; }
     var acc = b.accion || "alternar";
+    if (acc === "contar" && e.plantilla === "temporizador") { comando(e.id, e.datos.run && e.datos.run.estado === "corriendo" ? "pausar" : "iniciar"); relojBotones(); dibujarBotoneraLuego(); return; }
+    if (acc === "reiniciar" && e.plantilla === "temporizador") { comando(e.id, "reiniciar"); relojBotones(); dibujarBotoneraLuego(); return; }
     if (acc === "ocultar" || (acc === "alternar" && e.on)) { ocultar(e.id); return; }
     mostrar(e.id, true, false, true);
   }
@@ -2111,6 +2150,15 @@
     if (capturando) { return false; }
     if (escribiendo || !$("#modal").hidden || !estado || ev.repeat || ev.ctrlKey || ev.altKey || ev.metaKey) { return false; }
     var i = -1; botones().forEach(function (b, j) { if (i < 0 && b.tecla && b.tecla === ev.key) { i = j; } });
+    if (i < 0 && !editarBotonera) {
+      var hecho = false;
+      botones().forEach(function (b, j) {
+        if (hecho) { return; }
+        if (b.teclaOk && b.teclaOk === ev.key) { hecho = true; okBoton(j); }
+        else if (b.teclaPlay && b.teclaPlay === ev.key) { var e = el(b.el); if (e && e.plantilla === "temporizador") { hecho = true; comando(e.id, e.datos.run && e.datos.run.estado === "corriendo" ? "pausar" : "iniciar"); relojBotones(); dibujarBotoneraLuego(); } }
+      });
+      if (hecho) { ev.preventDefault(); return true; }
+    }
     if (i < 0) { return false; }
     ev.preventDefault();
     if (editarBotonera) { selB = i; dibujarBotonera(); pintarInsp(); return true; }
@@ -2165,6 +2213,8 @@
   $("#botGrid").addEventListener("pointerdown", function (ev) {
     if (editarBotonera || ev.button > 0 || ev.isPrimary === false) { return; }
     if (ev.target.closest(".bt-edit")) { return; }
+    var okb = ev.target.closest(".bt-ok");
+    if (okb) { ev.preventDefault(); tocado = Date.now(); okBoton(+okb.dataset.ok); return; }
     var vl = ev.target.closest(".bt-vel");
     if (vl) { ev.preventDefault(); tocado = Date.now(); cambiarVel(vl.dataset.vel); return; }
     var rj = ev.target.closest(".bt-rj-play,.bt-rj-re");
@@ -2207,6 +2257,7 @@
   }
   setInterval(function () { if (document.querySelector("#botGrid .bt-rj")) { relojBotones(); } }, 200);
   $("#botGrid").addEventListener("click", function (ev) {
+    if (ev.target.closest(".bt-ok")) { ev.preventDefault(); if (Date.now() - tocado > 900) { okBoton(+ev.target.closest(".bt-ok").dataset.ok); } return; }
     if (ev.target.closest(".bt-vel")) { ev.preventDefault(); if (Date.now() - tocado > 900) { cambiarVel(ev.target.closest(".bt-vel").dataset.vel); } return; }
     if (ev.target.closest(".bt-rj")) { ev.preventDefault(); if (Date.now() - tocado > 900) { var rj = ev.target.closest(".bt-rj-play,.bt-rj-re"); if (rj) { relojToque(rj); } } return; }
     var ed = ev.target.closest(".bt-edit");
