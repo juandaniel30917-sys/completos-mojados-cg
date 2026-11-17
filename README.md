@@ -384,3 +384,7 @@ Cómo funciona: `exportar.html` usa el mismo motor de la salida con un **reloj v
 - **Duplicar** un botón (Editar botones → Duplicar) ahora crea también una **copia de su gráfica** («Participante jugando 2»…): cada botón prende y apaga solo la suya y se edita aparte con EDIT.
 - Si a un botón le eliges una gráfica que ya usa otro botón, aparece el aviso con **«Usar una copia»**.
 - Los participantes ya no se reemplazan entre sí: con 2 o más al aire, la salida los achica y los pone en fila desde la derecha (si uno se apaga, los demás vuelven a su tamaño).
+
+## ✅ Respuesta correcta en cada botón de trivia
+Cada botón de **pregunta** tiene en la esquina un mini botón **✅ B** que marca en pantalla la opción correcta (otra vez la quita; si la pregunta no está al aire, sale ya revelada). En **Editar botones** → ese botón → **✅ Respuesta correcta de este botón**: eliges A, B, C o D y la **tecla del ✅**. Cada botón guarda la suya, aunque dos botones usen la misma pregunta.
+En los botones de **temporizador** también se puede dar una **tecla al ▶/⏸** (Editar botones → Mini botón del conteo).
