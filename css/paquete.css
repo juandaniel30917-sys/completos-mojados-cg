@@ -176,7 +176,7 @@
 .tl-cupos{display:flex;justify-content:center;gap:16px}
 .cupo{width:76px;height:76px;border-radius:50%;border:5px solid var(--linea);background:#EDE6D6;display:grid;place-items:center;font:400 38px/1 var(--imp);font-style:normal;color:var(--linea);transition:background .35s,transform .35s cubic-bezier(.3,1.6,.5,1),opacity .35s}
 .cupo.c-llamando{background:var(--mostaza);transform:scale(1.12);animation:late .6s ease-in-out infinite}
-.cupo.c-correcto{background:var(--palta);color:#fff;transform:scale(1.12)}
+.cupo.c-correcto{background:var(--correcta,#0F9484);color:#fff;transform:scale(1.12)}
 .cupo.c-incorrecto{opacity:.35}
 /* pregunta */
 .pq{position:absolute;inset:0}
@@ -190,7 +190,7 @@
 .m-completo .pq-ops.n4{grid-template-columns:1fr 1fr}
 .pq-op{display:flex;align-items:center;gap:16px;background:var(--mayo);border:5px solid var(--linea);border-radius:22px;padding:10px 16px;font:700 36px/1.1 Arial,sans-serif;text-transform:uppercase;transition:background .4s,opacity .4s,transform .4s cubic-bezier(.3,1.6,.5,1)}
 .pq-op b{flex:none;width:56px;height:56px;border-radius:50%;background:var(--mostaza);border:4px solid var(--linea);display:grid;place-items:center;font-size:34px;font-weight:400;color:var(--linea)}
-.revelada .pq-op.ok{background:var(--palta);color:#fff;transform:scale(1.05)}
+.revelada .pq-op.ok{background:var(--correcta,#0F9484);color:#fff;transform:scale(1.05)}
 .revelada .pq-op.ok b{background:#fff}
 .revelada .pq-op:not(.ok){opacity:.38}
 /* marcador */
@@ -233,3 +233,6 @@
 @keyframes suenaT{0%,60%,100%{transform:rotate(0)}10%,30%,50%{transform:rotate(-16deg)}20%,40%{transform:rotate(16deg)}}
 @keyframes subeAbajoTj{from{transform:translateY(130%)}to{transform:none}}
 @keyframes popCentroTj{from{transform:translate(-50%,-50%) scale(.5);opacity:0}to{transform:translate(-50%,-50%);opacity:1}}
+
+/* respuesta correcta: verde esmeralda seguro para el chroma (≈53° de tono y distancia 0,41 del verde clave; aguanta similitud ~30) */
+:root{--correcta:#0F9484}
