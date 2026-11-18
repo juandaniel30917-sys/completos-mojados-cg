@@ -2071,6 +2071,8 @@
     var acc = b.accion || "alternar";
     if (acc === "contar" && e.plantilla === "temporizador") { comando(e.id, e.datos.run && e.datos.run.estado === "corriendo" ? "pausar" : "iniciar"); relojBotones(); dibujarBotoneraLuego(); return; }
     if (acc === "reiniciar" && e.plantilla === "temporizador") { comando(e.id, "reiniciar"); relojBotones(); dibujarBotoneraLuego(); return; }
+    /* trivia: cada vez que la pregunta sale o se quita desde su botón, parte SIN la respuesta marcada (se marca con el ✅) */
+    if (e.plantilla === "pregunta" && e.datos.revelar) { e.datos.revelar = false; if (borr[e.id]) { borr[e.id].revelar = false; guardarBorr(); } }
     if (acc === "ocultar" || (acc === "alternar" && e.on)) { ocultar(e.id); return; }
     mostrar(e.id, true, false, true);
   }
