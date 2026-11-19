@@ -462,92 +462,55 @@
   var TAM = {k: "escala", l: "Tamaño", t: "range", min: 50, max: 140, step: 5, u: "%", g: "Posición"};
   function posAus(d, origen) { return "transform:translate(" + (+d.dx || 0) + "px," + (+d.dy || 0) + "px) scale(" + ((+d.escala || 100) / 100) + ");transform-origin:" + origen; }
   /* rayos eléctricos alrededor de un objeto: polilíneas que cambian cada cuadro, en ráfagas */
-  /* números al azar repetibles (el rayo sale igual en vivo y en la descarga) */
-  function azarFijo(semilla) { var s = semilla >>> 0; return function () { s = (s + 0x6D2B79F5) >>> 0; var t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
-  /* rayo ramificado de arriba hacia abajo (viewBox 700×900) */
-  function rayoRamas(semilla) {
-    var R = azarFijo(semilla), out = [];
-    function linea(x0, y0, ang, largo, pasos, grosor, nivel) {
-      var pts = [[x0, y0]], x = x0, y = y0, a = ang;
-      for (var i = 0; i < pasos; i++) {
-        a += (R() - .5) * .9; a = ang + Math.max(-.7, Math.min(.7, a - ang));
-        x += Math.sin(a) * largo / pasos; y += Math.cos(a) * largo / pasos; pts.push([x, y]);
-        if (nivel < 2 && i > 0 && R() < (nivel ? .22 : .38)) { var lado = R() < .5 ? -1 : 1; linea(x, y, a + lado * (.55 + R() * .6), largo * (nivel ? .3 : .42) * (.6 + R() * .6), Math.max(4, Math.round(pasos * .5)), grosor * .5, nivel + 1); }
-      }
-      out.push({p: pts.map(function (q) { return q[0].toFixed(1) + "," + q[1].toFixed(1); }).join(" "), g: grosor});
-    }
-    linea(350, 0, 0, 900, 22, 10, 0);
-    return out.reverse();
-  }
-  function svgRayo(semilla, cls) {
-    return '<g class="' + cls + '">' + rayoRamas(semilla).map(function (r) {
-      return '<polyline pathLength="1" points="' + r.p + '" fill="none" stroke="#FFD43A" stroke-opacity=".55" stroke-width="' + (r.g * 2.4).toFixed(1) + '" stroke-linecap="round" stroke-linejoin="round"/>' +
-        '<polyline pathLength="1" points="' + r.p + '" fill="none" stroke="#FFFBE0" stroke-width="' + (r.g * .7).toFixed(1) + '" stroke-linecap="round" stroke-linejoin="round"/>';
-    }).join("") + '</g>';
-  }
-  /* anillos eléctricos que giran alrededor de la lata: la mitad de atrás pasa detrás de la lata, la de adelante por encima */
-  function anillosVivos(atras, frente, w, h) {
-    var vivo = true, t0 = performance.now(), id = null;
-    var an = [{cy: .28, rx: 1.12, ry: .075, inc: -12, vel: 2.6, ph: 0, arco: 1.6},
-              {cy: .68, rx: 1.18, ry: .085, inc: 9, vel: -2.1, ph: 2.4, arco: 1.5},
-              {cy: .47, rx: 1.4, ry: .14, inc: -26, vel: 3.3, ph: 4.1, arco: 1.35, hasta: 3.4},
-              {cy: .82, rx: 1.3, ry: .1, inc: 18, vel: -2.8, ph: 1.2, arco: 1.25, hasta: 3.1}];
-    function trazo(pts, glow) {
-      var p = pts.join(" ");
-      return '<polyline points="' + p + '" fill="none" stroke="#7CC4FF" stroke-opacity="' + (glow * .7).toFixed(2) + '" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>' +
-        '<polyline points="' + p + '" fill="none" stroke="#F6FCFF" stroke-opacity="' + glow.toFixed(2) + '" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>';
-    }
-    function cuadro() {
-      if (!vivo) { return; }
-      var t = (performance.now() - t0) / 1000, hA = "", hF = "";
-      an.forEach(function (a) {
-        if (a.hasta && t > a.hasta) { return; }
-        var fade = a.hasta ? Math.max(0, Math.min(1, (a.hasta - t) / .6)) : 1, n = 34, ini = a.ph + a.vel * t;
-        var co = Math.cos(a.inc * Math.PI / 180), si = Math.sin(a.inc * Math.PI / 180), cx = w / 2, cy = a.cy * h;
-        var tramo = [], lado = null;
-        for (var i = 0; i <= n; i++) {
-          var th = ini + a.arco * Math.PI * i / n, ex = Math.cos(th) * a.rx * w / 2, ey = Math.sin(th) * a.ry * h;
-          var j = (i === 0 || i === n) ? 0 : (Math.random() - .5) * 16;
-          var x = cx + ex * co - ey * si, y = cy + ex * si + ey * co + j;
-          var l = Math.sin(th) >= 0 ? "f" : "a";
-          if (lado && l !== lado) { var q = tramo[tramo.length - 1]; if (lado === "f") { hF += trazo(tramo, fade); } else { hA += trazo(tramo, fade * .8); } tramo = [q]; }
-          lado = l; tramo.push(x.toFixed(1) + "," + y.toFixed(1));
-        }
-        if (tramo.length > 1) { if (lado === "f") { hF += trazo(tramo, fade); } else { hA += trazo(tramo, fade * .8); } }
-      });
-      atras.innerHTML = hA; frente.innerHTML = hF;
-      id = setTimeout(cuadro, 33);
-    }
-    cuadro();
-    return function () { vivo = false; clearTimeout(id); atras.innerHTML = ""; frente.innerHTML = ""; };
+  /* Rayo Maulino: la animación es la del video original (fondo verde quitado, con transparencia) en 3 partes:
+     entrada (rayo, humo, anillos, viaje a la esquina) → bucle de la lata con electricidad → salida (rayo que la borra).
+     El cintillo es HTML para poder cambiar el texto. En la descarga MP4 los videos se mueven cuadro a cuadro con el reloj. */
+  var RAYO_V = {intro: "assets/marcas/rayo_intro.webm", bucle: "assets/marcas/rayo_bucle.webm", fin: "assets/marcas/rayo_salida.webm", corte: 4.067, largoB: 4.6, largoS: 0.55};
+  if (typeof document !== "undefined" && /salida\.html/.test(location.pathname)) {
+    CG._precargaRayo = [RAYO_V.intro, RAYO_V.bucle, RAYO_V.fin].map(function (s) { var v = document.createElement("video"); v.muted = true; v.preload = "auto"; v.src = s; return v; });
   }
   P.spRayo = {
-    nombre: "Auspicio Rayo Maulino (lata con rayo)", cat: "menciones", icono: "estrella", capa: 59, salidaMs: 1000, entraMs: 5000, tipo: "MENCION", grupo: "auspicio-rayo",
-    desc: "Cae la lata girando, la parte un rayo, se envuelve en humo y anillos eléctricos, viaja a la esquina y saca su cintillo.",
-    campos: [{k: "texto", l: "Texto del cintillo", t: "text", g: "Texto"}, {k: "lata", l: "Imagen del producto", t: "imagen", g: "Marca"},
-      POS_X, POS_Y, TAM, VEL],
-    defaults: {texto: "RAYO MAULINO", lata: "assets/marcas/rayo_lata.png", dx: 0, dy: 0, escala: 100, vel: 100},
+    nombre: "Auspicio Rayo Maulino (lata con rayo)", cat: "menciones", icono: "estrella", capa: 59, salidaMs: 600, entraMs: 4700, tipo: "MENCION", grupo: "auspicio-rayo",
+    desc: "La animación original: cae la lata con el rayo, humo y anillos eléctricos, viaja a la esquina y saca su cintillo. Sale con un rayo.",
+    campos: [{k: "texto", l: "Texto del cintillo", t: "text", g: "Texto"}, POS_X, POS_Y, TAM, VEL],
+    defaults: {texto: "RAYO MAULINO", dx: 0, dy: 0, escala: 100, vel: 100},
     render: function (d) {
-      var img = d.lata && !CG.esPendiente(d.lata) ? d.lata : "assets/marcas/rayo_lata.png";
-      var humo = "", R = azarFijo(7);
-      for (var i = 0; i < 26; i++) {
-        var a = i * (360 / 26) + R() * 10, rr = .8 + R() * .35, x = Math.cos(a * Math.PI / 180) * 150 * rr, y = Math.sin(a * Math.PI / 180) * 300 * rr;
-        humo += '<i style="--x:' + x.toFixed(0) + 'px;--y:' + y.toFixed(0) + 'px;--dx:' + (x * 1.55).toFixed(0) + 'px;--dy:' + (y * 1.2 - 50 - R() * 90).toFixed(0) + 'px;--r:' + ((R() - .5) * 140).toFixed(0) + 'deg;--s:' + (.7 + R() * .6).toFixed(2) + ';--d:' + (R() * .3).toFixed(2) + 's"></i>';
-      }
       return '<div class="sr" style="' + posAus(d, "1700px 980px") + '">' +
-        '<svg class="sr-rayo" viewBox="0 0 700 900">' + svgRayo(11, "ra") + svgRayo(29, "rb") + '</svg>' +
-        '<div class="sr-golpe"></div><div class="sr-humo">' + humo + '</div>' +
-        '<div class="sr-cinta"><i class="sr-ico"></i><span data-fit="540">' + tx(d.texto) + '</span><b class="sr-brillo"></b></div>' +
-        '<div class="sr-lata"><div class="sr-f">' +
-          '<svg class="sr-ar sr-atras" viewBox="-90 -30 426 654"></svg>' +
-          '<div class="sr-giro"><img alt="" src="' + esc(img) + '"></div>' +
-          '<svg class="sr-ar sr-frente" viewBox="-90 -30 426 654"></svg>' +
-        '</div></div>' +
+        '<div class="sr-cinta"><i class="sr-ico"></i><span data-fit="520">' + tx(d.texto) + '</span><b class="sr-brillo"></b></div>' +
+        '<video class="sr-v sr-intro" muted playsinline preload="auto" src="' + RAYO_V.intro + '"></video>' +
+        '<video class="sr-v sr-bucle" muted playsinline loop preload="auto" src="' + RAYO_V.bucle + '"></video>' +
+        '<video class="sr-v sr-fin" muted playsinline preload="auto" src="' + RAYO_V.fin + '"></video>' +
       '</div>';
     },
-    montar: function (el) {
-      var a = el.querySelector(".sr-atras"), f = el.querySelector(".sr-frente"), parar = a && f ? anillosVivos(a, f, 246, 594) : null;
-      return {destruir: function () { if (parar) { parar(); } }};
+    montar: function (el, d) {
+      var vi = el.querySelector(".sr-intro"), vb = el.querySelector(".sr-bucle"), vs = el.querySelector(".sr-fin");
+      if (!vi || !vb || !vs) { return null; }
+      var exp = !!window.RELOJ, vivo = true, t0 = performance.now(), tB = 0, tS = 0;
+      var vel = Math.max(0.25, ((+d.vel || 100) / 100) * (CG.velocidad || 1));
+      var fase = el.classList.contains("entra") ? "intro" : "bucle";
+      [vi, vb, vs].forEach(function (v) { v.muted = true; v.playbackRate = vel; });
+      function ver(v) { [vi, vb, vs].forEach(function (x) { x.classList.toggle("on", x === v); }); }
+      function jugar(v) { try { var p = v.play(); if (p && p.catch) { p.catch(function () {}); } } catch (e) {} }
+      function irA(v, s) { if (Math.abs(v.currentTime - s) > 0.001) { try { v.currentTime = s; } catch (e) {} } }
+      if (fase === "intro") { ver(vi); if (!exp) { jugar(vi); } } else { ver(vb); if (!exp) { jugar(vb); } }
+      function paso() {
+        if (!vivo) { return; }
+        var s = (performance.now() - t0) / 1000 * vel;
+        if (fase === "intro" && (exp ? s >= RAYO_V.corte : (vi.currentTime >= RAYO_V.corte - 0.03 || vi.ended))) {
+          fase = "bucle"; tB = exp ? RAYO_V.corte : s; vb.currentTime = 0; ver(vb); if (!exp) { jugar(vb); vi.pause(); }
+        }
+        if (exp) {
+          if (fase === "intro") { irA(vi, s); }
+          else if (fase === "bucle") { irA(vb, (s - tB) % RAYO_V.largoB); }
+          else { irA(vs, Math.min(RAYO_V.largoS - 0.01, (performance.now() - tS) / 1000 * vel)); }
+        }
+        requestAnimationFrame(paso);
+      }
+      requestAnimationFrame(paso);
+      return {
+        saliendo: function () { fase = "salida"; tS = performance.now(); vs.currentTime = 0; ver(vs); vi.pause(); vb.pause(); if (!exp) { jugar(vs); } },
+        destruir: function () { vivo = false; [vi, vb, vs].forEach(function (v) { try { v.pause(); v.removeAttribute("src"); v.load(); } catch (e) {} }); }
+      };
     }
   };
 

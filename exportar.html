@@ -63,8 +63,8 @@
   };
 })();
 </script>
-<link rel="stylesheet" href="css/salida.css?v=202611191500">
-<link rel="stylesheet" href="css/paquete.css?v=202611191500">
+<link rel="stylesheet" href="css/salida.css?v=202611191600">
+<link rel="stylesheet" href="css/paquete.css?v=202611191600">
 <style>
 html,body{width:1920px;height:1080px;background:transparent}
 #stage{transform:none!important;left:0;top:0}
@@ -72,12 +72,12 @@ html,body{width:1920px;height:1080px;background:transparent}
 </head>
 <body>
 <div id="stage"></div>
-<script src="js/config.js?v=202611191500"></script>
-<script src="js/plantillas.js?v=202611191500"></script>
-<script src="js/paquete.js?v=202611191500"></script>
-<script src="js/chroma.js?v=202611191500"></script>
-<script src="js/render.js?v=202611191500"></script>
-<script src="js/conexion.js?v=202611191500"></script>
+<script src="js/config.js?v=202611191600"></script>
+<script src="js/plantillas.js?v=202611191600"></script>
+<script src="js/paquete.js?v=202611191600"></script>
+<script src="js/chroma.js?v=202611191600"></script>
+<script src="js/render.js?v=202611191600"></script>
+<script src="js/conexion.js?v=202611191600"></script>
 <script src="js/vendor/html-to-image.js?v=1.11.13"></script>
 <script src="js/vendor/mp4-muxer.js?v=5.2.2"></script>
 <script>
@@ -148,11 +148,18 @@ html,body{width:1920px;height:1080px;background:transparent}
     if (i === plan.saleEn) { salida.aplicar(estadoCon(false)); }
     if (i > 0) { R.avanzar(plan.dt); } else { R.avanzar(0); }
   }
+  /* videos que la gráfica mueve cuadro a cuadro (ej. Rayo Maulino): esperar a que lleguen al cuadro pedido */
+  function videosListos() {
+    var vs = [].slice.call(stage.querySelectorAll("video")).filter(function (v) { return v.getAttribute("src") && (v.seeking || v.readyState < 2); });
+    return Promise.all(vs.map(function (v) {
+      return new Promise(function (r) { var f = function () { r(); }; v.addEventListener("seeked", f, {once: true}); v.addEventListener("loadeddata", f, {once: true}); setTimeout(f, 3000); });
+    }));
+  }
   function capturar(canvas) {
     var op = {width: 1920, height: 1080, canvasWidth: 1920, canvasHeight: 1080, pixelRatio: 1, skipAutoScale: true, backgroundColor: VERDE,
       /* en la copia que se fotografía, nada se anima: cada nodo lleva el estilo exacto de este cuadro */
       fontEmbedCSS: (fontCSS || "") + "\n*,*::before,*::after{animation:none!important;transition:none!important}"};
-    return R.conRelojReal(function () { return htmlToImage.toCanvas(stage, op); }).then(function (c) {
+    return R.conRelojReal(function () { return videosListos().then(function () { return htmlToImage.toCanvas(stage, op); }); }).then(function (c) {
       var g = canvas.getContext("2d"); g.fillStyle = VERDE; g.fillRect(0, 0, 1920, 1080); g.drawImage(c, 0, 0, 1920, 1080); return canvas;
     });
   }
