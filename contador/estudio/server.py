@@ -218,7 +218,9 @@ def bucle_hyperdeck():
                 leer_meta(); ult_meta = time.time()
         except Exception:
             fallos += 1
-            if fallos >= 15:          # ~3 s sin respuesta: puede haber cambiado de IP
+            if fallos >= 15 and CFG.get("hd_fijo"):   # IP fija: no saltar a otro HyperDeck
+                ST["conectado"] = False; fallos = 0; time.sleep(1)
+            elif fallos >= 15:          # ~3 s sin respuesta: puede haber cambiado de IP
                 ST["conectado"] = False
                 print("  HyperDeck no responde, buscando en la red…")
                 if not buscar_hyperdeck(): time.sleep(3)
@@ -270,16 +272,17 @@ class Panel(BaseHTTPRequestHandler):
             if self.path == "/config":
                 if "hd_ip" in data:
                     CFG["hd_ip"] = str(data["hd_ip"]).strip(); CFG["hd_nombre"] = ""; ST["conectado"] = False
+                    CFG["hd_fijo"] = bool(CFG["hd_ip"])   # IP escrita a mano = fija
                 if data.get("web"): CFG["web"] = str(data["web"]).strip()
                 canal = "".join(ch for ch in str(data.get("canal", "")).strip().lower() if ch.isalnum() or ch in "-_")
                 if canal: CFG["canal"] = canal
                 guardar_cfg(CFG)
             elif self.path == "/buscar":
-                CFG["hd_ip"] = ""; ST["conectado"] = False; guardar_cfg(CFG)
+                CFG["hd_ip"] = ""; CFG["hd_fijo"] = False; ST["conectado"] = False; guardar_cfg(CFG)
             elif self.path == "/elegir":
                 d = next((x for x in ST["decks"] if x["ip"] == data.get("ip")), None)
                 if d:
-                    CFG["hd_ip"] = d["ip"]; CFG["hd_nombre"] = d["nombre"]; guardar_cfg(CFG)
+                    CFG["hd_ip"] = d["ip"]; CFG["hd_nombre"] = d["nombre"]; CFG["hd_fijo"] = False; guardar_cfg(CFG)
                     ST["producto"] = d["nombre"]; ST["conectado"] = False
         return self._send(200, '{"ok":true}')
 
