@@ -21,3 +21,6 @@ node_modules/
 # archivos de video pesados de trabajo (sube a la sala desde el panel, no al repo)
 *.mov
 *.prores
+
+# contador HyperDeck: config local del emisor
+contador/estudio/config.json

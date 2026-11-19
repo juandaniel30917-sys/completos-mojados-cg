@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Contador HyperDeck</title>
+<style>
+  :root{--fg:#fff;--dim:#8a8a8a;--ok:#2fd36b;--warn:#ffb020;--bad:#ff3b30}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:#000;color:var(--fg);font-family:-apple-system,system-ui,"Segoe UI",Roboto,Arial,sans-serif;overflow:hidden;-webkit-user-select:none;user-select:none}
+  #app{height:100%;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:4vh 4vw;gap:3vh}
+  #estado{font-size:clamp(14px,3.5vw,24px);letter-spacing:.25em;font-weight:700;color:var(--dim);display:flex;align-items:center;gap:.6em}
+  #punto{width:.8em;height:.8em;border-radius:50%;background:var(--dim)}
+  #estado.play{color:var(--ok)} #estado.play #punto{background:var(--ok)}
+  #estado.rec{color:var(--bad)} #estado.rec #punto{background:var(--bad)}
+  #estado.off{color:var(--bad)}
+  #clip{font-size:clamp(20px,6vw,56px);font-weight:600;text-align:center;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #indice{font-size:clamp(12px,3vw,20px);color:var(--dim);margin-top:-2vh}
+  #tiempo{font-family:"SF Mono",ui-monospace,Menlo,Consolas,"Courier New",monospace;font-variant-numeric:tabular-nums;font-weight:700;line-height:1;font-size:min(19vw,28vh)}
+  #tiempo.warn{color:var(--warn)} #tiempo.bad{color:var(--bad)}
+  #tiempo.blink{animation:b .5s steps(1) infinite}
+  @keyframes b{50%{opacity:.25}}
+  #barra{width:92%;height:1.2vh;min-height:8px;background:#222;border-radius:99px;overflow:hidden}
+  #relleno{height:100%;width:0;background:var(--ok)}
+  #duracion{font-size:clamp(13px,3.5vw,24px);color:var(--dim);font-variant-numeric:tabular-nums}
+  #pie{position:fixed;bottom:10px;left:0;right:0;text-align:center;font-size:12px;color:#444}
+  #sinCanal{display:none;text-align:center;padding:30px;font-size:18px;line-height:1.5}
+  #sinCanal input{display:block;margin:16px auto;width:min(80vw,320px);font-size:18px;padding:10px;background:#111;color:#fff;border:1px solid #444;border-radius:8px;text-align:center}
+  #sinCanal button{font-size:16px;padding:10px 18px;border:0;border-radius:8px;background:var(--ok);color:#000;font-weight:700}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="estado"><span id="punto"></span><span id="estadoTxt">CONECTANDO…</span></div>
+  <div id="clip">—</div>
+  <div id="indice"></div>
+  <div id="tiempo">--:--:--</div>
+  <div id="barra"><div id="relleno"></div></div>
+  <div id="duracion"></div>
+</div>
+<div id="sinCanal">
+  Escanea el QR del computador del estudio<br>o escribe el código del canal:
+  <input id="canalInput" placeholder="hd-xxxxxx">
+  <button id="canalBtn">Ver contador</button>
+</div>
+<div id="pie"></div>
+
+<script>
+(function () {
+  // Puente en internet (Supabase Realtime, solo mensajes en vivo, no guarda datos)
+  var REF = "wxfzyyvjtrflfrhwswam";
+  var KEY = "sb_publishable_sslALDjrDSbZ-EH-wJbtyw_1DHtFZjC";
+
+  function param(n) { var m = new RegExp("[?&]" + n + "=([^&]+)").exec(location.search); return m ? decodeURIComponent(m[1]) : ""; }
+  var CANAL = param("c");
+  var $ = function (id) { return document.getElementById(id); };
+
+  if (!CANAL) {
+    $("app").style.display = "none"; $("sinCanal").style.display = "block";
+    $("canalBtn").onclick = function () { var v = $("canalInput").value.trim(); if (v) location.search = "?c=" + encodeURIComponent(v); };
+    return;
+  }
+
+  var ultimo = null, recibido = 0;
+
+  // ---------- WebSocket (protocolo Phoenix de Supabase, sin librerías: funciona en TVs) ----------
+  var ws = null, refN = 1, hb = null, espera = 1000;
+  function conectar() {
+    try { ws = new WebSocket("wss://" + REF + ".supabase.co/realtime/v1/websocket?apikey=" + KEY + "&vsn=1.0.0"); }
+    catch (e) { return setTimeout(conectar, espera); }
+    ws.onopen = function () {
+      espera = 1000;
+      enviar({ topic: "realtime:" + CANAL, event: "phx_join",
+        payload: { config: { broadcast: { self: false }, presence: { key: "" }, postgres_changes: [], "private": false }, access_token: KEY } });
+      clearInterval(hb);
+      hb = setInterval(function () { enviar({ topic: "phoenix", event: "heartbeat", payload: {} }); }, 25000);
+    };
+    ws.onmessage = function (ev) {
+      var m; try { m = JSON.parse(ev.data); } catch (e) { return; }
+      if (m.event === "broadcast" && m.payload && m.payload.event === "estado") {
+        ultimo = m.payload.payload; recibido = Date.now();
+      }
+    };
+    ws.onclose = function () { clearInterval(hb); setTimeout(conectar, espera); espera = Math.min(espera * 2, 10000); };
+    ws.onerror = function () { try { ws.close(); } catch (e) {} };
+  }
+  function enviar(o) { o.ref = String(refN++); if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
+  conectar();
+
+  // ---------- Dibujo ----------
+  function z(x) { return (x < 10 ? "0" : "") + x; }
+  function fmt(frames, fps) {
+    frames = Math.max(0, Math.floor(frames));
+    var n = Math.round(fps), s = Math.floor(frames / fps);
+    var ff = Math.min(n - 1, Math.floor(frames - s * fps));
+    var h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60); s = s % 60;
+    return (h ? z(h) + ":" : "") + z(m) + ":" + z(s) + ":" + z(ff);
+  }
+  function estado(txt, cls) { $("estadoTxt").textContent = txt; $("estado").className = cls || ""; }
+
+  function dibujar() {
+    var d = ultimo, edad = Date.now() - recibido;
+    if (!d || edad > 4000) {
+      estado(d ? "SIN SEÑAL DEL ESTUDIO" : "ESPERANDO AL ESTUDIO…", "off");
+      if (!d) return;
+    } else if (d.estado === "rec") estado("GRABANDO", "rec");
+    else if (d.estado === "vivo") estado("ENTRADA EN VIVO", "");
+    else if (d.estado === "play") estado("AL AIRE", "play");
+    else if (d.estado === "sinhd") estado("BUSCANDO HYPERDECK…", "off");
+    else estado("DETENIDO", "");
+
+    if (!d.frames) {
+      $("clip").textContent = d.total === 0 ? "Sin clips en la lista" : "—";
+      $("indice").textContent = ""; $("tiempo").textContent = "--:--:--"; $("tiempo").className = "";
+      $("relleno").style.width = "0"; $("duracion").textContent = ""; return;
+    }
+    var fps = d.fps || 59.94;
+    var restante = d.restante;
+    if (d.estado === "play" && edad < 4000) restante -= edad / 1000 * fps * (d.speed || 1);
+    restante = Math.max(0, restante);
+    var seg = restante / fps;
+
+    $("clip").textContent = d.nombre || ("Clip " + (d.idx + 1));
+    $("indice").textContent = "Clip " + (d.idx + 1) + " de " + d.total;
+    $("tiempo").textContent = "-" + fmt(restante, fps);
+    $("tiempo").className = seg <= 10 ? (d.estado === "play" ? "bad blink" : "bad") : (seg <= 30 ? "warn" : "");
+    var pct = Math.min(100, Math.max(0, (d.frames - restante) / d.frames * 100));
+    $("relleno").style.width = pct + "%";
+    $("relleno").style.background = seg <= 10 ? "var(--bad)" : (seg <= 30 ? "var(--warn)" : "var(--ok)");
+    $("duracion").textContent = "Duración " + fmt(d.frames, fps);
+  }
+  setInterval(dibujar, 1000 / 30);
+  $("pie").textContent = "Canal " + CANAL;
+
+  // Pantalla encendida + pantalla completa al tocar
+  function encendida() { try { if (navigator.wakeLock) navigator.wakeLock.request("screen")["catch"](function () {}); } catch (e) {} }
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) encendida(); });
+  document.body.addEventListener("click", function () {
+    encendida();
+    var el = document.documentElement, f = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (f && !document.fullscreenElement) try { f.call(el); } catch (e) {}
+  });
+  encendida();
+})();
+</script>
+</body>
+</html>

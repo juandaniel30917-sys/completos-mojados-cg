@@ -1403,6 +1403,61 @@
       });
     };
   }
+  /* ------------------------------------------------------------------ HYPERDECK (contador regresivo) */
+  var hd = null, hdCanal = window.CG.HD ? CG.HD.canalGuardado() : "";
+  function hdConectar(canal) {
+    if (hd) { hd.cerrar(); hd = null; }
+    hdCanal = canal; CG.HD.guardarCanal(canal);
+    if (canal) { hd = CG.HD.escuchar(canal); }
+  }
+  function hdPill() {
+    var b = $("#pHD"); if (!b) { return; }
+    var t = $("span", b);
+    if (!hd) { b.className = "pill"; t.textContent = "HyperDeck"; return; }
+    var d = hd.ultimo(), r = hd.restante();
+    if (!d || hd.edad() > 4000) { b.className = "pill warn"; t.textContent = "HD sin señal"; return; }
+    if (d.estado === "sinhd") { b.className = "pill warn"; t.textContent = "HD buscando…"; return; }
+    if (r === null) { b.className = "pill"; t.textContent = "HD detenido"; return; }
+    var seg = r / (d.fps || 59.94);
+    b.className = "pill " + (d.estado === "play" ? (seg <= 10 ? "warn" : "ok") : "");
+    t.textContent = (d.estado === "play" ? "▶ " : "■ ") + "-" + CG.HD.fmt(r, d.fps);
+  }
+  function hyperdeck() {
+    var gh = "https://github.com/juandaniel30917-sys/completos-mojados-cg/tree/main/contador/estudio";
+    var c = modal("<h2>Conexión HyperDeck</h2><p class='lead'>Cuenta regresiva del clip que reproduce el HyperDeck, con su nombre. Se ve aquí arriba y en cualquier celular, tablet o TV por internet.</p>" +
+      "<ol class='pasos'><li>En un PC de la red del HyperDeck abre la carpeta <b>contador/estudio</b> (<a href='" + gh + "' target='_blank'>descargar</a>) y ejecuta <b>python server.py</b>. Busca solo el HyperDeck aunque cambie de IP.</li><li>Abre <b>http://localhost:8090</b> en ese PC y copia el <b>código del canal</b>.</li><li>Pégalo aquí abajo.</li></ol>" +
+      "<label>Código del canal</label><div class='linkbox'><input id='hdCanal' placeholder='hd-xxxxxxxx' value='" + esc(hdCanal) + "'><button class='btn prim' data-g>Conectar</button></div>" +
+      "<div id='hdVivo' style='margin:18px 0;text-align:center'><div id='hdNom' style='font-size:18px;font-weight:600;color:var(--txt2)'>—</div><div id='hdT' style='font:700 54px/1.1 ui-monospace,Menlo,Consolas,monospace'>--:--:--</div><small id='hdEst' style='color:var(--txt3)'></small></div>" +
+      "<div class='dos'><div><label><b>Link para ver el contador</b> (celular, tablet o TV)</label><div class='linkbox'><input id='hdLink' readonly><button class='btn' data-c>Copiar</button><button class='btn' data-a>Abrir</button></div>" +
+      "<div class='aviso-box'>El link solo muestra el contador: no controla nada.</div></div><div><div class='qr' id='hdQR'></div><small style='color:var(--txt3)'>Escanéalo con la cámara</small></div></div>" +
+      "<div class='modal-pie'><button class='btn' data-q>Desconectar</button><button class='btn prim' data-cerrar>Listo</button></div>", {ancho: true});
+    function pintarLink() {
+      var l = hdCanal ? CG.HD.linkVisor(base, hdCanal) : "";
+      $("#hdLink", c).value = l;
+      var qr = ""; if (l) { try { var q = qrcode(0, "M"); q.addData(l); q.make(); qr = q.createDataURL(4, 2); } catch (e) {} }
+      $("#hdQR", c).innerHTML = qr ? "<img alt='QR del contador' src='" + qr + "'>" : "";
+    }
+    pintarLink();
+    $("[data-g]", c).onclick = function () { hdConectar($("#hdCanal", c).value.trim().toLowerCase()); pintarLink(); toast(hdCanal ? "Escuchando HyperDeck" : "Escribe el código del canal", hdCanal ? "ok" : "err"); };
+    $("[data-q]", c).onclick = function () { hdConectar(""); $("#hdCanal", c).value = ""; pintarLink(); };
+    $("[data-c]", c).onclick = function () { if (hdCanal) { copiar(CG.HD.linkVisor(base, hdCanal)); } };
+    $("[data-a]", c).onclick = function () { if (hdCanal) { open(CG.HD.linkVisor(base, hdCanal), "_blank"); } };
+    $("[data-cerrar]", c).onclick = cerrarModal;
+    var iv = setInterval(function () {
+      if (!document.body.contains(c) || !$("#hdT", c)) { clearInterval(iv); return; }
+      var d = hd && hd.ultimo(), r = hd && hd.restante();
+      $("#hdNom", c).textContent = d && d.frames ? d.nombre + "  ·  clip " + (d.idx + 1) + " de " + d.total : "—";
+      $("#hdT", c).textContent = r !== null && r !== undefined && d ? "-" + CG.HD.fmt(r, d.fps) : "--:--:--";
+      $("#hdEst", c).textContent = !hd ? "Sin conectar" : (!d || hd.edad() > 4000) ? "Esperando al emisor del estudio…" :
+        ({play: "Al aire", stop: "Detenido", rec: "Grabando", vivo: "Entrada en vivo", sinhd: "El emisor está buscando el HyperDeck"})[d.estado] || "";
+    }, 100);
+  }
+  if (window.CG.HD) {
+    if (hdCanal) { hdConectar(hdCanal); }
+    $("#pHD").onclick = hyperdeck;
+    setInterval(hdPill, 100);
+  } else if ($("#pHD")) { $("#pHD").hidden = true; }
+
   function copiar(t) {
     (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { toast("Copiado", "ok"); }, function () {
       var i = document.createElement("textarea"); i.value = t; document.body.appendChild(i); i.select(); try { document.execCommand("copy"); toast("Copiado", "ok"); } catch (e) { toast("No se pudo copiar: selecciona el texto y copia a mano", "err"); } i.remove();

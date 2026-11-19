@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Emisor contador HyperDeck</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0b0b0b;color:#eee;font-family:system-ui,"Segoe UI",Roboto,Arial,sans-serif;padding:28px;display:flex;justify-content:center}
+  main{width:min(980px,100%);display:grid;grid-template-columns:1fr 340px;gap:24px}
+  h1{font-size:20px;letter-spacing:.08em;margin-bottom:18px;grid-column:1/-1}
+  .card{background:#151515;border:1px solid #262626;border-radius:14px;padding:20px}
+  .fila{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #222;font-size:15px}
+  .fila:last-child{border:0}
+  .k{color:#888}
+  .ok{color:#2fd36b}.bad{color:#ff3b30}.warn{color:#ffb020}
+  label{display:block;color:#888;font-size:13px;margin:14px 0 6px}
+  input{width:100%;padding:10px;font-size:15px;background:#000;color:#fff;border:1px solid #333;border-radius:8px}
+  button{margin-top:10px;padding:10px 14px;font-size:14px;border:0;border-radius:8px;background:#2fd36b;color:#000;font-weight:700;cursor:pointer}
+  button.sec{background:#2a2a2a;color:#ddd}
+  #qr{width:100%;aspect-ratio:1;background:#fff;border-radius:10px;display:block}
+  #link{display:block;margin-top:12px;word-break:break-all;color:#7cc4ff;font-size:14px}
+  #vista{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:42px;font-weight:700;margin-top:6px}
+  @media (max-width:760px){main{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+  <h1>CONTADOR HYPERDECK · EMISOR</h1>
+  <section class="card">
+    <div class="fila"><span class="k">HyperDeck</span><span id="hd">—</span></div>
+    <div class="fila"><span class="k">Envío a internet</span><span id="net">—</span></div>
+    <div class="fila"><span class="k">Clip</span><span id="clip">—</span></div>
+    <div class="fila"><span class="k">Restante</span><span id="vista">--:--:--</span></div>
+    <div class="fila"><span class="k">IP de este PC</span><span id="ippc">—</span></div>
+
+    <label>IP del HyperDeck (vacío = buscar solo)</label>
+    <input id="ip" placeholder="ej. 10.15.102.50">
+    <button id="guardarIp">Guardar IP</button>
+    <button id="buscar" class="sec">Buscar en la red</button>
+
+    <label>Código del canal (escríbelo en Completos Mojados → HyperDeck)</label>
+    <input id="canal" style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:20px;font-weight:700">
+    <button id="guardarCanal" class="sec">Guardar código</button>
+
+    <label>Dirección de la página en GitHub</label>
+    <input id="web">
+    <button id="guardarWeb" class="sec">Guardar</button>
+  </section>
+  <section class="card">
+    <div class="k" style="margin-bottom:10px">Escanea para ver en celular, tablet o TV</div>
+    <img id="qr" alt="QR">
+    <a id="link" target="_blank"></a>
+    <button id="copiar" class="sec">Copiar link</button>
+  </section>
+</main>
+<script>
+var $ = function (id) { return document.getElementById(id); };
+var linkActual = "";
+function z(x){return (x<10?"0":"")+x}
+function fmt(f,fps){f=Math.max(0,Math.floor(f));var s=Math.floor(f/fps),ff=Math.min(Math.round(fps)-1,Math.floor(f-s*fps)),h=Math.floor(s/3600),m=Math.floor(s%3600/60);s%=60;return (h?z(h)+":":"")+z(m)+":"+z(s)+":"+z(ff)}
+async function post(url, data){ await fetch(url,{method:"POST",body:JSON.stringify(data||{})}); refrescar(); }
+
+async function refrescar(){
+  try{
+    var s = await (await fetch("/estado")).json();
+    $("hd").innerHTML = s.buscando ? '<span class="warn">Buscando en la red…</span>'
+      : s.conectado ? '<span class="ok">● '+(s.producto||"HyperDeck")+' · '+s.hd_ip+'</span>'
+      : '<span class="bad">● Sin conexión '+(s.hd_ip||"")+'</span>';
+    $("net").innerHTML = s.internet_ok ? '<span class="ok">● En línea</span>' : '<span class="bad">● Sin internet '+(s.error_envio||"")+'</span>';
+    var p = s.payload || {};
+    $("clip").textContent = p.frames ? (p.nombre+" ("+(p.idx+1)+"/"+p.total+")") : "—";
+    $("vista").textContent = p.frames ? "-"+fmt(p.restante,p.fps||59.94) : "--:--:--";
+    $("ippc").textContent = (s.ips_pc||[]).join(", ");
+    if (document.activeElement !== $("ip")) $("ip").value = s.hd_ip || "";
+    if (document.activeElement !== $("web")) $("web").value = s.web || "";
+    if (document.activeElement !== $("canal")) $("canal").value = s.canal || "";
+    if (s.link !== linkActual){
+      linkActual = s.link;
+      $("link").href = s.link; $("link").textContent = s.link;
+      $("qr").src = "https://api.qrserver.com/v1/create-qr-code/?margin=12&size=600x600&data="+encodeURIComponent(s.link);
+    }
+  }catch(e){ $("hd").innerHTML='<span class="bad">El emisor (server.py) no está corriendo</span>'; }
+}
+$("guardarIp").onclick=function(){post("/config",{hd_ip:$("ip").value})};
+$("buscar").onclick=function(){post("/buscar")};
+$("guardarCanal").onclick=function(){post("/config",{canal:$("canal").value})};
+$("guardarWeb").onclick=function(){post("/config",{web:$("web").value})};
+$("copiar").onclick=function(){navigator.clipboard&&navigator.clipboard.writeText(linkActual)};
+setInterval(refrescar, 500); refrescar();
+</script>
+</body>
+</html>
