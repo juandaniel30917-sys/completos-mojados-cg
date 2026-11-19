@@ -16,13 +16,16 @@ import urllib.request, urllib.error
 from concurrent.futures import ThreadPoolExecutor
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
-PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8090   # 8000 lo usa Companion
+NUMS = [a for a in sys.argv[1:] if a.isdigit()]
+PORT = int(NUMS[0]) if NUMS else 8090   # 8000 lo usa Companion
+ABRIR = "--abrir" in sys.argv          # abre el panel en el navegador al partir
 HERE = os.path.dirname(os.path.abspath(__file__))
 CFG_PATH = os.path.join(HERE, "config.json")
 
 SUPA_REF = "wxfzyyvjtrflfrhwswam"
 SUPA_KEY = "sb_publishable_sslALDjrDSbZ-EH-wJbtyw_1DHtFZjC"
 BROADCAST_URL = f"https://{SUPA_REF}.supabase.co/realtime/v1/api/broadcast"
+CANAL_DEFAULT = "hd-completos-mojados"   # el panel de Completos Mojados se conecta solo a este canal
 WEB_DEFAULT = "https://juandaniel30917-sys.github.io/completos-mojados-cg/contador/"
 
 POLL_S = 0.2      # lectura del HyperDeck
@@ -37,7 +40,7 @@ def cargar_cfg():
     except Exception:
         c = {}
     c.setdefault("hd_ip", "")
-    c.setdefault("canal", "hd-" + "".join(random.choices(string.ascii_lowercase + string.digits, k=8)))
+    c.setdefault("canal", CANAL_DEFAULT)
     c.setdefault("web", WEB_DEFAULT)
     guardar_cfg(c)
     return c
@@ -253,9 +256,18 @@ class Panel(BaseHTTPRequestHandler):
         return self._send(200, '{"ok":true}')
 
 if __name__ == "__main__":
+    try:
+        srv = ThreadingHTTPServer(("0.0.0.0", PORT), Panel)
+    except OSError:
+        # ya hay un emisor corriendo: solo se abre su panel
+        print(f"  El emisor ya está corriendo. Abriendo http://localhost:{PORT}")
+        if ABRIR:
+            import webbrowser; webbrowser.open(f"http://localhost:{PORT}")
+        sys.exit(0)
     threading.Thread(target=bucle_hyperdeck, daemon=True).start()
     threading.Thread(target=bucle_envio, daemon=True).start()
-    srv = ThreadingHTTPServer(("0.0.0.0", PORT), Panel)
+    if ABRIR:
+        import webbrowser; threading.Timer(1.0, lambda: webbrowser.open(f"http://localhost:{PORT}")).start()
     link = CFG["web"].rstrip("/") + "/?c=" + CFG["canal"]
     print("\n  CONTADOR HYPERDECK — EMISOR")
     print(f"  Panel (link y QR):  http://localhost:{PORT}")

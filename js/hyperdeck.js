@@ -56,7 +56,8 @@
     escuchar: escuchar,
     fmt: fmt,
     linkVisor: function (base, canal) { return base + "contador/?c=" + encodeURIComponent(canal); },
-    canalGuardado: function () { try { return localStorage.getItem("cg_hd_canal") || ""; } catch (e) { return ""; } },
+    /* por defecto escucha el canal fijo del emisor del estudio (sin pegar códigos) */
+    canalGuardado: function () { try { var v = localStorage.getItem("cg_hd_canal"); return v === null ? "hd-completos-mojados" : v; } catch (e) { return "hd-completos-mojados"; } },
     guardarCanal: function (c) { try { localStorage.setItem("cg_hd_canal", c || ""); } catch (e) {} }
   };
 })();

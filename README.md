@@ -401,8 +401,8 @@ En los botones de **temporizador** también se puede dar una **tecla al ▶/⏸*
 
 Botón **HyperDeck** en la barra del panel: muestra el tiempo restante del clip que reproduce el HyperDeck y su nombre, y entrega un link + QR para verlo en cualquier celular, tablet o TV (`contador/?c=CANAL`).
 
-1. En un PC de la red del HyperDeck: `python contador/estudio/server.py` (solo Python 3, sin instalar nada). Busca el HyperDeck en la red aunque cambie de IP. Necesita firmware 8.x o superior (API REST).
-2. Abre `http://localhost:8090` en ese PC y copia el **código del canal**.
-3. En el panel: **HyperDeck → pega el código → Conectar**.
+1. En un PC de la red del HyperDeck (Windows): doble clic en `contador/estudio/Contador_HyperDeck.bat` (instala Python si falta y abre su panel en `http://localhost:8090`). Busca el HyperDeck en la red aunque cambie de IP. Necesita firmware 8.x o superior (API REST).
+2. El panel se conecta solo al canal `hd-completos-mojados` (botón **HyperDeck**).
+3. Opcional: `Inicio_automatico_con_Windows.bat` para que el emisor parta al encender el PC.
 
 No usa Companion. El emisor publica cada 0,5 s por Supabase Realtime (solo mensajes en vivo, no guarda datos).
