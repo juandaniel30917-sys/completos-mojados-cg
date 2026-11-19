@@ -39,6 +39,8 @@ def cargar_cfg():
             c = json.load(f)
     except Exception:
         c = {}
+    if "hd_nombre" not in c:      # config antigua: volver a buscar para elegir bien (VTR)
+        c["hd_ip"] = ""; c["hd_nombre"] = ""
     c.setdefault("hd_ip", "")
     c.setdefault("canal", CANAL_DEFAULT)
     c.setdefault("web", WEB_DEFAULT)
@@ -51,7 +53,7 @@ def guardar_cfg(c):
 
 CFG = cargar_cfg()
 LOCK = threading.Lock()
-ST = {"conectado": False, "buscando": False, "producto": "", "ultimo_envio": 0, "error_envio": "", "payload": {}}
+ST = {"decks": [], "conectado": False, "buscando": False, "producto": "", "ultimo_envio": 0, "error_envio": "", "payload": {}}
 
 # ---------------- HyperDeck ----------------
 def hd_get(path, ip=None, timeout=1.0):
@@ -87,7 +89,9 @@ def ips_locales():
     return [i for i in ips if not i.startswith("127.")]
 
 def buscar_hyperdeck():
-    """Barre las redes /24 del computador buscando un HyperDeck con API REST."""
+    """Barre las redes /24 del PC, lista TODOS los HyperDeck y elige uno:
+    1) el que tenga el nombre guardado (hd_nombre)  2) uno con "VTR" en el nombre
+    3) uno que no esté grabando  4) el primero."""
     ST["buscando"] = True
     candidatos = []
     for ip in ips_locales():
@@ -96,24 +100,39 @@ def buscar_hyperdeck():
 
     def probar(ip):
         try:
-            p = hd_get("/system/product", ip=ip, timeout=0.6)
-            nombre = (p or {}).get("productName", "") or (p or {}).get("deviceName", "")
-            return ip, nombre or "HyperDeck"
+            p = hd_get("/system/product", ip=ip, timeout=0.6) or {}
         except Exception:
             return None
+        try: modo = (hd_get("/transports/0", ip=ip, timeout=0.8) or {}).get("mode", "")
+        except Exception: modo = ""
+        return {"ip": ip, "nombre": p.get("deviceName") or p.get("productName") or "HyperDeck",
+                "producto": p.get("productName") or "HyperDeck", "modo": modo}
 
-    encontrado = None
     with ThreadPoolExecutor(max_workers=64) as ex:
-        for r in ex.map(probar, candidatos):
-            if r and encontrado is None:
-                encontrado = r
+        decks = [r for r in ex.map(probar, candidatos) if r]
+    ST["decks"] = decks
     ST["buscando"] = False
-    if encontrado:
-        with LOCK:
-            CFG["hd_ip"] = encontrado[0]; guardar_cfg(CFG)
-        ST["producto"] = encontrado[1]
-        print(f"  HyperDeck encontrado: {encontrado[1]} en {encontrado[0]}")
-    return encontrado
+    if not decks:
+        return None
+    pref = (CFG.get("hd_nombre") or "").lower()
+    elegido = (next((d for d in decks if pref and d["nombre"].lower() == pref), None)
+               or (None if pref else next((d for d in decks if "vtr" in d["nombre"].lower()), None))
+               or (None if pref else next((d for d in decks if d["modo"] != "InputRecord"), None))
+               or (None if pref else decks[0]))
+    if not elegido:
+        print(f"  No aparece el HyperDeck «{CFG.get('hd_nombre')}». Encontrados: " + ", ".join(d["nombre"] for d in decks))
+        return None
+    usar_deck(elegido)
+    print(f"  HyperDeck elegido: {elegido['nombre']} ({elegido['producto']}) en {elegido['ip']}")
+    return elegido
+
+def usar_deck(d):
+    with LOCK:
+        CFG["hd_ip"] = d["ip"]
+        if d.get("nombre"): CFG["hd_nombre"] = d["nombre"]
+        guardar_cfg(CFG)
+    ST["producto"] = d.get("nombre") or d.get("producto") or "HyperDeck"
+    ST["conectado"] = False
 
 # Estado leído
 D = {"fps": 59.94, "timeline": [], "nombres": {}, "pb": None, "modo": "", "clipIdx": None}
@@ -140,6 +159,7 @@ def leer_meta():
         pass
     try:
         cl = hd_get("/clips")
+        D["nombres"] = {}
         for c in (cl or {}).get("clips", []):
             nombre = os.path.basename((c.get("filePath") or "").replace("\\", "/"))
             nombre = os.path.splitext(nombre)[0]
@@ -189,7 +209,9 @@ def bucle_hyperdeck():
             except Exception: pass
             if not ST["conectado"]:
                 ST["conectado"] = True; ult_meta = 0
-                try: ST["producto"] = (hd_get("/system/product") or {}).get("productName", "HyperDeck")
+                try:
+                    pr = hd_get("/system/product") or {}
+                    ST["producto"] = pr.get("deviceName") or pr.get("productName") or "HyperDeck"
                 except Exception: pass
             fallos = 0
             if time.time() - ult_meta > META_S:
@@ -233,7 +255,7 @@ class Panel(BaseHTTPRequestHandler):
         if self.path.startswith("/estado"):
             link = CFG["web"].rstrip("/") + "/?c=" + CFG["canal"]
             return self._send(200, json.dumps({
-                "hd_ip": CFG["hd_ip"], "producto": ST["producto"], "conectado": ST["conectado"],
+                "hd_ip": CFG["hd_ip"], "producto": ST["producto"], "decks": ST["decks"], "hd_nombre": CFG.get("hd_nombre", ""), "conectado": ST["conectado"],
                 "buscando": ST["buscando"], "canal": CFG["canal"], "web": CFG["web"], "link": link,
                 "internet_ok": time.time() - ST["ultimo_envio"] < 3, "error_envio": ST["error_envio"],
                 "payload": ST["payload"], "ips_pc": ips_locales()}, ensure_ascii=False))
@@ -246,13 +268,19 @@ class Panel(BaseHTTPRequestHandler):
         except Exception: data = {}
         with LOCK:
             if self.path == "/config":
-                if "hd_ip" in data: CFG["hd_ip"] = str(data["hd_ip"]).strip(); ST["conectado"] = False
+                if "hd_ip" in data:
+                    CFG["hd_ip"] = str(data["hd_ip"]).strip(); CFG["hd_nombre"] = ""; ST["conectado"] = False
                 if data.get("web"): CFG["web"] = str(data["web"]).strip()
                 canal = "".join(ch for ch in str(data.get("canal", "")).strip().lower() if ch.isalnum() or ch in "-_")
                 if canal: CFG["canal"] = canal
                 guardar_cfg(CFG)
             elif self.path == "/buscar":
                 CFG["hd_ip"] = ""; ST["conectado"] = False; guardar_cfg(CFG)
+            elif self.path == "/elegir":
+                d = next((x for x in ST["decks"] if x["ip"] == data.get("ip")), None)
+                if d:
+                    CFG["hd_ip"] = d["ip"]; CFG["hd_nombre"] = d["nombre"]; guardar_cfg(CFG)
+                    ST["producto"] = d["nombre"]; ST["conectado"] = False
         return self._send(200, '{"ok":true}')
 
 if __name__ == "__main__":

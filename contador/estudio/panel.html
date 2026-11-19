@@ -34,7 +34,10 @@
     <div class="fila"><span class="k">Restante</span><span id="vista">--:--:--</span></div>
     <div class="fila"><span class="k">IP de este PC</span><span id="ippc">—</span></div>
 
-    <label>IP del HyperDeck (vacío = buscar solo)</label>
+    <label>HyperDeck encontrados en la red (elige el VTR)</label>
+    <div id="decks" style="display:grid;gap:8px"></div>
+
+    <label>IP del HyperDeck a mano (vacío = buscar solo)</label>
     <input id="ip" placeholder="ej. 10.15.102.50">
     <button id="guardarIp">Guardar IP</button>
     <button id="buscar" class="sec">Buscar en la red</button>
@@ -71,6 +74,12 @@ async function refrescar(){
     var p = s.payload || {};
     $("clip").textContent = p.frames ? (p.nombre+" ("+(p.idx+1)+"/"+p.total+")") : "—";
     $("vista").textContent = p.frames ? "-"+fmt(p.restante,p.fps||59.94) : "--:--:--";
+    $("decks").innerHTML = (s.decks||[]).length ? s.decks.map(function(d){
+      var activo = d.ip === s.hd_ip;
+      return '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border:1px solid '+(activo?'#2fd36b':'#333')+';border-radius:10px">'+
+        '<div><b>'+d.nombre+'</b><br><small style="color:#888">'+d.producto+' · '+d.ip+(d.modo==='InputRecord'?' · grabando':'')+'</small></div>'+
+        (activo?'<span class="ok">● En uso</span>':'<button style="margin:0" onclick="elegir(\''+d.ip+'\')">Usar este</button>')+'</div>';
+    }).join("") : '<small class="k">'+(s.buscando?'Buscando…':'Pulsa «Buscar en la red» para listarlos')+'</small>';
     $("ippc").textContent = (s.ips_pc||[]).join(", ");
     if (document.activeElement !== $("ip")) $("ip").value = s.hd_ip || "";
     if (document.activeElement !== $("web")) $("web").value = s.web || "";
@@ -82,6 +91,7 @@ async function refrescar(){
     }
   }catch(e){ $("hd").innerHTML='<span class="bad">El emisor (server.py) no está corriendo</span>'; }
 }
+function elegir(ip){post("/elegir",{ip:ip})}
 $("guardarIp").onclick=function(){post("/config",{hd_ip:$("ip").value})};
 $("buscar").onclick=function(){post("/buscar")};
 $("guardarCanal").onclick=function(){post("/config",{canal:$("canal").value})};
