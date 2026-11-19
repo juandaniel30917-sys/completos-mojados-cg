@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """
-EMISOR del contador HyperDeck (corre en un computador de la red del estudio).
+EMISOR del contador HyperDeck (corre en un PC de la red del estudio).
 
-  python server.py
+  python server.py          (o doble clic en Contador_HyperDeck.bat)
 
-- Lee el HyperDeck por su API REST (firmware 8.x o superior).
-- Si el HyperDeck cambia de IP o no está configurado, lo busca solo en la red.
-- Manda el estado por internet (Supabase Realtime) a la página de GitHub.
-- Panel local con link y QR: http://localhost:8090
-
+Lee DOS HyperDeck a la vez por su API REST (firmware 8.x o superior):
+  - VTR  -> cuenta regresiva del clip que se reproduce + nombre del clip
+  - REC  -> duración de la grabación en curso
+y manda ambos por internet (Supabase Realtime) a la página de GitHub.
+Panel local con IPs, links y QR: http://localhost:8090
 Solo usa la librería estándar de Python 3.
 """
-import json, os, socket, sys, threading, time, random, string
+import json, os, socket, sys, threading, time
 import urllib.request, urllib.error
 from concurrent.futures import ThreadPoolExecutor
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
@@ -27,10 +27,12 @@ SUPA_KEY = "sb_publishable_sslALDjrDSbZ-EH-wJbtyw_1DHtFZjC"
 BROADCAST_URL = f"https://{SUPA_REF}.supabase.co/realtime/v1/api/broadcast"
 CANAL_DEFAULT = "hd-completos-mojados"   # el panel de Completos Mojados se conecta solo a este canal
 WEB_DEFAULT = "https://juandaniel30917-sys.github.io/completos-mojados-cg/contador/"
+IPS_DEFAULT = {"vtr": "192.168.10.20", "rec": "192.168.10.10"}
 
-POLL_S = 0.2      # lectura del HyperDeck
-META_S = 3.0      # lista de clips / nombres
+POLL_S = 0.2      # lectura de cada HyperDeck
+META_S = 3.0      # lista de clips / nombres (VTR)
 PUB_S = 0.5       # envío a internet (los visores interpolan entre mensajes)
+ROLES = ("vtr", "rec")
 
 # ---------------- Config ----------------
 def cargar_cfg():
@@ -39,11 +41,10 @@ def cargar_cfg():
             c = json.load(f)
     except Exception:
         c = {}
-    if "hd_nombre" not in c:      # config antigua: volver a buscar para elegir bien (VTR)
-        c["hd_ip"] = ""; c["hd_nombre"] = ""
-    c.setdefault("hd_ip", "")
-    c.setdefault("canal", CANAL_DEFAULT)
-    c.setdefault("web", WEB_DEFAULT)
+    ips = c.get("ips") or {}
+    for r in ROLES:
+        ips.setdefault(r, IPS_DEFAULT[r])
+    c = {"ips": ips, "canal": c.get("canal") or CANAL_DEFAULT, "web": c.get("web") or WEB_DEFAULT}
     guardar_cfg(c)
     return c
 
@@ -53,11 +54,10 @@ def guardar_cfg(c):
 
 CFG = cargar_cfg()
 LOCK = threading.Lock()
-ST = {"decks": [], "conectado": False, "buscando": False, "producto": "", "ultimo_envio": 0, "error_envio": "", "payload": {}}
+ST = {"decks": [], "buscando": False, "ultimo_envio": 0, "error_envio": ""}
 
-# ---------------- HyperDeck ----------------
-def hd_get(path, ip=None, timeout=1.0):
-    ip = ip or CFG["hd_ip"]
+# ---------------- utilidades ----------------
+def hd_get(ip, path, timeout=1.0):
     with urllib.request.urlopen(f"http://{ip}/control/api/v1{path}", timeout=timeout) as r:
         return json.loads(r.read() or b"null")
 
@@ -69,7 +69,7 @@ def num(v):
 
 def tc_a_frames(tc, fps):
     try:
-        h, m, s, f = [int(x) for x in tc.replace(";", ":").replace(".", ":").split(":")]
+        h, m, s, f = [int(x) for x in str(tc).replace(";", ":").replace(".", ":").split(":")]
         return ((h * 60 + m) * 60 + s) * round(fps) + f
     except Exception:
         return None
@@ -86,153 +86,149 @@ def ips_locales():
             ips.add(i[4][0])
     except Exception:
         pass
-    return [i for i in ips if not i.startswith("127.")]
+    return sorted(i for i in ips if not i.startswith("127."))
 
-def buscar_hyperdeck():
-    """Barre las redes /24 del PC, lista TODOS los HyperDeck y elige uno:
-    1) el que tenga el nombre guardado (hd_nombre)  2) uno con "VTR" en el nombre
-    3) uno que no esté grabando  4) el primero."""
+def buscar_hyperdecks():
+    """Lista todos los HyperDeck de las redes /24 del PC (solo para mostrarlos en el panel)."""
     ST["buscando"] = True
-    candidatos = []
+    cand = []
     for ip in ips_locales():
         pre = ip.rsplit(".", 1)[0]
-        candidatos += [f"{pre}.{n}" for n in range(1, 255) if f"{pre}.{n}" != ip]
+        cand += [f"{pre}.{n}" for n in range(1, 255) if f"{pre}.{n}" != ip]
 
     def probar(ip):
         try:
-            p = hd_get("/system/product", ip=ip, timeout=0.6) or {}
+            p = hd_get(ip, "/system/product", timeout=0.6) or {}
         except Exception:
             return None
-        try: modo = (hd_get("/transports/0", ip=ip, timeout=0.8) or {}).get("mode", "")
+        try: modo = (hd_get(ip, "/transports/0", timeout=0.8) or {}).get("mode", "")
         except Exception: modo = ""
         return {"ip": ip, "nombre": p.get("deviceName") or p.get("productName") or "HyperDeck",
                 "producto": p.get("productName") or "HyperDeck", "modo": modo}
 
     with ThreadPoolExecutor(max_workers=64) as ex:
-        decks = [r for r in ex.map(probar, candidatos) if r]
-    ST["decks"] = decks
+        ST["decks"] = [r for r in ex.map(probar, cand) if r]
     ST["buscando"] = False
-    if not decks:
-        return None
-    pref = (CFG.get("hd_nombre") or "").lower()
-    elegido = (next((d for d in decks if pref and d["nombre"].lower() == pref), None)
-               or (None if pref else next((d for d in decks if "vtr" in d["nombre"].lower()), None))
-               or (None if pref else next((d for d in decks if d["modo"] != "InputRecord"), None))
-               or (None if pref else decks[0]))
-    if not elegido:
-        print(f"  No aparece el HyperDeck «{CFG.get('hd_nombre')}». Encontrados: " + ", ".join(d["nombre"] for d in decks))
-        return None
-    usar_deck(elegido)
-    print(f"  HyperDeck elegido: {elegido['nombre']} ({elegido['producto']}) en {elegido['ip']}")
-    return elegido
 
-def usar_deck(d):
-    with LOCK:
-        CFG["hd_ip"] = d["ip"]
-        if d.get("nombre"): CFG["hd_nombre"] = d["nombre"]
-        guardar_cfg(CFG)
-    ST["producto"] = d.get("nombre") or d.get("producto") or "HyperDeck"
-    ST["conectado"] = False
+# ---------------- un HyperDeck ----------------
+class Deck:
+    def __init__(self, rol):
+        self.rol = rol
+        self.conectado = False
+        self.producto = ""
+        self.fps = 59.94
+        self.timeline, self.nombres = [], {}
+        self.pb, self.modo, self.clipIdx, self.tc = None, "", None, ""
+        self.rec_inicio = None      # time.time() en que empezó la grabación
+        self.rec_ultima = 0.0       # duración de la última grabación (s)
+        self._ip_leida = None
 
-# Estado leído
-D = {"fps": 59.94, "timeline": [], "nombres": {}, "pb": None, "modo": "", "clipIdx": None}
+    @property
+    def ip(self):
+        return CFG["ips"].get(self.rol, "")
 
-def leer_meta():
-    try:
-        vf = hd_get("/system/videoFormat")
-        f = num((vf or {}).get("frameRate"))
-        if f: D["fps"] = f
-    except Exception:
-        pass
-    try:
-        tl = hd_get("/timelines/0")
-        acum, out = 0, []
-        for c in (tl or {}).get("clips", []):
-            frames = num(c.get("frameCount")) or tc_a_frames(c.get("durationTimecode", ""), D["fps"]) or 0
-            start = num(c.get("timelineIn"))
-            if start is None: start = tc_a_frames(c.get("timelineInTimecode", ""), D["fps"])
-            if start is None: start = acum
-            acum = start + frames
-            out.append({"id": c.get("clipUniqueId"), "start": start, "frames": frames})
-        D["timeline"] = out
-    except Exception:
-        pass
-    try:
-        cl = hd_get("/clips")
-        D["nombres"] = {}
-        for c in (cl or {}).get("clips", []):
-            nombre = os.path.basename((c.get("filePath") or "").replace("\\", "/"))
-            nombre = os.path.splitext(nombre)[0]
-            D["nombres"][c.get("clipUniqueId")] = nombre
-    except Exception:
-        pass
-
-def armar_payload():
-    pb, modo, tl = D["pb"], D["modo"], D["timeline"]
-    if not ST["conectado"] or pb is None:
-        return {"estado": "sinhd", "frames": 0, "total": len(tl)}
-    pos = num(pb.get("position")) or 0
-    speed = num(pb.get("speed"))
-    speed = 1.0 if speed is None else speed
-    if modo == "InputRecord": estado = "rec"
-    elif modo == "InputPreview": estado = "vivo"
-    elif pb.get("type") in ("Play", "Shuttle", "Var") and speed != 0: estado = "play"
-    else: estado = "stop"
-
-    idx = D["clipIdx"]
-    if idx is None or not (0 <= idx < len(tl)):
-        idx = next((i for i, c in enumerate(tl) if c["start"] <= pos < c["start"] + c["frames"]), None)
-    if idx is None:
-        return {"estado": estado, "frames": 0, "total": len(tl), "fps": D["fps"]}
-    c = tl[idx]
-    return {
-        "estado": estado, "speed": speed, "fps": D["fps"],
-        "idx": idx, "total": len(tl),
-        "nombre": D["nombres"].get(c["id"]) or f"Clip {idx + 1}",
-        "frames": c["frames"],
-        "restante": max(0, c["start"] + c["frames"] - pos),
-        "ts": int(time.time() * 1000),
-    }
-
-def bucle_hyperdeck():
-    fallos, ult_meta = 0, 0
-    while True:
-        if not CFG["hd_ip"]:
-            ST["conectado"] = False
-            if not buscar_hyperdeck(): time.sleep(5)
-            continue
+    def leer_meta(self):
+        ip = self.ip
         try:
-            D["pb"] = hd_get("/transports/0/playback")
-            try: D["modo"] = (hd_get("/transports/0") or {}).get("mode", "")
-            except Exception: pass
-            try: D["clipIdx"] = (hd_get("/transports/0/clipIndex") or {}).get("clipIndex")
-            except Exception: pass
-            if not ST["conectado"]:
-                ST["conectado"] = True; ult_meta = 0
-                try:
-                    pr = hd_get("/system/product") or {}
-                    ST["producto"] = pr.get("deviceName") or pr.get("productName") or "HyperDeck"
-                except Exception: pass
-            fallos = 0
-            if time.time() - ult_meta > META_S:
-                leer_meta(); ult_meta = time.time()
+            f = num((hd_get(ip, "/system/videoFormat") or {}).get("frameRate"))
+            if f: self.fps = f
         except Exception:
-            fallos += 1
-            if fallos >= 15 and CFG.get("hd_fijo"):   # IP fija: no saltar a otro HyperDeck
-                ST["conectado"] = False; fallos = 0; time.sleep(1)
-            elif fallos >= 15:          # ~3 s sin respuesta: puede haber cambiado de IP
-                ST["conectado"] = False
-                print("  HyperDeck no responde, buscando en la red…")
-                if not buscar_hyperdeck(): time.sleep(3)
+            pass
+        if self.rol != "vtr":
+            return
+        try:
+            tl = hd_get(ip, "/timelines/0")
+            acum, out = 0, []
+            for c in (tl or {}).get("clips", []):
+                frames = num(c.get("frameCount")) or tc_a_frames(c.get("durationTimecode", ""), self.fps) or 0
+                start = num(c.get("timelineIn"))
+                if start is None: start = tc_a_frames(c.get("timelineInTimecode", ""), self.fps)
+                if start is None: start = acum
+                acum = start + frames
+                out.append({"id": c.get("clipUniqueId"), "start": start, "frames": frames})
+            self.timeline = out
+        except Exception:
+            pass
+        try:
+            nombres = {}
+            for c in (hd_get(ip, "/clips") or {}).get("clips", []):
+                n = os.path.basename((c.get("filePath") or "").replace("\\", "/"))
+                nombres[c.get("clipUniqueId")] = os.path.splitext(n)[0]
+            self.nombres = nombres
+        except Exception:
+            pass
+
+    def bucle(self):
+        fallos, ult_meta = 0, 0
+        while True:
+            ip = self.ip
+            if not ip:
+                self.conectado = False; time.sleep(1); continue
+            if ip != self._ip_leida:          # cambiaron la IP desde el panel
+                self._ip_leida = ip; self.conectado = False
+                self.timeline, self.nombres, self.pb = [], {}, None
+            try:
+                self.modo = (hd_get(ip, "/transports/0") or {}).get("mode", "")
+                if self.rol == "vtr":
+                    self.pb = hd_get(ip, "/transports/0/playback")
+                    try: self.clipIdx = (hd_get(ip, "/transports/0/clipIndex") or {}).get("clipIndex")
+                    except Exception: pass
+                else:
+                    try: self.tc = (hd_get(ip, "/transports/0/timecode") or {}).get("display", "")
+                    except Exception: self.tc = ""
+                    grabando = self.modo == "InputRecord"
+                    if grabando and self.rec_inicio is None:
+                        self.rec_inicio = time.time()
+                    elif not grabando and self.rec_inicio is not None:
+                        self.rec_ultima = time.time() - self.rec_inicio; self.rec_inicio = None
+                if not self.conectado:
+                    self.conectado = True; ult_meta = 0
+                    try:
+                        pr = hd_get(ip, "/system/product") or {}
+                        self.producto = pr.get("deviceName") or pr.get("productName") or "HyperDeck"
+                    except Exception: pass
                 fallos = 0
-        time.sleep(POLL_S)
+                if time.time() - ult_meta > META_S:
+                    self.leer_meta(); ult_meta = time.time()
+            except Exception:
+                fallos += 1
+                if fallos >= 10:
+                    self.conectado = False; fallos = 0
+            time.sleep(POLL_S)
+
+    def payload(self):
+        if not self.conectado:
+            return {"estado": "sinhd", "frames": 0}
+        if self.rol == "rec":
+            grabando = self.rec_inicio is not None
+            return {"estado": "rec" if grabando else "stop", "fps": self.fps, "tc": self.tc,
+                    "transcurrido": (time.time() - self.rec_inicio) if grabando else self.rec_ultima,
+                    "nombre": self.producto}
+        pb, tl = self.pb or {}, self.timeline
+        pos = num(pb.get("position")) or 0
+        speed = num(pb.get("speed"))
+        speed = 1.0 if speed is None else speed
+        if self.modo == "InputRecord": estado = "rec"
+        elif self.modo == "InputPreview": estado = "vivo"
+        elif pb.get("type") in ("Play", "Shuttle", "Var") and speed != 0: estado = "play"
+        else: estado = "stop"
+        idx = self.clipIdx
+        if idx is None or not (0 <= idx < len(tl)):
+            idx = next((i for i, c in enumerate(tl) if c["start"] <= pos < c["start"] + c["frames"]), None)
+        if idx is None:
+            return {"estado": estado, "frames": 0, "total": len(tl), "fps": self.fps}
+        c = tl[idx]
+        return {"estado": estado, "speed": speed, "fps": self.fps, "idx": idx, "total": len(tl),
+                "nombre": self.nombres.get(c["id"]) or f"Clip {idx + 1}",
+                "frames": c["frames"], "restante": max(0, c["start"] + c["frames"] - pos)}
+
+DECKS = {r: Deck(r) for r in ROLES}
 
 def bucle_envio():
     while True:
-        p = armar_payload()
-        ST["payload"] = p
-        body = json.dumps({"messages": [{"topic": CFG["canal"], "event": "estado", "payload": p}]}).encode()
-        req = urllib.request.Request(BROADCAST_URL, data=body, headers={
+        msgs = [{"topic": CFG["canal"], "event": "estado", "payload": DECKS["vtr"].payload()},   # VTR (compatibilidad)
+                {"topic": CFG["canal"], "event": "rec", "payload": DECKS["rec"].payload()}]
+        req = urllib.request.Request(BROADCAST_URL, data=json.dumps({"messages": msgs}).encode(), headers={
             "apikey": SUPA_KEY, "Authorization": f"Bearer {SUPA_KEY}", "Content-Type": "application/json"})
         try:
             urllib.request.urlopen(req, timeout=3).read()
@@ -240,6 +236,9 @@ def bucle_envio():
         except Exception as e:
             ST["error_envio"] = str(e)[:120]
         time.sleep(PUB_S)
+
+def link():
+    return CFG["web"].rstrip("/") + "/?c=" + CFG["canal"]
 
 # ---------------- Panel local ----------------
 class Panel(BaseHTTPRequestHandler):
@@ -255,12 +254,12 @@ class Panel(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path.startswith("/estado"):
-            link = CFG["web"].rstrip("/") + "/?c=" + CFG["canal"]
             return self._send(200, json.dumps({
-                "hd_ip": CFG["hd_ip"], "producto": ST["producto"], "decks": ST["decks"], "hd_nombre": CFG.get("hd_nombre", ""), "conectado": ST["conectado"],
-                "buscando": ST["buscando"], "canal": CFG["canal"], "web": CFG["web"], "link": link,
+                "decks_red": ST["decks"], "buscando": ST["buscando"],
+                "roles": {r: {"ip": d.ip, "conectado": d.conectado, "producto": d.producto, "payload": d.payload()} for r, d in DECKS.items()},
+                "canal": CFG["canal"], "web": CFG["web"], "link": link(),
                 "internet_ok": time.time() - ST["ultimo_envio"] < 3, "error_envio": ST["error_envio"],
-                "payload": ST["payload"], "ips_pc": ips_locales()}, ensure_ascii=False))
+                "ips_pc": ips_locales()}, ensure_ascii=False))
         with open(os.path.join(HERE, "panel.html"), "rb") as f:
             return self._send(200, f.read(), "text/html")
 
@@ -268,41 +267,37 @@ class Panel(BaseHTTPRequestHandler):
         n = int(self.headers.get("Content-Length") or 0)
         try: data = json.loads(self.rfile.read(n) or b"{}")
         except Exception: data = {}
+        if self.path == "/buscar":
+            if not ST["buscando"]:
+                threading.Thread(target=buscar_hyperdecks, daemon=True).start()
+            return self._send(200, '{"ok":true}')
         with LOCK:
             if self.path == "/config":
-                if "hd_ip" in data:
-                    CFG["hd_ip"] = str(data["hd_ip"]).strip(); CFG["hd_nombre"] = ""; ST["conectado"] = False
-                    CFG["hd_fijo"] = bool(CFG["hd_ip"])   # IP escrita a mano = fija
+                for r in ROLES:
+                    if r in data: CFG["ips"][r] = str(data[r]).strip()
                 if data.get("web"): CFG["web"] = str(data["web"]).strip()
                 canal = "".join(ch for ch in str(data.get("canal", "")).strip().lower() if ch.isalnum() or ch in "-_")
                 if canal: CFG["canal"] = canal
                 guardar_cfg(CFG)
-            elif self.path == "/buscar":
-                CFG["hd_ip"] = ""; CFG["hd_fijo"] = False; ST["conectado"] = False; guardar_cfg(CFG)
-            elif self.path == "/elegir":
-                d = next((x for x in ST["decks"] if x["ip"] == data.get("ip")), None)
-                if d:
-                    CFG["hd_ip"] = d["ip"]; CFG["hd_nombre"] = d["nombre"]; CFG["hd_fijo"] = False; guardar_cfg(CFG)
-                    ST["producto"] = d["nombre"]; ST["conectado"] = False
         return self._send(200, '{"ok":true}')
 
 if __name__ == "__main__":
     try:
         srv = ThreadingHTTPServer(("0.0.0.0", PORT), Panel)
     except OSError:
-        # ya hay un emisor corriendo: solo se abre su panel
         print(f"  El emisor ya está corriendo. Abriendo http://localhost:{PORT}")
         if ABRIR:
             import webbrowser; webbrowser.open(f"http://localhost:{PORT}")
         sys.exit(0)
-    threading.Thread(target=bucle_hyperdeck, daemon=True).start()
+    for d in DECKS.values():
+        threading.Thread(target=d.bucle, daemon=True).start()
     threading.Thread(target=bucle_envio, daemon=True).start()
     if ABRIR:
         import webbrowser; threading.Timer(1.0, lambda: webbrowser.open(f"http://localhost:{PORT}")).start()
-    link = CFG["web"].rstrip("/") + "/?c=" + CFG["canal"]
     print("\n  CONTADOR HYPERDECK — EMISOR")
-    print(f"  Panel (link y QR):  http://localhost:{PORT}")
-    print(f"  Link para celular/TV: {link}")
+    print(f"  VTR: {CFG['ips']['vtr']}   REC: {CFG['ips']['rec']}")
+    print(f"  Panel (IPs, links y QR):  http://localhost:{PORT}")
+    print(f"  Link del contador (VTR/REC con un botón): {link()}")
     print("  Deja esta ventana abierta. Ctrl+C para detener.\n")
     try: srv.serve_forever()
     except KeyboardInterrupt: pass

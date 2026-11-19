@@ -6,98 +6,97 @@
 <title>Emisor contador HyperDeck</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
-  body{background:#0b0b0b;color:#eee;font-family:system-ui,"Segoe UI",Roboto,Arial,sans-serif;padding:28px;display:flex;justify-content:center}
-  main{width:min(980px,100%);display:grid;grid-template-columns:1fr 340px;gap:24px}
-  h1{font-size:20px;letter-spacing:.08em;margin-bottom:18px;grid-column:1/-1}
+  body{background:#0b0b0b;color:#eee;font-family:system-ui,"Segoe UI",Roboto,Arial,sans-serif;padding:24px;display:flex;justify-content:center}
+  main{width:min(1040px,100%);display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  h1{font-size:20px;letter-spacing:.08em;grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
   .card{background:#151515;border:1px solid #262626;border-radius:14px;padding:20px}
-  .fila{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #222;font-size:15px}
-  .fila:last-child{border:0}
-  .k{color:#888}
-  .ok{color:#2fd36b}.bad{color:#ff3b30}.warn{color:#ffb020}
+  .card h2{font-size:15px;letter-spacing:.15em;margin-bottom:10px}
+  .vtr h2{color:#2fd36b}.rec h2{color:#ff5a4f}
+  .fila{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid #222;font-size:14px}
+  .k{color:#888}.ok{color:#2fd36b}.bad{color:#ff3b30}.warn{color:#ffb020}
+  .grande{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:44px;font-weight:700;text-align:center;margin:12px 0 4px}
+  .sub{text-align:center;color:#aaa;min-height:20px}
   label{display:block;color:#888;font-size:13px;margin:14px 0 6px}
   input{width:100%;padding:10px;font-size:15px;background:#000;color:#fff;border:1px solid #333;border-radius:8px}
-  button{margin-top:10px;padding:10px 14px;font-size:14px;border:0;border-radius:8px;background:#2fd36b;color:#000;font-weight:700;cursor:pointer}
+  button{margin-top:8px;padding:9px 14px;font-size:14px;border:0;border-radius:8px;background:#2fd36b;color:#000;font-weight:700;cursor:pointer}
   button.sec{background:#2a2a2a;color:#ddd}
-  #qr{width:100%;aspect-ratio:1;background:#fff;border-radius:10px;display:block}
-  #link{display:block;margin-top:12px;word-break:break-all;color:#7cc4ff;font-size:14px}
-  #vista{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:42px;font-weight:700;margin-top:6px}
-  @media (max-width:760px){main{grid-template-columns:1fr}}
+  .qr{display:flex;gap:14px;align-items:center;margin-top:14px}
+  .qr img{width:150px;height:150px;background:#fff;border-radius:8px}
+  .qr a{color:#7cc4ff;font-size:13px;word-break:break-all}
+  .ancho{grid-column:1/-1}
+  .deck{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border:1px solid #333;border-radius:10px;margin-top:8px}
+  @media (max-width:800px){main{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <main>
-  <h1>CONTADOR HYPERDECK · EMISOR</h1>
-  <section class="card">
-    <div class="fila"><span class="k">HyperDeck</span><span id="hd">—</span></div>
-    <div class="fila"><span class="k">Envío a internet</span><span id="net">—</span></div>
-    <div class="fila"><span class="k">Clip</span><span id="clip">—</span></div>
-    <div class="fila"><span class="k">Restante</span><span id="vista">--:--:--</span></div>
-    <div class="fila"><span class="k">IP de este PC</span><span id="ippc">—</span></div>
+  <h1>CONTADOR HYPERDECK · EMISOR <span id="net" style="font-size:14px;letter-spacing:0">—</span></h1>
 
-    <label>HyperDeck encontrados en la red (elige el VTR)</label>
-    <div id="decks" style="display:grid;gap:8px"></div>
-
-    <label>IP del HyperDeck a mano (vacío = buscar solo)</label>
-    <input id="ip" placeholder="ej. 10.15.102.50">
-    <button id="guardarIp">Guardar IP</button>
-    <button id="buscar" class="sec">Buscar en la red</button>
-
-    <label>Código del canal (escríbelo en Completos Mojados → HyperDeck)</label>
-    <input id="canal" style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:20px;font-weight:700">
-    <button id="guardarCanal" class="sec">Guardar código</button>
-
-    <label>Dirección de la página en GitHub</label>
-    <input id="web">
-    <button id="guardarWeb" class="sec">Guardar</button>
+  <section class="card vtr">
+    <h2>VTR · CUENTA REGRESIVA</h2>
+    <div class="fila"><span class="k">Estado</span><span id="vtrEst">—</span></div>
+    <div class="grande" id="vtrT">--:--:--</div>
+    <div class="sub" id="vtrClip"></div>
+    <label>IP del VTR</label><input id="ipvtr">
+    <button data-g="vtr">Guardar IP</button>
   </section>
-  <section class="card">
-    <div class="k" style="margin-bottom:10px">Escanea para ver en celular, tablet o TV</div>
-    <img id="qr" alt="QR">
-    <a id="link" target="_blank"></a>
-    <button id="copiar" class="sec">Copiar link</button>
+
+  <section class="card rec">
+    <h2>REC · DURACIÓN DE GRABACIÓN</h2>
+    <div class="fila"><span class="k">Estado</span><span id="recEst">—</span></div>
+    <div class="grande" id="recT">--:--:--</div>
+    <div class="sub" id="recTc"></div>
+    <label>IP del REC</label><input id="iprec">
+    <button data-g="rec">Guardar IP</button>
+  </section>
+
+  <section class="card ancho">
+    <div class="qr" style="margin:0 0 12px"><img id="qr" alt="QR"><div><div class="k" style="margin-bottom:6px">Un solo link para celular, tablet o TV · en la página se cambia entre VTR y REC</div><a id="ln" target="_blank"></a></div></div>
+    <div class="fila"><span class="k">IP de este PC</span><span id="ippc">—</span></div>
+    <div class="fila"><span class="k">Código del canal (el panel de Completos Mojados lo usa solo)</span><span id="canalTxt">—</span></div>
+    <button class="sec" id="buscar">Buscar HyperDeck en la red</button>
+    <div id="decks"></div>
   </section>
 </main>
 <script>
 var $ = function (id) { return document.getElementById(id); };
-var linkActual = "";
+var linkHecho = {};
 function z(x){return (x<10?"0":"")+x}
 function fmt(f,fps){f=Math.max(0,Math.floor(f));var s=Math.floor(f/fps),ff=Math.min(Math.round(fps)-1,Math.floor(f-s*fps)),h=Math.floor(s/3600),m=Math.floor(s%3600/60);s%=60;return (h?z(h)+":":"")+z(m)+":"+z(s)+":"+z(ff)}
+function fmtS(sec){sec=Math.max(0,Math.floor(sec));return z(Math.floor(sec/3600))+":"+z(Math.floor(sec%3600/60))+":"+z(sec%60)}
 async function post(url, data){ await fetch(url,{method:"POST",body:JSON.stringify(data||{})}); refrescar(); }
+function con(r){ return r.conectado ? '<span class="ok">● '+(r.producto||"HyperDeck")+' · '+r.ip+'</span>' : '<span class="bad">● Sin conexión '+(r.ip||"")+'</span>'; }
 
 async function refrescar(){
   try{
-    var s = await (await fetch("/estado")).json();
-    $("hd").innerHTML = s.buscando ? '<span class="warn">Buscando en la red…</span>'
-      : s.conectado ? '<span class="ok">● '+(s.producto||"HyperDeck")+' · '+s.hd_ip+'</span>'
-      : '<span class="bad">● Sin conexión '+(s.hd_ip||"")+'</span>';
-    $("net").innerHTML = s.internet_ok ? '<span class="ok">● En línea</span>' : '<span class="bad">● Sin internet '+(s.error_envio||"")+'</span>';
-    var p = s.payload || {};
-    $("clip").textContent = p.frames ? (p.nombre+" ("+(p.idx+1)+"/"+p.total+")") : "—";
-    $("vista").textContent = p.frames ? "-"+fmt(p.restante,p.fps||59.94) : "--:--:--";
-    $("decks").innerHTML = (s.decks||[]).length ? s.decks.map(function(d){
-      var activo = d.ip === s.hd_ip;
-      return '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border:1px solid '+(activo?'#2fd36b':'#333')+';border-radius:10px">'+
-        '<div><b>'+d.nombre+'</b><br><small style="color:#888">'+d.producto+' · '+d.ip+(d.modo==='InputRecord'?' · grabando':'')+'</small></div>'+
-        (activo?'<span class="ok">● En uso</span>':'<button style="margin:0" onclick="elegir(\''+d.ip+'\')">Usar este</button>')+'</div>';
-    }).join("") : '<small class="k">'+(s.buscando?'Buscando…':'Pulsa «Buscar en la red» para listarlos')+'</small>';
+    var s = await (await fetch("/estado")).json(), v = s.roles.vtr, r = s.roles.rec;
+    $("net").innerHTML = s.internet_ok ? '<span class="ok">● Enviando a internet</span>' : '<span class="bad">● Sin internet '+(s.error_envio||"")+'</span>';
+    var pv = v.payload||{};
+    $("vtrEst").innerHTML = con(v) + (v.conectado ? " · " + ({play:"Al aire",stop:"Detenido",rec:"Grabando",vivo:"Entrada"}[pv.estado]||"") : "");
+    $("vtrT").textContent = pv.frames ? "-"+fmt(pv.restante,pv.fps||59.94) : "--:--:--";
+    $("vtrClip").textContent = pv.frames ? pv.nombre+" · clip "+(pv.idx+1)+" de "+pv.total : (v.conectado && pv.total===0 ? "Sin clips en la lista" : "");
+    var pr = r.payload||{};
+    $("recEst").innerHTML = con(r) + (r.conectado ? (pr.estado==="rec" ? ' · <span class="bad">● GRABANDO</span>' : " · Detenido") : "");
+    $("recT").textContent = r.conectado ? fmtS(pr.transcurrido||0) : "--:--:--";
+    $("recTc").textContent = pr.tc ? "Timecode "+pr.tc : "";
+    ["vtr","rec"].forEach(function(k){
+      if (document.activeElement !== $("ip"+k)) $("ip"+k).value = s.roles[k].ip || "";
+    });
+    if (linkHecho.l !== s.link){ linkHecho.l=s.link; $("ln").href=s.link; $("ln").textContent=s.link;
+      $("qr").src="https://api.qrserver.com/v1/create-qr-code/?margin=10&size=400x400&data="+encodeURIComponent(s.link); }
     $("ippc").textContent = (s.ips_pc||[]).join(", ");
-    if (document.activeElement !== $("ip")) $("ip").value = s.hd_ip || "";
-    if (document.activeElement !== $("web")) $("web").value = s.web || "";
-    if (document.activeElement !== $("canal")) $("canal").value = s.canal || "";
-    if (s.link !== linkActual){
-      linkActual = s.link;
-      $("link").href = s.link; $("link").textContent = s.link;
-      $("qr").src = "https://api.qrserver.com/v1/create-qr-code/?margin=12&size=600x600&data="+encodeURIComponent(s.link);
-    }
-  }catch(e){ $("hd").innerHTML='<span class="bad">El emisor (server.py) no está corriendo</span>'; }
+    $("canalTxt").textContent = s.canal;
+    $("decks").innerHTML = s.buscando ? '<p class="k" style="margin-top:10px">Buscando…</p>' : (s.decks_red||[]).map(function(d){
+      var rol = d.ip===v.ip ? "VTR" : d.ip===r.ip ? "REC" : "";
+      return '<div class="deck"><div><b>'+d.nombre+'</b>'+(rol?' <span class="ok">· '+rol+'</span>':'')+'<br><small class="k">'+d.producto+' · '+d.ip+(d.modo==="InputRecord"?" · grabando":"")+'</small></div>'+
+        '<div><button style="margin:0" onclick="asignar(\'vtr\',\''+d.ip+'\')">Usar como VTR</button> <button class="sec" style="margin:0;background:#3a1512;color:#ff8a80" onclick="asignar(\'rec\',\''+d.ip+'\')">Usar como REC</button></div></div>';
+    }).join("");
+  }catch(e){ $("net").innerHTML='<span class="bad">El emisor (server.py) no está corriendo</span>'; }
 }
-function elegir(ip){post("/elegir",{ip:ip})}
-$("guardarIp").onclick=function(){post("/config",{hd_ip:$("ip").value})};
+function asignar(rol, ip){ var o={}; o[rol]=ip; post("/config",o); }
+document.querySelectorAll("[data-g]").forEach(function(b){ b.onclick=function(){ asignar(b.dataset.g, $("ip"+b.dataset.g).value); }; });
 $("buscar").onclick=function(){post("/buscar")};
-$("guardarCanal").onclick=function(){post("/config",{canal:$("canal").value})};
-$("guardarWeb").onclick=function(){post("/config",{web:$("web").value})};
-$("copiar").onclick=function(){navigator.clipboard&&navigator.clipboard.writeText(linkActual)};
-setInterval(refrescar, 500); refrescar();
+setInterval(refrescar, 300); refrescar();
 </script>
 </body>
 </html>

@@ -1428,8 +1428,8 @@
       "<ol class='pasos'><li>En el PC del estudio haz doble clic en <b>Contador HyperDeck</b> del escritorio (o <a href='" + gh + "' target='_blank'>descarga la carpeta</a>). Busca solo el HyperDeck aunque cambie de IP.</li><li>Este panel se conecta solo al canal <b>hd-completos-mojados</b>. Cámbialo solo si usas otro código en el emisor.</li></ol>" +
       "<label>Código del canal</label><div class='linkbox'><input id='hdCanal' placeholder='hd-xxxxxxxx' value='" + esc(hdCanal) + "'><button class='btn prim' data-g>Conectar</button></div>" +
       "<div id='hdVivo' style='margin:18px 0;text-align:center'><div id='hdNom' style='font-size:18px;font-weight:600;color:var(--txt2)'>—</div><div id='hdT' style='font:700 54px/1.1 ui-monospace,Menlo,Consolas,monospace'>--:--:--</div><small id='hdEst' style='color:var(--txt3)'></small></div>" +
-      "<div class='dos'><div><label><b>Link para ver el contador</b> (celular, tablet o TV)</label><div class='linkbox'><input id='hdLink' readonly><button class='btn' data-c>Copiar</button><button class='btn' data-a>Abrir</button></div>" +
-      "<div class='aviso-box'>El link solo muestra el contador: no controla nada.</div></div><div><div class='qr' id='hdQR'></div><small style='color:var(--txt3)'>Escanéalo con la cámara</small></div></div>" +
+      "<div class='dos'><div><label><b>Link del contador</b> (celular, tablet o TV)</label><div class='linkbox'><input id='hdLink' readonly><button class='btn' data-c>Copiar</button><button class='btn' data-a>Abrir</button></div>" +
+      "<div class='aviso-box'>Un solo link: arriba en la página está el botón <b>VTR / REC</b> para cambiar qué ver (cuenta regresiva del clip o duración de la grabación). Cada pantalla recuerda su elección. Solo muestra, no controla nada.</div></div><div><div class='qr' id='hdQR'></div><small style='color:var(--txt3)'>Escanéalo con la cámara</small></div></div>" +
       "<div class='modal-pie'><button class='btn' data-q>Desconectar</button><button class='btn prim' data-cerrar>Listo</button></div>", {ancho: true});
     function pintarLink() {
       var l = hdCanal ? CG.HD.linkVisor(base, hdCanal) : "";

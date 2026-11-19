@@ -399,7 +399,7 @@ En los botones de **temporizador** también se puede dar una **tecla al ▶/⏸*
 
 ## Contador HyperDeck (cuenta regresiva del clip)
 
-Botón **HyperDeck** en la barra del panel: muestra el tiempo restante del clip que reproduce el HyperDeck y su nombre, y entrega un link + QR para verlo en cualquier celular, tablet o TV (`contador/?c=CANAL`).
+Botón **HyperDeck** en la barra del panel: muestra el tiempo restante del clip del **VTR** (192.168.10.20) y entrega un solo link + QR (`contador/?c=CANAL`) para celular, tablet o TV. En esa página el botón **VTR / REC** cambia entre la cuenta regresiva del clip y la duración de la grabación del **REC** (192.168.10.10); cada pantalla recuerda su elección. Las IP se cambian en el panel del emisor.
 
 1. En un PC de la red del HyperDeck (Windows): doble clic en `contador/estudio/Contador_HyperDeck.bat` (instala Python si falta y abre su panel en `http://localhost:8090`). Busca el HyperDeck en la red aunque cambie de IP. Necesita firmware 8.x o superior (API REST).
 2. El panel se conecta solo al canal `hd-completos-mojados` (botón **HyperDeck**).
