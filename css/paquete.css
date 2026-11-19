@@ -233,3 +233,91 @@
 @keyframes suenaT{0%,60%,100%{transform:rotate(0)}10%,30%,50%{transform:rotate(-16deg)}20%,40%{transform:rotate(16deg)}}
 @keyframes subeAbajoTj{from{transform:translateY(130%)}to{transform:none}}
 @keyframes popCentroTj{from{transform:translate(-50%,-50%) scale(.5);opacity:0}to{transform:translate(-50%,-50%);opacity:1}}
+
+/* ===== AUSPICIO RAYO MAULINO: rayo → lata con humo y electricidad → esquina → cintillo ===== */
+.sr{position:absolute;left:0;top:0;width:1920px;height:1080px;pointer-events:none}
+.sr-lata{position:absolute;left:1600px;top:540px;width:195px;height:470px;z-index:3;filter:drop-shadow(0 18px 26px rgba(0,0,0,.45))}
+.sr-f{position:relative;width:100%;height:100%;animation:srBob 3.2s ease-in-out infinite}
+.sr-f img{width:100%;height:100%;object-fit:contain;display:block}
+.sr-arcos{position:absolute;left:-16%;top:-3.4%;width:132.5%;height:106.7%;overflow:visible}
+.sr-arcos .ar-g{fill:none;stroke:#8FD3FF;stroke-width:9;opacity:.45;filter:blur(4px)}
+.sr-arcos .ar-n{fill:none;stroke:#F4FBFF;stroke-width:2.6;stroke-linejoin:round}
+.sr-arcos .ar-a{fill:none;stroke:#BFE6FF;stroke-width:3;opacity:.8;filter:drop-shadow(0 0 6px #7CC8FF)}
+@keyframes srBob{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-6px) rotate(1.2deg)}}
+.sr-cinta{position:absolute;left:880px;top:832px;width:760px;height:106px;z-index:2;display:flex;align-items:center;gap:26px;padding:0 70px 0 34px;box-sizing:border-box;
+  background:linear-gradient(180deg,#1E221C,#0B0D0A);border-top:3px solid #E8C21A;border-bottom:3px solid #E8C21A;clip-path:polygon(26px 0,100% 0,100% 100%,0 100%);overflow:hidden}
+.sr-ico{width:30px;height:56px;flex:none;background:#F2CF2C;clip-path:polygon(55% 0,10% 58%,45% 58%,30% 100%,90% 38%,55% 38%,75% 0)}
+.sr-cinta span{font:400 62px/1 "Anton",Impact,sans-serif;font-style:italic;letter-spacing:.02em;white-space:nowrap;
+  background:linear-gradient(180deg,#FFE97A,#E8BE21 55%,#B78A12);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 2px 0 rgba(0,0,0,.6))}
+.sr-brillo{position:absolute;inset:0;background:linear-gradient(105deg,transparent 35%,rgba(255,240,170,.38) 50%,transparent 65%);background-size:300% 100%;background-position:130% 0;animation:srBrillo 5.5s ease-in-out 2.6s infinite}
+@keyframes srBrillo{0%{background-position:130% 0}25%,100%{background-position:-30% 0}}
+.sr-rayo{position:absolute;left:760px;top:-80px;width:400px;height:640px;z-index:4;opacity:0;overflow:visible}
+.sr-rayo{filter:drop-shadow(0 0 18px #FFD21A) drop-shadow(0 0 40px #FFF3A0)}
+.sr-rayo polyline{fill:none;stroke:#FFE24A;stroke-width:18;stroke-linejoin:miter;stroke-dasharray:1100;stroke-dashoffset:1100}
+.sr-rayo polyline.n{stroke:#FFFFFF;stroke-width:6}
+.sr-golpe{position:absolute;left:760px;top:360px;width:400px;height:400px;border-radius:50%;z-index:1;opacity:0;
+  background:radial-gradient(circle,rgba(255,252,220,.95),rgba(255,226,74,.55) 30%,rgba(140,200,255,.25) 55%,transparent 70%)}
+.sr-humo{position:absolute;left:960px;top:640px;width:0;height:0;z-index:2}
+.sr-humo i{position:absolute;left:-150px;top:-150px;width:300px;height:300px;border-radius:50%;opacity:0;
+  background:radial-gradient(circle,rgba(235,240,245,.85),rgba(190,200,210,.5) 45%,transparent 70%);filter:blur(10px);transform:rotate(var(--a)) translateX(0) scale(.3)}
+
+/* entrada (2,5 s) */
+.t-spRayo.entra .sr-rayo{animation:srRayoA .55s steps(1) both}
+.t-spRayo.entra .sr-rayo polyline{animation:srRayoD .2s ease-out both}
+@keyframes srRayoA{0%{opacity:1}30%{opacity:.4}40%{opacity:1}70%{opacity:.6}100%{opacity:0}}
+@keyframes srRayoD{to{stroke-dashoffset:0}}
+.t-spRayo.entra .sr-golpe{animation:srGolpe .7s ease-out .14s both}
+@keyframes srGolpe{0%{opacity:0;transform:scale(.2)}25%{opacity:1}100%{opacity:0;transform:scale(2.6)}}
+.t-spRayo.entra .sr-humo i{animation:srHumo 1.8s cubic-bezier(.2,.7,.3,1) calc(.18s + var(--i) * 40ms) both}
+@keyframes srHumo{0%{opacity:0;transform:rotate(var(--a)) translateX(0) scale(.3)}20%{opacity:.85}100%{opacity:0;transform:rotate(var(--a)) translateX(230px) scale(1.5)}}
+.t-spRayo.entra .sr-lata{animation:srLata 2.5s cubic-bezier(.3,.7,.25,1) both}
+@keyframes srLata{
+  0%{opacity:0;transform:translate(-737px,-215px) scale(.2) rotate(-25deg)}
+  9%{opacity:1;transform:translate(-737px,-215px) scale(1.62) rotate(6deg)}
+  15%{transform:translate(-737px,-215px) scale(1.4) rotate(-2deg)}
+  21%,60%{transform:translate(-737px,-215px) scale(1.46) rotate(0)}
+  74%{transform:translate(-330px,-70px) scale(1.12) rotate(9deg)}
+  86%{transform:translate(12px,6px) scale(.96) rotate(-3deg)}
+  93%{transform:translate(-2px,0) scale(1.02) rotate(1deg)}
+  100%{opacity:1;transform:none}}
+.t-spRayo.entra .sr-cinta{animation:srCinta 2.5s cubic-bezier(.2,.8,.2,1) both}
+@keyframes srCinta{0%,82%{clip-path:polygon(100% 0,100% 0,100% 100%,100% 100%)}100%{clip-path:polygon(26px 0,100% 0,100% 100%,0 100%)}}
+.t-spRayo.entra .sr-cinta span,.t-spRayo.entra .sr-ico{animation:srTexto 2.5s ease-out both}
+@keyframes srTexto{0%,86%{opacity:0;transform:translateX(60px)}100%{opacity:1;transform:none}}
+/* salida (0,9 s): el cintillo vuelve a la lata y la lata se va con un destello */
+.t-spRayo.sale .sr-cinta{animation:srCintaS .38s cubic-bezier(.6,0,.8,.4) both}
+@keyframes srCintaS{to{clip-path:polygon(100% 0,100% 0,100% 100%,100% 100%)}}
+.t-spRayo.sale .sr-lata{animation:srLataS .9s cubic-bezier(.5,0,.75,0) both}
+@keyframes srLataS{0%,30%{opacity:1;transform:none;filter:drop-shadow(0 18px 26px rgba(0,0,0,.45)) brightness(1)}
+  45%{transform:translateY(-14px) scale(1.08) rotate(-4deg);filter:brightness(1.9) drop-shadow(0 0 30px #BFE6FF)}
+  100%{opacity:0;transform:translateY(-120px) scale(.15) rotate(28deg);filter:brightness(2.4)}}
+
+/* ===== AUSPICIO MARY MECHADAS: humo y polvo → logo → brillo; sale deshaciéndose en polvo ===== */
+.sm{position:absolute;left:0;top:0;width:1920px;height:1080px;pointer-events:none}
+.sm-logo{position:absolute;left:910px;top:182px;width:860px;height:720px;z-index:2}
+.sm-f{position:relative;width:100%;height:100%;animation:smFlota 6s ease-in-out infinite}
+.sm-f img{width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 10px 22px rgba(0,0,0,.35))}
+.sm-brillo{position:absolute;inset:0;-webkit-mask-size:100% 100%;mask-size:100% 100%;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;
+  background:linear-gradient(105deg,transparent 44%,rgba(255,255,255,.6) 50%,transparent 56%);background-size:320% 100%;background-position:140% 0;animation:smBrillo 5s ease-in-out 1.9s infinite;mix-blend-mode:screen}
+@keyframes smBrillo{0%{background-position:140% 0}24%,100%{background-position:-40% 0}}
+@keyframes smFlota{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.sm-humo{position:absolute;left:910px;top:182px;width:860px;height:720px;z-index:1}
+.sm-humo i{position:absolute;width:360px;height:360px;margin:-180px 0 0 -180px;border-radius:50%;opacity:0;
+  background:radial-gradient(circle,rgba(40,26,22,.75),rgba(40,26,22,.35) 45%,transparent 70%);filter:blur(16px)}
+.sm-polvo{position:absolute;left:910px;top:182px;width:860px;height:720px;z-index:3}
+.sm-polvo i{position:absolute;width:var(--s);height:var(--s);border-radius:50%;background:#2A1712;opacity:0}
+/* entrada */
+.t-spMary.entra .sm-humo i{animation:smHumo 1.9s ease-out calc(var(--i) * 90ms) both}
+@keyframes smHumo{0%{opacity:0;transform:scale(.3)}30%{opacity:.9}100%{opacity:0;transform:scale(1.9)}}
+.t-spMary.entra .sm-polvo i{animation:smPolvo 1.2s cubic-bezier(.2,.7,.2,1) var(--t) both}
+@keyframes smPolvo{0%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(1.6)}25%{opacity:.9}85%{opacity:.6}100%{opacity:0;transform:scale(.4)}}
+.t-spMary.entra .sm-logo{animation:smLogo 2.2s cubic-bezier(.25,.7,.25,1) both}
+@keyframes smLogo{0%,18%{opacity:0;filter:blur(24px);transform:scale(1.1);clip-path:circle(0% at 50% 55%)}
+  55%{opacity:1;filter:blur(6px);transform:scale(1.02);clip-path:circle(62% at 50% 55%)}
+  80%{filter:blur(0);transform:scale(.995);clip-path:circle(85% at 50% 55%)}100%{opacity:1;filter:none;transform:none;clip-path:circle(100% at 50% 55%)}}
+/* salida: se deshace en polvo y humo */
+.t-spMary.sale .sm-logo{animation:smLogoS .95s ease-in both}
+@keyframes smLogoS{0%{opacity:1;filter:none;transform:none}100%{opacity:0;filter:blur(22px);transform:scale(1.07)}}
+.t-spMary.sale .sm-polvo i{animation:smPolvoS .95s cubic-bezier(.3,.6,.4,1) var(--t) both}
+@keyframes smPolvoS{0%{opacity:0;transform:none}20%{opacity:.85}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(1.4)}}
+.t-spMary.sale .sm-humo i{animation:smHumo .95s ease-out calc(var(--i) * 40ms) both}

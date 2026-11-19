@@ -1696,7 +1696,22 @@
     e.ev = Array.isArray(e.ev) ? e.ev : []; e.ajustes = e.ajustes || {velocidad: 100}; e.logo = e.logo || "";
     if (CG.sembrarLibreto(e)) { e._sembrado = true; }
     if (sembrarBotonera(e)) { e._sembrado = true; }
+    if (botonesAuspicios(e)) { e._sembrado = true; e._ausNuevos = true; }
     return e;
+  }
+  /* una sola vez por sala: agrega a la botonera guardada un botón por cada auspicio animado (Rayo Maulino y Mary Mechadas) */
+  function botonesAuspicios(e) {
+    var bt = e.botonera; if (!bt || !Array.isArray(bt.botones) || bt.auspicios2) { return false; }
+    bt.auspicios2 = true;
+    var usados = {}; bt.botones.forEach(function (b) { usados[b.tecla] = 1; (b.els || [b.el]).forEach(function (x) { usados["el:" + x] = 1; }); });
+    var nuevos = [["lb-aus-rayo", "RAYO MAULINO ⚡", "#E8C21A"], ["lb-aus-mary", "MARY MECHADAS 👨‍🍳", "#D7261E"]], hubo = false;
+    nuevos.forEach(function (n) {
+      if (usados["el:" + n[0]] || !e.elementos.some(function (x) { return x.id === n[0]; })) { return; }
+      var i = -1; bt.botones.forEach(function (b, j) { if (/mencion-(mary|rayo)|gc-mary/.test(b.el || "")) { i = j; } });
+      bt.botones.splice(i < 0 ? bt.botones.length : i + 1, 0, nuevoBoton({el: n[0], esp: "", etiqueta: n[1], color: n[2], tecla: ""}));
+      hubo = true;
+    });
+    return hubo;
   }
   function guardarSala(s, t, nombre) {
     var l = leerLS("cg_salas_v2", []).filter(function (x) { return x.sala !== s; });
@@ -1739,7 +1754,7 @@
       $("#salaNombre").textContent = r.nombre || (LOCAL ? "Modo local" : sala); document.title = (r.nombre || "Panel") + " · CM CG";
       if (!LOCAL) { outKey = r.outKey; guardarSala(sala, token, r.nombre); }
       borr = leerLS("cg_borr_" + sala, {}); Object.keys(borr).forEach(function (id) { if (!el(id)) { delete borr[id]; } });
-      if (nuevo || estado._sembrado) { delete estado._sembrado; publicar(); if (!nuevo) { toast("Se agregó la escaleta del libreto a esta sala (tus gráficas anteriores siguen en Categorías)", "ok"); } } else { pgm(); }
+      if (nuevo || estado._sembrado) { var aus = estado._ausNuevos; delete estado._sembrado; delete estado._ausNuevos; publicar(); if (!nuevo) { toast(aus ? "Se agregaron a tu botonera los auspicios animados de Rayo Maulino y Mary Mechadas" : "Se agregó la escaleta del libreto a esta sala (tus gráficas anteriores siguen en Categorías)", "ok"); } } else { pgm(); }
       dibujarLista(); dibujarBotonera();   /* también al recargar: si no, la botonera del celular quedaba vacía hasta el primer cambio */
       var s = leerLS("cg_sel_" + sala, null); if (s && el(s)) { seleccionar(s); }
       if (!LOCAL && !nuevo) { /* nada */ }

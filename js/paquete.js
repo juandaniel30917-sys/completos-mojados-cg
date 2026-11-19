@@ -456,6 +456,79 @@
     montar: function (el) { return {actualizar: function (nd) { var cs = el.querySelectorAll(".cupo"); (nd.cupos || []).forEach(function (c, i) { if (cs[i]) { cs[i].className = "cupo c-" + c; } }); }}; }
   };
   CG.ESTADOS_CUPO = ["libre", "llamando", "correcto", "incorrecto"];
+  /* ---------- AUSPICIOS ANIMADOS (inspirados en los GC de Rayo Maulino y Mary Mechadas) ---------- */
+  var POS_X = {k: "dx", l: "Mover a lo ancho", t: "range", min: -1400, max: 200, step: 5, u: "px", g: "Posición"};
+  var POS_Y = {k: "dy", l: "Mover a lo alto", t: "range", min: -700, max: 150, step: 5, u: "px", g: "Posición"};
+  var TAM = {k: "escala", l: "Tamaño", t: "range", min: 50, max: 140, step: 5, u: "%", g: "Posición"};
+  function posAus(d, origen) { return "transform:translate(" + (+d.dx || 0) + "px," + (+d.dy || 0) + "px) scale(" + ((+d.escala || 100) / 100) + ");transform-origin:" + origen; }
+  /* rayos eléctricos alrededor de un objeto: polilíneas que cambian cada cuadro, en ráfagas */
+  function arcosVivos(svg, w, h, cada) {
+    var vivo = true, t0 = 0, n = 0;
+    function zig(x0, y0, x1, y1) {
+      var pts = [], k = 9;
+      for (var i = 0; i <= k; i++) { var f = i / k, j = (i === 0 || i === k) ? 0 : (Math.random() - .5) * 46; pts.push((x0 + (x1 - x0) * f + j).toFixed(1) + "," + (y0 + (y1 - y0) * f + (Math.random() - .5) * 26).toFixed(1)); }
+      return pts.join(" ");
+    }
+    function pinta(on) {
+      if (!on) { svg.innerHTML = ""; return; }
+      var html = "";
+      for (var a = 0; a < 3; a++) {
+        var lado = Math.random() < .5 ? 0 : w, y0 = h * (.15 + Math.random() * .7), y1 = h * (.15 + Math.random() * .7), x = lado + (lado ? 30 : -30);
+        var p = Math.random() < .5 ? zig(x, y0, w - x, y1) : zig(x, y0, x + (lado ? 40 : -40), y1);
+        html += '<polyline points="' + p + '" class="ar-g" fill="none" stroke="#8FD3FF" stroke-width="9" stroke-opacity=".45"/><polyline points="' + p + '" class="ar-n" fill="none" stroke="#F4FBFF" stroke-width="2.6"/>';
+      }
+      html += '<ellipse cx="' + (w / 2) + '" cy="' + (h * .9) + '" rx="' + (w * .62) + '" ry="' + (h * .07) + '" class="ar-a" fill="none" stroke="#BFE6FF" stroke-width="3" stroke-opacity=".8" transform="rotate(' + ((Math.random() - .5) * 10).toFixed(1) + ' ' + (w / 2) + ' ' + (h * .9) + ')"/>';
+      svg.innerHTML = html;
+    }
+    var id = setInterval(function () {
+      if (!vivo) { return; }
+      n++; var ciclo = n % Math.round(cada / 70);                 // ráfaga de ~0,6 s en cada ciclo
+      pinta(ciclo < 9 && Math.random() > .18);
+    }, 70);
+    return function () { vivo = false; clearInterval(id); svg.innerHTML = ""; };
+  }
+
+  P.spRayo = {
+    nombre: "Auspicio Rayo Maulino (lata con rayo)", cat: "menciones", icono: "estrella", capa: 59, salidaMs: 900, tipo: "MENCION", grupo: "auspicio-rayo",
+    desc: "Cae un rayo, aparece la lata con humo y electricidad, viaja a la esquina y saca su cintillo con el nombre.",
+    campos: [{k: "texto", l: "Texto del cintillo", t: "text", g: "Texto"}, {k: "lata", l: "Imagen del producto", t: "imagen", g: "Marca"},
+      POS_X, POS_Y, TAM, VEL],
+    defaults: {texto: "RAYO MAULINO", lata: "assets/marcas/rayo_lata.png", dx: 0, dy: 0, escala: 100, vel: 100},
+    render: function (d) {
+      var img = d.lata && !CG.esPendiente(d.lata) ? d.lata : "assets/marcas/rayo_lata.png";
+      var humo = ""; for (var i = 0; i < 7; i++) { humo += '<i style="--i:' + i + ';--a:' + (i * 51) + 'deg"></i>'; }
+      return '<div class="sr" style="' + posAus(d, "1700px 980px") + '">' +
+        '<svg class="sr-rayo" viewBox="0 0 400 640"><polyline fill="none" stroke="#FFE24A" stroke-width="18" points="230,0 170,150 238,170 150,330 222,348 120,520 200,500 160,640"/><polyline class="n" fill="none" stroke="#FFFFFF" stroke-width="6" points="230,0 170,150 238,170 150,330 222,348 120,520 200,500 160,640"/></svg>' +
+        '<div class="sr-golpe"></div><div class="sr-humo">' + humo + '</div>' +
+        '<div class="sr-cinta"><i class="sr-ico"></i><span data-fit="560">' + tx(d.texto) + '</span><b class="sr-brillo"></b></div>' +
+        '<div class="sr-lata"><div class="sr-f"><img alt="" src="' + esc(img) + '"><svg class="sr-arcos" viewBox="-40 -20 326 634"></svg></div></div>' +
+      '</div>';
+    },
+    montar: function (el) {
+      var svg = el.querySelector(".sr-arcos"), parar = svg ? arcosVivos(svg, 246, 594, 2600) : null;
+      return {destruir: function () { if (parar) { parar(); } }};
+    }
+  };
+
+  P.spMary = {
+    nombre: "Auspicio Mary Mechadas (logo entre humo)", cat: "menciones", icono: "estrella", capa: 59, salidaMs: 950, tipo: "MENCION", grupo: "auspicio-mary",
+    desc: "El logo aparece entre humo y polvo, con un brillo que lo recorre; al salir se deshace en polvo.",
+    campos: [{k: "logo", l: "Logo", t: "imagen", g: "Marca"}, POS_X, POS_Y, TAM, VEL],
+    defaults: {logo: "assets/marcas/mary_logo.png", dx: 0, dy: 0, escala: 100, vel: 100},
+    render: function (d) {
+      var img = d.logo && !CG.esPendiente(d.logo) ? d.logo : "assets/marcas/mary_logo.png", polvo = "", humo = "";
+      for (var i = 0; i < 34; i++) {
+        var ang = (i * 137.5) % 360, r = 320 + (i * 53) % 260, x = 430 + Math.cos(ang * Math.PI / 180) * (180 + (i * 37) % 260), y = 360 + Math.sin(ang * Math.PI / 180) * (140 + (i * 29) % 200);
+        polvo += '<i style="left:' + x.toFixed(0) + 'px;top:' + y.toFixed(0) + 'px;--dx:' + (Math.cos(ang * Math.PI / 180) * r).toFixed(0) + 'px;--dy:' + (Math.sin(ang * Math.PI / 180) * r * .7).toFixed(0) + 'px;--t:' + (i % 7) * 40 + 'ms;--s:' + (3 + i % 5) + 'px"></i>';
+      }
+      for (var j = 0; j < 6; j++) { humo += '<i style="--i:' + j + ';left:' + (120 + j * 120) + 'px;top:' + (220 + (j * 97) % 260) + 'px"></i>'; }
+      return '<div class="sm" style="' + posAus(d, "1340px 540px") + '">' +
+        '<div class="sm-humo">' + humo + '</div>' +
+        '<div class="sm-logo"><div class="sm-f"><img alt="" src="' + esc(img) + '"><b class="sm-brillo" style="-webkit-mask-image:url(\'' + esc(img) + '\');mask-image:url(\'' + esc(img) + '\')"></b></div></div>' +
+        '<div class="sm-polvo">' + polvo + '</div></div>';
+    }
+  };
+
 
   P.pregunta = {
     nombre: "Pregunta / trivia", cat: "concurso", icono: "trofeo", capa: 55, salidaMs: 520, tipo: "PREGUNTA", grupo: function (d) { return d.modo === "completo" ? "pantalla" : "tercio"; },
