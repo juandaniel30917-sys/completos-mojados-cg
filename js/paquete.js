@@ -462,50 +462,91 @@
   var TAM = {k: "escala", l: "Tamaño", t: "range", min: 50, max: 140, step: 5, u: "%", g: "Posición"};
   function posAus(d, origen) { return "transform:translate(" + (+d.dx || 0) + "px," + (+d.dy || 0) + "px) scale(" + ((+d.escala || 100) / 100) + ");transform-origin:" + origen; }
   /* rayos eléctricos alrededor de un objeto: polilíneas que cambian cada cuadro, en ráfagas */
-  function arcosVivos(svg, w, h, cada) {
-    var vivo = true, t0 = 0, n = 0;
-    function zig(x0, y0, x1, y1) {
-      var pts = [], k = 9;
-      for (var i = 0; i <= k; i++) { var f = i / k, j = (i === 0 || i === k) ? 0 : (Math.random() - .5) * 46; pts.push((x0 + (x1 - x0) * f + j).toFixed(1) + "," + (y0 + (y1 - y0) * f + (Math.random() - .5) * 26).toFixed(1)); }
-      return pts.join(" ");
-    }
-    function pinta(on) {
-      if (!on) { svg.innerHTML = ""; return; }
-      var html = "";
-      for (var a = 0; a < 3; a++) {
-        var lado = Math.random() < .5 ? 0 : w, y0 = h * (.15 + Math.random() * .7), y1 = h * (.15 + Math.random() * .7), x = lado + (lado ? 30 : -30);
-        var p = Math.random() < .5 ? zig(x, y0, w - x, y1) : zig(x, y0, x + (lado ? 40 : -40), y1);
-        html += '<polyline points="' + p + '" class="ar-g" fill="none" stroke="#8FD3FF" stroke-width="9" stroke-opacity=".45"/><polyline points="' + p + '" class="ar-n" fill="none" stroke="#F4FBFF" stroke-width="2.6"/>';
+  /* números al azar repetibles (el rayo sale igual en vivo y en la descarga) */
+  function azarFijo(semilla) { var s = semilla >>> 0; return function () { s = (s + 0x6D2B79F5) >>> 0; var t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+  /* rayo ramificado de arriba hacia abajo (viewBox 700×900) */
+  function rayoRamas(semilla) {
+    var R = azarFijo(semilla), out = [];
+    function linea(x0, y0, ang, largo, pasos, grosor, nivel) {
+      var pts = [[x0, y0]], x = x0, y = y0, a = ang;
+      for (var i = 0; i < pasos; i++) {
+        a += (R() - .5) * .9; a = ang + Math.max(-.7, Math.min(.7, a - ang));
+        x += Math.sin(a) * largo / pasos; y += Math.cos(a) * largo / pasos; pts.push([x, y]);
+        if (nivel < 2 && i > 0 && R() < (nivel ? .22 : .38)) { var lado = R() < .5 ? -1 : 1; linea(x, y, a + lado * (.55 + R() * .6), largo * (nivel ? .3 : .42) * (.6 + R() * .6), Math.max(4, Math.round(pasos * .5)), grosor * .5, nivel + 1); }
       }
-      html += '<ellipse cx="' + (w / 2) + '" cy="' + (h * .9) + '" rx="' + (w * .62) + '" ry="' + (h * .07) + '" class="ar-a" fill="none" stroke="#BFE6FF" stroke-width="3" stroke-opacity=".8" transform="rotate(' + ((Math.random() - .5) * 10).toFixed(1) + ' ' + (w / 2) + ' ' + (h * .9) + ')"/>';
-      svg.innerHTML = html;
+      out.push({p: pts.map(function (q) { return q[0].toFixed(1) + "," + q[1].toFixed(1); }).join(" "), g: grosor});
     }
-    var id = setInterval(function () {
-      if (!vivo) { return; }
-      n++; var ciclo = n % Math.round(cada / 70);                 // ráfaga de ~0,6 s en cada ciclo
-      pinta(ciclo < 9 && Math.random() > .18);
-    }, 70);
-    return function () { vivo = false; clearInterval(id); svg.innerHTML = ""; };
+    linea(350, 0, 0, 900, 22, 10, 0);
+    return out.reverse();
   }
-
+  function svgRayo(semilla, cls) {
+    return '<g class="' + cls + '">' + rayoRamas(semilla).map(function (r) {
+      return '<polyline pathLength="1" points="' + r.p + '" fill="none" stroke="#FFD43A" stroke-opacity=".55" stroke-width="' + (r.g * 2.4).toFixed(1) + '" stroke-linecap="round" stroke-linejoin="round"/>' +
+        '<polyline pathLength="1" points="' + r.p + '" fill="none" stroke="#FFFBE0" stroke-width="' + (r.g * .7).toFixed(1) + '" stroke-linecap="round" stroke-linejoin="round"/>';
+    }).join("") + '</g>';
+  }
+  /* anillos eléctricos que giran alrededor de la lata: la mitad de atrás pasa detrás de la lata, la de adelante por encima */
+  function anillosVivos(atras, frente, w, h) {
+    var vivo = true, t0 = performance.now(), id = null;
+    var an = [{cy: .28, rx: 1.12, ry: .075, inc: -12, vel: 2.6, ph: 0, arco: 1.6},
+              {cy: .68, rx: 1.18, ry: .085, inc: 9, vel: -2.1, ph: 2.4, arco: 1.5},
+              {cy: .47, rx: 1.4, ry: .14, inc: -26, vel: 3.3, ph: 4.1, arco: 1.35, hasta: 3.4},
+              {cy: .82, rx: 1.3, ry: .1, inc: 18, vel: -2.8, ph: 1.2, arco: 1.25, hasta: 3.1}];
+    function trazo(pts, glow) {
+      var p = pts.join(" ");
+      return '<polyline points="' + p + '" fill="none" stroke="#7CC4FF" stroke-opacity="' + (glow * .7).toFixed(2) + '" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>' +
+        '<polyline points="' + p + '" fill="none" stroke="#F6FCFF" stroke-opacity="' + glow.toFixed(2) + '" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>';
+    }
+    function cuadro() {
+      if (!vivo) { return; }
+      var t = (performance.now() - t0) / 1000, hA = "", hF = "";
+      an.forEach(function (a) {
+        if (a.hasta && t > a.hasta) { return; }
+        var fade = a.hasta ? Math.max(0, Math.min(1, (a.hasta - t) / .6)) : 1, n = 34, ini = a.ph + a.vel * t;
+        var co = Math.cos(a.inc * Math.PI / 180), si = Math.sin(a.inc * Math.PI / 180), cx = w / 2, cy = a.cy * h;
+        var tramo = [], lado = null;
+        for (var i = 0; i <= n; i++) {
+          var th = ini + a.arco * Math.PI * i / n, ex = Math.cos(th) * a.rx * w / 2, ey = Math.sin(th) * a.ry * h;
+          var j = (i === 0 || i === n) ? 0 : (Math.random() - .5) * 16;
+          var x = cx + ex * co - ey * si, y = cy + ex * si + ey * co + j;
+          var l = Math.sin(th) >= 0 ? "f" : "a";
+          if (lado && l !== lado) { var q = tramo[tramo.length - 1]; if (lado === "f") { hF += trazo(tramo, fade); } else { hA += trazo(tramo, fade * .8); } tramo = [q]; }
+          lado = l; tramo.push(x.toFixed(1) + "," + y.toFixed(1));
+        }
+        if (tramo.length > 1) { if (lado === "f") { hF += trazo(tramo, fade); } else { hA += trazo(tramo, fade * .8); } }
+      });
+      atras.innerHTML = hA; frente.innerHTML = hF;
+      id = setTimeout(cuadro, 33);
+    }
+    cuadro();
+    return function () { vivo = false; clearTimeout(id); atras.innerHTML = ""; frente.innerHTML = ""; };
+  }
   P.spRayo = {
-    nombre: "Auspicio Rayo Maulino (lata con rayo)", cat: "menciones", icono: "estrella", capa: 59, salidaMs: 900, tipo: "MENCION", grupo: "auspicio-rayo",
-    desc: "Cae un rayo, aparece la lata con humo y electricidad, viaja a la esquina y saca su cintillo con el nombre.",
+    nombre: "Auspicio Rayo Maulino (lata con rayo)", cat: "menciones", icono: "estrella", capa: 59, salidaMs: 1000, entraMs: 5000, tipo: "MENCION", grupo: "auspicio-rayo",
+    desc: "Cae la lata girando, la parte un rayo, se envuelve en humo y anillos eléctricos, viaja a la esquina y saca su cintillo.",
     campos: [{k: "texto", l: "Texto del cintillo", t: "text", g: "Texto"}, {k: "lata", l: "Imagen del producto", t: "imagen", g: "Marca"},
       POS_X, POS_Y, TAM, VEL],
     defaults: {texto: "RAYO MAULINO", lata: "assets/marcas/rayo_lata.png", dx: 0, dy: 0, escala: 100, vel: 100},
     render: function (d) {
       var img = d.lata && !CG.esPendiente(d.lata) ? d.lata : "assets/marcas/rayo_lata.png";
-      var humo = ""; for (var i = 0; i < 7; i++) { humo += '<i style="--i:' + i + ';--a:' + (i * 51) + 'deg"></i>'; }
+      var humo = "", R = azarFijo(7);
+      for (var i = 0; i < 26; i++) {
+        var a = i * (360 / 26) + R() * 10, rr = .8 + R() * .35, x = Math.cos(a * Math.PI / 180) * 150 * rr, y = Math.sin(a * Math.PI / 180) * 300 * rr;
+        humo += '<i style="--x:' + x.toFixed(0) + 'px;--y:' + y.toFixed(0) + 'px;--dx:' + (x * 1.55).toFixed(0) + 'px;--dy:' + (y * 1.2 - 50 - R() * 90).toFixed(0) + 'px;--r:' + ((R() - .5) * 140).toFixed(0) + 'deg;--s:' + (.7 + R() * .6).toFixed(2) + ';--d:' + (R() * .3).toFixed(2) + 's"></i>';
+      }
       return '<div class="sr" style="' + posAus(d, "1700px 980px") + '">' +
-        '<svg class="sr-rayo" viewBox="0 0 400 640"><polyline fill="none" stroke="#FFE24A" stroke-width="18" points="230,0 170,150 238,170 150,330 222,348 120,520 200,500 160,640"/><polyline class="n" fill="none" stroke="#FFFFFF" stroke-width="6" points="230,0 170,150 238,170 150,330 222,348 120,520 200,500 160,640"/></svg>' +
+        '<svg class="sr-rayo" viewBox="0 0 700 900">' + svgRayo(11, "ra") + svgRayo(29, "rb") + '</svg>' +
         '<div class="sr-golpe"></div><div class="sr-humo">' + humo + '</div>' +
-        '<div class="sr-cinta"><i class="sr-ico"></i><span data-fit="560">' + tx(d.texto) + '</span><b class="sr-brillo"></b></div>' +
-        '<div class="sr-lata"><div class="sr-f"><img alt="" src="' + esc(img) + '"><svg class="sr-arcos" viewBox="-40 -20 326 634"></svg></div></div>' +
+        '<div class="sr-cinta"><i class="sr-ico"></i><span data-fit="540">' + tx(d.texto) + '</span><b class="sr-brillo"></b></div>' +
+        '<div class="sr-lata"><div class="sr-f">' +
+          '<svg class="sr-ar sr-atras" viewBox="-90 -30 426 654"></svg>' +
+          '<div class="sr-giro"><img alt="" src="' + esc(img) + '"></div>' +
+          '<svg class="sr-ar sr-frente" viewBox="-90 -30 426 654"></svg>' +
+        '</div></div>' +
       '</div>';
     },
     montar: function (el) {
-      var svg = el.querySelector(".sr-arcos"), parar = svg ? arcosVivos(svg, 246, 594, 2600) : null;
+      var a = el.querySelector(".sr-atras"), f = el.querySelector(".sr-frente"), parar = a && f ? anillosVivos(a, f, 246, 594) : null;
       return {destruir: function () { if (parar) { parar(); } }};
     }
   };
