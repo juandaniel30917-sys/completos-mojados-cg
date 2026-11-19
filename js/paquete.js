@@ -462,51 +462,55 @@
   var TAM = {k: "escala", l: "Tamaño", t: "range", min: 50, max: 140, step: 5, u: "%", g: "Posición"};
   function posAus(d, origen) { return "transform:translate(" + (+d.dx || 0) + "px," + (+d.dy || 0) + "px) scale(" + ((+d.escala || 100) / 100) + ");transform-origin:" + origen; }
   /* rayos eléctricos alrededor de un objeto: polilíneas que cambian cada cuadro, en ráfagas */
-  function arcosVivos(svg, w, h, cada) {
-    var vivo = true, t0 = 0, n = 0;
-    function zig(x0, y0, x1, y1) {
-      var pts = [], k = 9;
-      for (var i = 0; i <= k; i++) { var f = i / k, j = (i === 0 || i === k) ? 0 : (Math.random() - .5) * 46; pts.push((x0 + (x1 - x0) * f + j).toFixed(1) + "," + (y0 + (y1 - y0) * f + (Math.random() - .5) * 26).toFixed(1)); }
-      return pts.join(" ");
-    }
-    function pinta(on) {
-      if (!on) { svg.innerHTML = ""; return; }
-      var html = "";
-      for (var a = 0; a < 3; a++) {
-        var lado = Math.random() < .5 ? 0 : w, y0 = h * (.15 + Math.random() * .7), y1 = h * (.15 + Math.random() * .7), x = lado + (lado ? 30 : -30);
-        var p = Math.random() < .5 ? zig(x, y0, w - x, y1) : zig(x, y0, x + (lado ? 40 : -40), y1);
-        html += '<polyline points="' + p + '" class="ar-g" fill="none" stroke="#8FD3FF" stroke-width="9" stroke-opacity=".45"/><polyline points="' + p + '" class="ar-n" fill="none" stroke="#F4FBFF" stroke-width="2.6"/>';
-      }
-      html += '<ellipse cx="' + (w / 2) + '" cy="' + (h * .9) + '" rx="' + (w * .62) + '" ry="' + (h * .07) + '" class="ar-a" fill="none" stroke="#BFE6FF" stroke-width="3" stroke-opacity=".8" transform="rotate(' + ((Math.random() - .5) * 10).toFixed(1) + ' ' + (w / 2) + ' ' + (h * .9) + ')"/>';
-      svg.innerHTML = html;
-    }
-    var id = setInterval(function () {
-      if (!vivo) { return; }
-      n++; var ciclo = n % Math.round(cada / 70);                 // ráfaga de ~0,6 s en cada ciclo
-      pinta(ciclo < 9 && Math.random() > .18);
-    }, 70);
-    return function () { vivo = false; clearInterval(id); svg.innerHTML = ""; };
+  /* Rayo Maulino: la animación es la del video original (fondo verde quitado, con transparencia) en 3 partes:
+     entrada (rayo, humo, anillos, viaje a la esquina) → bucle de la lata con electricidad → salida (rayo que la borra).
+     El cintillo es HTML para poder cambiar el texto. En la descarga MP4 los videos se mueven cuadro a cuadro con el reloj. */
+  var RAYO_V = {intro: "assets/marcas/rayo_intro.webm", bucle: "assets/marcas/rayo_bucle.webm", fin: "assets/marcas/rayo_salida.webm", corte: 4.067, largoB: 4.6, largoS: 0.55};
+  if (typeof document !== "undefined" && /salida\.html/.test(location.pathname)) {
+    CG._precargaRayo = [RAYO_V.intro, RAYO_V.bucle, RAYO_V.fin].map(function (s) { var v = document.createElement("video"); v.muted = true; v.preload = "auto"; v.src = s; return v; });
   }
-
   P.spRayo = {
-    nombre: "Auspicio Rayo Maulino (lata con rayo)", cat: "menciones", icono: "estrella", capa: 59, salidaMs: 900, tipo: "MENCION", grupo: "auspicio-rayo",
-    desc: "Cae un rayo, aparece la lata con humo y electricidad, viaja a la esquina y saca su cintillo con el nombre.",
-    campos: [{k: "texto", l: "Texto del cintillo", t: "text", g: "Texto"}, {k: "lata", l: "Imagen del producto", t: "imagen", g: "Marca"},
-      POS_X, POS_Y, TAM, VEL],
-    defaults: {texto: "RAYO MAULINO", lata: "assets/marcas/rayo_lata.png", dx: 0, dy: 0, escala: 100, vel: 100},
+    nombre: "Auspicio Rayo Maulino (lata con rayo)", cat: "menciones", icono: "estrella", capa: 59, salidaMs: 600, entraMs: 4700, tipo: "MENCION", grupo: "auspicio-rayo",
+    desc: "La animación original: cae la lata con el rayo, humo y anillos eléctricos, viaja a la esquina y saca su cintillo. Sale con un rayo.",
+    campos: [{k: "texto", l: "Texto del cintillo", t: "text", g: "Texto"}, POS_X, POS_Y, TAM, VEL],
+    defaults: {texto: "RAYO MAULINO", dx: 0, dy: 0, escala: 100, vel: 100},
     render: function (d) {
-      var img = d.lata && !CG.esPendiente(d.lata) ? d.lata : "assets/marcas/rayo_lata.png";
-      var humo = ""; for (var i = 0; i < 7; i++) { humo += '<i style="--i:' + i + ';--a:' + (i * 51) + 'deg"></i>'; }
       return '<div class="sr" style="' + posAus(d, "1700px 980px") + '">' +
-        '<svg class="sr-rayo" viewBox="0 0 400 640"><polyline fill="none" stroke="#FFE24A" stroke-width="18" points="230,0 170,150 238,170 150,330 222,348 120,520 200,500 160,640"/><polyline class="n" fill="none" stroke="#FFFFFF" stroke-width="6" points="230,0 170,150 238,170 150,330 222,348 120,520 200,500 160,640"/></svg>' +
-        '<div class="sr-golpe"></div><div class="sr-humo">' + humo + '</div>' +
-        '<div class="sr-cinta"><i class="sr-ico"></i><span data-fit="560">' + tx(d.texto) + '</span><b class="sr-brillo"></b></div>' +
-        '<div class="sr-lata"><div class="sr-f"><img alt="" src="' + esc(img) + '"><svg class="sr-arcos" viewBox="-40 -20 326 634"></svg></div></div>' +
+        '<div class="sr-cinta"><i class="sr-ico"></i><span data-fit="520">' + tx(d.texto) + '</span><b class="sr-brillo"></b></div>' +
+        '<video class="sr-v sr-intro" muted playsinline preload="auto" src="' + RAYO_V.intro + '"></video>' +
+        '<video class="sr-v sr-bucle" muted playsinline loop preload="auto" src="' + RAYO_V.bucle + '"></video>' +
+        '<video class="sr-v sr-fin" muted playsinline preload="auto" src="' + RAYO_V.fin + '"></video>' +
       '</div>';
     },
-    montar: function (el) {
-      var svg = el.querySelector(".sr-arcos"), parar = svg ? arcosVivos(svg, 246, 594, 2600) : null;
-      return {destruir: function () { if (parar) { parar(); } }};
+    montar: function (el, d) {
+      var vi = el.querySelector(".sr-intro"), vb = el.querySelector(".sr-bucle"), vs = el.querySelector(".sr-fin");
+      if (!vi || !vb || !vs) { return null; }
+      var exp = !!window.RELOJ, vivo = true, t0 = performance.now(), tB = 0, tS = 0;
+      var vel = Math.max(0.25, ((+d.vel || 100) / 100) * (CG.velocidad || 1));
+      var fase = el.classList.contains("entra") ? "intro" : "bucle";
+      [vi, vb, vs].forEach(function (v) { v.muted = true; v.playbackRate = vel; });
+      function ver(v) { [vi, vb, vs].forEach(function (x) { x.classList.toggle("on", x === v); }); }
+      function jugar(v) { try { var p = v.play(); if (p && p.catch) { p.catch(function () {}); } } catch (e) {} }
+      function irA(v, s) { if (Math.abs(v.currentTime - s) > 0.001) { try { v.currentTime = s; } catch (e) {} } }
+      if (fase === "intro") { ver(vi); if (!exp) { jugar(vi); } } else { ver(vb); if (!exp) { jugar(vb); } }
+      function paso() {
+        if (!vivo) { return; }
+        var s = (performance.now() - t0) / 1000 * vel;
+        if (fase === "intro" && (exp ? s >= RAYO_V.corte : (vi.currentTime >= RAYO_V.corte - 0.03 || vi.ended))) {
+          fase = "bucle"; tB = exp ? RAYO_V.corte : s; vb.currentTime = 0; ver(vb); if (!exp) { jugar(vb); vi.pause(); }
+        }
+        if (exp) {
+          if (fase === "intro") { irA(vi, s); }
+          else if (fase === "bucle") { irA(vb, (s - tB) % RAYO_V.largoB); }
+          else { irA(vs, Math.min(RAYO_V.largoS - 0.01, (performance.now() - tS) / 1000 * vel)); }
+        }
+        requestAnimationFrame(paso);
+      }
+      requestAnimationFrame(paso);
+      return {
+        saliendo: function () { fase = "salida"; tS = performance.now(); vs.currentTime = 0; ver(vs); vi.pause(); vb.pause(); if (!exp) { jugar(vs); } },
+        destruir: function () { vivo = false; [vi, vb, vs].forEach(function (v) { try { v.pause(); v.removeAttribute("src"); v.load(); } catch (e) {} }); }
+      };
     }
   };
 

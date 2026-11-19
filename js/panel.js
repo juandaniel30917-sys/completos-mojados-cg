@@ -1687,7 +1687,7 @@
   /* ------------------------------------------------------------------ arranque */
   function normalizar(e) {
     e = e || {}; var ini = CG.estadoInicial();
-    if (!Array.isArray(e.elementos) || !e.elementos.length) { CG.sembrarLibreto(ini); sembrarBotonera(ini); return ini; }
+    if (!Array.isArray(e.elementos) || !e.elementos.length) { CG.sembrarLibreto(ini); sembrarBotonera(ini); botonesAuspicios(ini); return ini; }
     e.elementos = e.elementos.filter(function (x) { return x && P[x.plantilla]; }).map(function (x) {
       x.datos = Object.assign(clon(P[x.plantilla].defaults), x.datos || {}); x.on = !!x.on; return x;
     });
@@ -1702,6 +1702,7 @@
   /* una sola vez por sala: agrega a la botonera guardada un botón por cada auspicio animado (Rayo Maulino y Mary Mechadas) */
   function botonesAuspicios(e) {
     var bt = e.botonera; if (!bt || !Array.isArray(bt.botones) || bt.auspicios2) { return false; }
+    if (!(e.elementos || []).some(function (x) { return /^lb-aus-/.test(x.id); })) { return false; }   // aún no se siembran: esperar
     bt.auspicios2 = true;
     var usados = {}; bt.botones.forEach(function (b) { usados[b.tecla] = 1; (b.els || [b.el]).forEach(function (x) { usados["el:" + x] = 1; }); });
     var nuevos = [["lb-aus-rayo", "RAYO MAULINO ⚡", "#E8C21A"], ["lb-aus-mary", "MARY MECHADAS 👨‍🍳", "#D7261E"]], hubo = false;

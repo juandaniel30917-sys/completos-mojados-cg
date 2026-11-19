@@ -83,7 +83,7 @@
       lctx.ocultarme = function () { if (capa.vivo) { salir(el.id); ctx.onFin(el.id); } };
       lctx.fin = lctx.ocultarme;
       c._m = p.montar ? p.montar(c, el.datos, lctx) : null;
-      if (c.classList.contains("entra")) { setTimeout(function () { c.classList.remove("entra"); }, 2600); }
+      if (c.classList.contains("entra")) { setTimeout(function () { c.classList.remove("entra"); }, p.entraMs || 2600); }
     }
     /* velocidad de animación: la del elemento × la general (afecta entradas, salidas y animaciones continuas) */
     function ritmo(el) { return Math.max(0.25, ((+(el.datos && el.datos.vel) || 100) / 100) * (CG.velocidad || 1)); }

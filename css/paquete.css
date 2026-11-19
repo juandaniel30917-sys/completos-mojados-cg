@@ -234,63 +234,30 @@
 @keyframes subeAbajoTj{from{transform:translateY(130%)}to{transform:none}}
 @keyframes popCentroTj{from{transform:translate(-50%,-50%) scale(.5);opacity:0}to{transform:translate(-50%,-50%);opacity:1}}
 
-/* ===== AUSPICIO RAYO MAULINO: rayo → lata con humo y electricidad → esquina → cintillo ===== */
+/* ===== AUSPICIO RAYO MAULINO: animación original en video (con transparencia) + cintillo HTML ===== */
+@font-face{font-family:"Exo2R";src:url("../assets/fuentes/Exo2-ExtraBoldItalic.woff2") format("woff2");font-weight:800;font-style:italic;font-display:block}
 .sr{position:absolute;left:0;top:0;width:1920px;height:1080px;pointer-events:none}
-.sr-lata{position:absolute;left:1600px;top:540px;width:195px;height:470px;z-index:3;filter:drop-shadow(0 18px 26px rgba(0,0,0,.45))}
-.sr-f{position:relative;width:100%;height:100%;animation:srBob 3.2s ease-in-out infinite}
-.sr-f img{width:100%;height:100%;object-fit:contain;display:block}
-.sr-arcos{position:absolute;left:-16%;top:-3.4%;width:132.5%;height:106.7%;overflow:visible}
-.sr-arcos .ar-g{fill:none;stroke:#8FD3FF;stroke-width:9;opacity:.45;filter:blur(4px)}
-.sr-arcos .ar-n{fill:none;stroke:#F4FBFF;stroke-width:2.6;stroke-linejoin:round}
-.sr-arcos .ar-a{fill:none;stroke:#BFE6FF;stroke-width:3;opacity:.8;filter:drop-shadow(0 0 6px #7CC8FF)}
-@keyframes srBob{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-6px) rotate(1.2deg)}}
-.sr-cinta{position:absolute;left:880px;top:832px;width:760px;height:106px;z-index:2;display:flex;align-items:center;gap:26px;padding:0 70px 0 34px;box-sizing:border-box;
-  background:linear-gradient(180deg,#1E221C,#0B0D0A);border-top:3px solid #E8C21A;border-bottom:3px solid #E8C21A;clip-path:polygon(26px 0,100% 0,100% 100%,0 100%);overflow:hidden}
-.sr-ico{width:30px;height:56px;flex:none;background:#F2CF2C;clip-path:polygon(55% 0,10% 58%,45% 58%,30% 100%,90% 38%,55% 38%,75% 0)}
-.sr-cinta span{font:400 62px/1 "Anton",Impact,sans-serif;font-style:italic;letter-spacing:.02em;white-space:nowrap;
-  background:linear-gradient(180deg,#FFE97A,#E8BE21 55%,#B78A12);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 2px 0 rgba(0,0,0,.6))}
-.sr-brillo{position:absolute;inset:0;background:linear-gradient(105deg,transparent 35%,rgba(255,240,170,.38) 50%,transparent 65%);background-size:300% 100%;background-position:130% 0;animation:srBrillo 5.5s ease-in-out 2.6s infinite}
+.sr-v{position:absolute;display:block;visibility:hidden;z-index:3}
+.sr-v.on{visibility:visible}
+.sr-intro{left:624px;top:160px;width:1232px;height:840px}
+.sr-bucle{left:1540px;top:530px;width:320px;height:460px}
+.sr-fin{left:1340px;top:0;width:580px;height:1080px}
+/* cintillo como el original: franja oscura con brillo arriba, filetes amarillos y letras doradas en relieve */
+.sr-cinta{position:absolute;left:880px;top:830px;width:740px;height:110px;z-index:2;display:flex;align-items:center;gap:52px;padding:0 90px 0 52px;box-sizing:border-box;
+  background:linear-gradient(180deg,#F0EE2A 0,#F0EE2A 4px,#33403A 4px,#27352C 52%,#0C1812 66%,#0F1D16 100%);border-bottom:4px solid #E4E02A;
+  clip-path:polygon(18px 0,100% 0,100% 100%,0 100%);overflow:hidden}
+.sr-ico{width:28px;height:60px;flex:none;background:#E9E625;clip-path:polygon(58% 0,8% 60%,44% 60%,26% 100%,92% 36%,56% 36%,78% 0)}
+.sr-cinta span{font:800 italic 72px/1 "Exo2R","Anton",sans-serif;letter-spacing:.005em;white-space:nowrap;margin-top:4px;
+  background:linear-gradient(180deg,#E6CB6A 0%,#CFAE4C 45%,#B8922E 70%,#D8B856 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 3px 0 #6E5310) drop-shadow(0 3px 3px rgba(0,0,0,.7))}
+.sr-brillo{position:absolute;inset:0;background:linear-gradient(105deg,transparent 35%,rgba(255,240,170,.22) 50%,transparent 65%);background-size:300% 100%;background-position:130% 0;animation:srBrillo 6s ease-in-out 5s infinite}
 @keyframes srBrillo{0%{background-position:130% 0}25%,100%{background-position:-30% 0}}
-.sr-rayo{position:absolute;left:760px;top:-80px;width:400px;height:640px;z-index:4;opacity:0;overflow:visible}
-.sr-rayo{filter:drop-shadow(0 0 18px #FFD21A) drop-shadow(0 0 40px #FFF3A0)}
-.sr-rayo polyline{fill:none;stroke:#FFE24A;stroke-width:18;stroke-linejoin:miter;stroke-dasharray:1100;stroke-dashoffset:1100}
-.sr-rayo polyline.n{stroke:#FFFFFF;stroke-width:6}
-.sr-golpe{position:absolute;left:760px;top:360px;width:400px;height:400px;border-radius:50%;z-index:1;opacity:0;
-  background:radial-gradient(circle,rgba(255,252,220,.95),rgba(255,226,74,.55) 30%,rgba(140,200,255,.25) 55%,transparent 70%)}
-.sr-humo{position:absolute;left:960px;top:640px;width:0;height:0;z-index:2}
-.sr-humo i{position:absolute;left:-150px;top:-150px;width:300px;height:300px;border-radius:50%;opacity:0;
-  background:radial-gradient(circle,rgba(235,240,245,.85),rgba(190,200,210,.5) 45%,transparent 70%);filter:blur(10px);transform:rotate(var(--a)) translateX(0) scale(.3)}
-
-/* entrada (2,5 s) */
-.t-spRayo.entra .sr-rayo{animation:srRayoA .55s steps(1) both}
-.t-spRayo.entra .sr-rayo polyline{animation:srRayoD .2s ease-out both}
-@keyframes srRayoA{0%{opacity:1}30%{opacity:.4}40%{opacity:1}70%{opacity:.6}100%{opacity:0}}
-@keyframes srRayoD{to{stroke-dashoffset:0}}
-.t-spRayo.entra .sr-golpe{animation:srGolpe .7s ease-out .14s both}
-@keyframes srGolpe{0%{opacity:0;transform:scale(.2)}25%{opacity:1}100%{opacity:0;transform:scale(2.6)}}
-.t-spRayo.entra .sr-humo i{animation:srHumo 1.8s cubic-bezier(.2,.7,.3,1) calc(.18s + var(--i) * 40ms) both}
-@keyframes srHumo{0%{opacity:0;transform:rotate(var(--a)) translateX(0) scale(.3)}20%{opacity:.85}100%{opacity:0;transform:rotate(var(--a)) translateX(230px) scale(1.5)}}
-.t-spRayo.entra .sr-lata{animation:srLata 2.5s cubic-bezier(.3,.7,.25,1) both}
-@keyframes srLata{
-  0%{opacity:0;transform:translate(-737px,-215px) scale(.2) rotate(-25deg)}
-  9%{opacity:1;transform:translate(-737px,-215px) scale(1.62) rotate(6deg)}
-  15%{transform:translate(-737px,-215px) scale(1.4) rotate(-2deg)}
-  21%,60%{transform:translate(-737px,-215px) scale(1.46) rotate(0)}
-  74%{transform:translate(-330px,-70px) scale(1.12) rotate(9deg)}
-  86%{transform:translate(12px,6px) scale(.96) rotate(-3deg)}
-  93%{transform:translate(-2px,0) scale(1.02) rotate(1deg)}
-  100%{opacity:1;transform:none}}
-.t-spRayo.entra .sr-cinta{animation:srCinta 2.5s cubic-bezier(.2,.8,.2,1) both}
-@keyframes srCinta{0%,82%{clip-path:polygon(100% 0,100% 0,100% 100%,100% 100%)}100%{clip-path:polygon(26px 0,100% 0,100% 100%,0 100%)}}
-.t-spRayo.entra .sr-cinta span,.t-spRayo.entra .sr-ico{animation:srTexto 2.5s ease-out both}
-@keyframes srTexto{0%,86%{opacity:0;transform:translateX(60px)}100%{opacity:1;transform:none}}
-/* salida (0,9 s): el cintillo vuelve a la lata y la lata se va con un destello */
-.t-spRayo.sale .sr-cinta{animation:srCintaS .38s cubic-bezier(.6,0,.8,.4) both}
-@keyframes srCintaS{to{clip-path:polygon(100% 0,100% 0,100% 100%,100% 100%)}}
-.t-spRayo.sale .sr-lata{animation:srLataS .9s cubic-bezier(.5,0,.75,0) both}
-@keyframes srLataS{0%,30%{opacity:1;transform:none;filter:drop-shadow(0 18px 26px rgba(0,0,0,.45)) brightness(1)}
-  45%{transform:translateY(-14px) scale(1.08) rotate(-4deg);filter:brightness(1.9) drop-shadow(0 0 30px #BFE6FF)}
-  100%{opacity:0;transform:translateY(-120px) scale(.15) rotate(28deg);filter:brightness(2.4)}}
+/* entrada: el cintillo sale de detrás de la lata justo cuando llega a la esquina (4,07 s del video original) */
+.t-spRayo.entra .sr-cinta{animation:srCinta 4.67s linear both}
+@keyframes srCinta{0%,87.1%{clip-path:polygon(100% 0,100% 0,100% 100%,100% 100%);animation-timing-function:cubic-bezier(.25,.75,.35,1)}100%{clip-path:polygon(18px 0,100% 0,100% 100%,0 100%)}}
+/* salida: el rayo del video borra la lata y el cintillo se apaga con el destello */
+.t-spRayo.sale .sr-cinta{animation:srCintaS .6s linear both}
+@keyframes srCintaS{0%,12%{opacity:1}22%{opacity:.45}36%,100%{opacity:0}}
 
 /* ===== AUSPICIO MARY MECHADAS: humo y polvo → logo → brillo; sale deshaciéndose en polvo ===== */
 .sm{position:absolute;left:0;top:0;width:1920px;height:1080px;pointer-events:none}

@@ -390,7 +390,7 @@ Cada botón de **pregunta** tiene en la esquina un mini botón **✅ B** que mar
 En los botones de **temporizador** también se puede dar una **tecla al ▶/⏸** (Editar botones → Mini botón del conteo).
 
 ## Auspicios animados: Rayo Maulino y Mary Mechadas
-- **Rayo Maulino (lata)**: cae un rayo, aparece la lata con humo y electricidad, viaja a la esquina inferior derecha y saca el cintillo «⚡ RAYO MAULINO» con brillo; la lata sigue chispeando. Al salir, el cintillo vuelve a la lata y esta se va con un destello.
+- **Rayo Maulino (lata)**: usa la animación original (el video del auspicio con el fondo verde quitado, en `assets/marcas/rayo_intro.webm`, `rayo_bucle.webm` y `rayo_salida.webm`): cae la lata con el rayo, humo y anillos eléctricos, viaja a la esquina y queda chispeando en bucle. El cintillo «⚡ RAYO MAULINO» es HTML (se puede cambiar el texto) y sale de detrás de la lata como en el original. Al salir, un rayo borra la lata y el cintillo se apaga.
 - **Mary Mechadas (logo)**: humo y polvo, el logo aparece desde el centro hasta quedar nítido y un brillo lo recorre cada pocos segundos; al salir se deshace en polvo.
 - Se editan con EDIT (texto del cintillo, imagen, mover y tamaño, velocidad). Las imágenes se sacaron de los videos de referencia (`assets/marcas/`).
 - Se agregan solos a la botonera guardada de cada sala (una vez), al lado de las menciones.
