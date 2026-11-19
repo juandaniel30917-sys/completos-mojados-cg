@@ -295,16 +295,31 @@ class Deck:
 DECKS = {r: Deck(r) for r in ROLES}
 
 def bucle_envio():
+    """Envía por UNA conexión HTTPS que queda abierta (keep-alive): sin repetir el saludo TLS
+    en cada envío, el aviso de play/stop/cambio de clip llega mucho antes."""
+    import http.client
+    con = None
+    host = f"{SUPA_REF}.supabase.co"
+    cab = {"apikey": SUPA_KEY, "Authorization": f"Bearer {SUPA_KEY}", "Content-Type": "application/json", "Connection": "keep-alive"}
     while True:
         msgs = [{"topic": CFG["canal"], "event": "estado", "payload": DECKS["vtr"].payload()},   # VTR (compatibilidad)
                 {"topic": CFG["canal"], "event": "rec", "payload": DECKS["rec"].payload()}]
-        req = urllib.request.Request(BROADCAST_URL, data=json.dumps({"messages": msgs}).encode(), headers={
-            "apikey": SUPA_KEY, "Authorization": f"Bearer {SUPA_KEY}", "Content-Type": "application/json"})
-        try:
-            urllib.request.urlopen(req, timeout=3).read()
-            ST["ultimo_envio"] = time.time(); ST["error_envio"] = ""
-        except Exception as e:
-            ST["error_envio"] = str(e)[:120]
+        body = json.dumps({"messages": msgs})
+        for intento in (1, 2):
+            try:
+                if con is None:
+                    con = http.client.HTTPSConnection(host, timeout=3)
+                t0 = time.time()
+                con.request("POST", "/realtime/v1/api/broadcast", body=body, headers=cab)
+                r = con.getresponse(); r.read()
+                if r.status >= 300: raise RuntimeError(f"HTTP {r.status}")
+                ST["ultimo_envio"] = time.time(); ST["error_envio"] = ""; ST["envio_ms"] = int((time.time() - t0) * 1000)
+                break
+            except Exception as e:
+                try: con.close()
+                except Exception: pass
+                con = None
+                ST["error_envio"] = str(e)[:120]
         CAMBIO.wait(PUB_S); CAMBIO.clear()
 
 def link():
@@ -328,7 +343,7 @@ class Panel(BaseHTTPRequestHandler):
                 "decks_red": ST["decks"], "buscando": ST["buscando"],
                 "roles": {r: {"ip": d.ip, "conectado": d.conectado, "producto": d.producto, "payload": d.payload()} for r, d in DECKS.items()},
                 "canal": CFG["canal"], "web": CFG["web"], "link": link(),
-                "internet_ok": time.time() - ST["ultimo_envio"] < 3, "reloj": RELOJ, "error_envio": ST["error_envio"],
+                "internet_ok": time.time() - ST["ultimo_envio"] < 3, "reloj": RELOJ, "envio_ms": ST.get("envio_ms"), "error_envio": ST["error_envio"],
                 "ips_pc": ips_locales()}, ensure_ascii=False))
         with open(os.path.join(HERE, "panel.html"), "rb") as f:
             return self._send(200, f.read(), "text/html")
