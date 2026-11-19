@@ -388,3 +388,9 @@ Cómo funciona: `exportar.html` usa el mismo motor de la salida con un **reloj v
 ## ✅ Respuesta correcta en cada botón de trivia
 Cada botón de **pregunta** tiene en la esquina un mini botón **✅ B** que marca en pantalla la opción correcta (otra vez la quita; si la pregunta no está al aire, sale ya revelada). En **Editar botones** → ese botón → **✅ Respuesta correcta de este botón**: eliges A, B, C o D y la **tecla del ✅**. Cada botón guarda la suya, aunque dos botones usen la misma pregunta.
 En los botones de **temporizador** también se puede dar una **tecla al ▶/⏸** (Editar botones → Mini botón del conteo).
+
+## Auspicios animados: Rayo Maulino y Mary Mechadas
+- **Rayo Maulino (lata)**: cae un rayo, aparece la lata con humo y electricidad, viaja a la esquina inferior derecha y saca el cintillo «⚡ RAYO MAULINO» con brillo; la lata sigue chispeando. Al salir, el cintillo vuelve a la lata y esta se va con un destello.
+- **Mary Mechadas (logo)**: humo y polvo, el logo aparece desde el centro hasta quedar nítido y un brillo lo recorre cada pocos segundos; al salir se deshace en polvo.
+- Se editan con EDIT (texto del cintillo, imagen, mover y tamaño, velocidad). Las imágenes se sacaron de los videos de referencia (`assets/marcas/`).
+- Se agregan solos a la botonera guardada de cada sala (una vez), al lado de las menciones.
