@@ -53,125 +53,75 @@
 </div>
 <div id="pie"></div>
 
+<script src="../js/config.js?v=202611192030"></script>
+<script src="../js/hyperdeck.js?v=202611192030"></script>
 <script>
 (function () {
-  // Puente en internet (Supabase Realtime, solo mensajes en vivo, no guarda datos)
-  var REF = "wxfzyyvjtrflfrhwswam";
-  var KEY = "sb_publishable_sslALDjrDSbZ-EH-wJbtyw_1DHtFZjC";
-
   function param(n) { var m = new RegExp("[?&]" + n + "=([^&]+)").exec(location.search); return m ? decodeURIComponent(m[1]) : ""; }
   var CANAL = param("c");
   var MODO = param("d") || (function () { try { return localStorage.getItem("hd_modo"); } catch (e) { return ""; } })();
   MODO = MODO === "rec" ? "rec" : "vtr";
-  var DATOS = {estado: null, rec: null}, REC_T = {estado: 0, rec: 0};
   var $ = function (id) { return document.getElementById(id); };
+  var HD = window.CG && CG.HD;
 
-  if (!CANAL) {
+  if (!CANAL || !HD) {
     $("app").style.display = "none"; $("sinCanal").style.display = "block";
     $("canalBtn").onclick = function () { var v = $("canalInput").value.trim(); if (v) location.search = "?c=" + encodeURIComponent(v); };
     return;
   }
+  var con = HD.escuchar(CANAL);
 
-  var ultimo = null, recibido = 0;
-  function tomar() { var e = MODO === "rec" ? "rec" : "estado"; ultimo = DATOS[e]; recibido = REC_T[e]; }
+  /* escribir en pantalla solo si cambió (más fluido en celulares y TVs) */
+  var cache = {};
+  function txt(id, v) { if (cache[id] !== v) { cache[id] = v; $(id).textContent = v; } }
+  function cls(id, v) { var k = id + "#c"; if (cache[k] !== v) { cache[k] = v; $(id).className = v; } }
+  function estilo(id, prop, v) { var k = id + "#" + prop; if (cache[k] !== v) { cache[k] = v; $(id).style[prop] = v; } }
+  function estado(t, c) { txt("estadoTxt", t); cls("estado", c || ""); }
 
-  // ---------- WebSocket (protocolo Phoenix de Supabase, sin librerías: funciona en TVs) ----------
-  var ws = null, refN = 1, hb = null, espera = 1000;
-  function conectar() {
-    try { ws = new WebSocket("wss://" + REF + ".supabase.co/realtime/v1/websocket?apikey=" + KEY + "&vsn=1.0.0"); }
-    catch (e) { return setTimeout(conectar, espera); }
-    ws.onopen = function () {
-      espera = 1000;
-      enviar({ topic: "realtime:" + CANAL, event: "phx_join",
-        payload: { config: { broadcast: { self: false }, presence: { key: "" }, postgres_changes: [], "private": false }, access_token: KEY } });
-      clearInterval(hb);
-      hb = setInterval(function () { enviar({ topic: "phoenix", event: "heartbeat", payload: {} }); }, 25000);
-    };
-    ws.onmessage = function (ev) {
-      var m; try { m = JSON.parse(ev.data); } catch (e) { return; }
-      if (m.event === "broadcast" && m.payload && (m.payload.event === "estado" || m.payload.event === "rec")) {
-        DATOS[m.payload.event] = m.payload.payload; REC_T[m.payload.event] = Date.now();
-      }
-    };
-    ws.onclose = function () { clearInterval(hb); setTimeout(conectar, espera); espera = Math.min(espera * 2, 10000); };
-    ws.onerror = function () { try { ws.close(); } catch (e) {} };
-  }
-  function enviar(o) { o.ref = String(refN++); if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
-  conectar();
-
-  // ---------- Dibujo ----------
-  function z(x) { return (x < 10 ? "0" : "") + x; }
-  function fmt(frames, fps) {
-    frames = Math.max(0, Math.floor(frames));
-    var n = Math.round(fps), s = Math.floor(frames / fps);
-    var ff = Math.min(n - 1, Math.floor(frames - s * fps));
-    var h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60); s = s % 60;
-    return (h ? z(h) + ":" : "") + z(m) + ":" + z(s) + ":" + z(ff);
-  }
-  function estado(txt, cls) { $("estadoTxt").textContent = txt; $("estado").className = cls || ""; }
-
-  /* ms desde la lectura del HyperDeck. Usa la hora exacta del emisor (NTP) si el reloj de esta
-     pantalla cuadra; si no, cae al tiempo desde que llegó el mensaje. */
-  function relojOk(d) { var l = Date.now() - (d.t || 0); return d.t && l > -1500 && l < 8000; }
-  function transcurrido(d, edad) { return relojOk(d) ? Math.max(0, Date.now() - d.t) : edad; }
-  function hms(sec) { sec = Math.max(0, Math.floor(sec)); return z(Math.floor(sec / 3600)) + ":" + z(Math.floor(sec % 3600 / 60)) + ":" + z(sec % 60); }
   function dibujarRec() {
-    var d = ultimo, edad = Date.now() - recibido;
-    $("barra").style.display = "none"; $("indice").textContent = "";
-    if (!d || edad > 4000) { estado(d ? "SIN SEÑAL DEL ESTUDIO" : "ESPERANDO AL ESTUDIO…", "off"); $("tiempo").textContent = "--:--:--"; $("clip").textContent = "Grabación"; $("duracion").textContent = ""; return; }
-    if (d.estado === "sinhd") { estado("SIN CONEXIÓN CON EL REC", "off"); $("tiempo").textContent = "--:--:--"; return; }
-    var grab = d.estado === "rec", t = d.transcurrido || 0;
-    if (grab) { t = d.inicio && relojOk(d) ? (Date.now() - d.inicio) / 1000 : t + edad / 1000; }
-    document.body.className = "rec" + (grab ? " grabando" : "");
-    estado(grab ? "GRABANDO" : "DETENIDO", grab ? "rec" : "");
-    $("clip").textContent = grab ? "Duración de la grabación" : "Última grabación";
-    $("tiempo").textContent = hms(t);
-    $("tiempo").className = grab ? "" : "";
-    $("duracion").textContent = d.tc ? "Timecode " + d.tc : "";
+    var r = con.rec(), edad = con.edad("rec");
+    estilo("barra", "display", "none"); txt("indice", "");
+    if (!r || edad > 4000) { estado(r ? "SIN SEÑAL DEL ESTUDIO" : "ESPERANDO AL ESTUDIO…", "off"); txt("tiempo", "--:--:--"); txt("clip", "Grabación"); txt("duracion", ""); document.body.className = "rec"; return; }
+    if (r.sinhd) { estado("SIN CONEXIÓN CON EL REC", "off"); txt("tiempo", "--:--:--"); return; }
+    document.body.className = "rec" + (r.grabando ? " grabando" : "");
+    estado(r.grabando ? "GRABANDO" : "DETENIDO", r.grabando ? "rec" : "");
+    txt("clip", r.grabando ? "Duración de la grabación" : "Última grabación");
+    txt("tiempo", HD.hms(r.seg)); cls("tiempo", "");
+    txt("duracion", r.tc ? "Timecode " + r.tc : "");
   }
 
-  function dibujar() {
-    tomar();
-    if (MODO === "rec") { return dibujarRec(); }
-    document.body.className = ""; $("barra").style.display = "";
-    var d = ultimo, edad = Date.now() - recibido;
-    if (!d || edad > 4000) {
-      estado(d ? "SIN SEÑAL DEL ESTUDIO" : "ESPERANDO AL ESTUDIO…", "off");
-      if (!d) return;
-    } else if (d.estado === "rec") estado("GRABANDO", "rec");
-    else if (d.estado === "vivo") estado("ENTRADA EN VIVO", "");
-    else if (d.estado === "play") estado("AL AIRE", "play");
-    else if (d.estado === "sinhd") estado("BUSCANDO HYPERDECK…", "off");
-    else estado("DETENIDO", "");
-
-    if (!d.frames) {
-      $("clip").textContent = d.total === 0 ? "Sin clips en la lista" : "—";
-      $("indice").textContent = ""; $("tiempo").textContent = "--:--:--"; $("tiempo").className = "";
-      $("relleno").style.width = "0"; $("duracion").textContent = ""; return;
+  function dibujarVtr() {
+    document.body.className = ""; estilo("barra", "display", "");
+    var d = con.ultimo("vtr"), edad = con.edad("vtr"), c = con.vtr();
+    if (!d || edad > 4000) { estado(d ? "SIN SEÑAL DEL ESTUDIO" : "ESPERANDO AL ESTUDIO…", "off"); if (!d) { return; } }
+    else if (d.estado === "sinhd") { estado("SIN CONEXIÓN CON EL VTR", "off"); }
+    else if (d.estado === "rec") { estado("GRABANDO", "rec"); }
+    else if (d.estado === "vivo") { estado("ENTRADA EN VIVO", ""); }
+    else if (c && c.corre) { estado("AL AIRE", "play"); }
+    else { estado("DETENIDO", ""); }
+    if (!c) {
+      txt("clip", d.total === 0 ? "Sin clips en la lista" : "—"); txt("indice", ""); txt("tiempo", "--:--:--");
+      cls("tiempo", ""); estilo("relleno", "width", "0%"); txt("duracion", ""); return;
     }
-    var fps = d.fps || 59.94;
-    var restante = d.restante;
-    if (d.estado === "play" && edad < 4000) restante -= transcurrido(d, edad) / 1000 * fps * (d.speed || 1);
-    restante = Math.max(0, restante);
-    var seg = restante / fps;
-
-    $("clip").textContent = d.nombre || ("Clip " + (d.idx + 1));
-    $("indice").textContent = "Clip " + (d.idx + 1) + " de " + d.total;
-    $("tiempo").textContent = "-" + fmt(restante, fps);
-    $("tiempo").className = seg <= 10 ? (d.estado === "play" ? "bad blink" : "bad") : (seg <= 30 ? "warn" : "");
-    var pct = Math.min(100, Math.max(0, (d.frames - restante) / d.frames * 100));
-    $("relleno").style.width = pct + "%";
-    $("relleno").style.background = seg <= 10 ? "var(--bad)" : (seg <= 30 ? "var(--warn)" : "var(--ok)");
-    $("duracion").textContent = "Duración " + fmt(d.frames, fps);
+    var seg = c.restante / c.fps;
+    txt("clip", c.nombre);
+    txt("indice", "Clip " + (c.idx + 1) + " de " + c.total);
+    txt("tiempo", "-" + HD.fmt(c.restante, c.fps));
+    cls("tiempo", seg <= 10 ? (c.corre ? "bad blink" : "bad") : (seg <= 30 ? "warn" : ""));
+    estilo("relleno", "width", Math.min(100, Math.max(0, (c.frames - c.restante) / c.frames * 100)).toFixed(2) + "%");
+    estilo("relleno", "background", seg <= 10 ? "var(--bad)" : (seg <= 30 ? "var(--warn)" : "var(--ok)"));
+    txt("duracion", "Duración " + HD.fmt(c.frames, c.fps));
   }
-  setInterval(dibujar, 1000 / 30);
+  function dibujar() { if (MODO === "rec") { dibujarRec(); } else { dibujarVtr(); } }
+  HD.cuadro(dibujar);
   $("pie").textContent = "Canal " + CANAL;
+
   function cambiar(m, ev) {
     if (ev) { ev.stopPropagation(); ev.preventDefault(); }
     MODO = m; try { localStorage.setItem("hd_modo", m); } catch (e) {}
     $("tVtr").className = "vtr" + (m === "vtr" ? " on" : ""); $("tRec").className = "rec" + (m === "rec" ? " on" : "");
     document.title = (m === "rec" ? "REC" : "VTR") + " · Contador HyperDeck";
-    dibujar();
+    cache = {}; dibujar();
   }
   $("tVtr").onclick = function (e) { cambiar("vtr", e); };
   $("tRec").onclick = function (e) { cambiar("rec", e); };

@@ -31,7 +31,7 @@ IPS_DEFAULT = {"vtr": "192.168.10.20", "rec": "192.168.10.10"}
 
 POLL_S = 0.1      # lectura de la posición / estado de grabación
 META_S = 3.0      # lista de clips / nombres (VTR)
-PUB_S = 0.5       # envío a internet (los visores interpolan entre mensajes)
+PUB_S = 1.0       # latido a internet; los CAMBIOS (play/stop/salto/clip/grabar) se mandan al instante
 ROLES = ("vtr", "rec")
 
 # ---------------- Config ----------------
@@ -101,6 +101,33 @@ def hd_get(ip, path, timeout=1.0):
     with urllib.request.urlopen(f"http://{ip}/control/api/v1{path}", timeout=timeout) as r:
         return json.loads(r.read() or b"null")
 
+class Cliente:
+    """HTTP keep-alive al HyperDeck: una conexión abierta por equipo (menos latencia por lectura)."""
+    def __init__(self):
+        self.con, self.ip = None, None
+    def get(self, ip, path, timeout=1.0):
+        import http.client
+        for intento in (1, 2):
+            try:
+                if self.con is None or self.ip != ip:
+                    self.cerrar()
+                    host, _, port = ip.partition(":")
+                    self.con = http.client.HTTPConnection(host, int(port or 80), timeout=timeout); self.ip = ip
+                self.con.request("GET", "/control/api/v1" + path)
+                r = self.con.getresponse(); b = r.read()
+                if r.status >= 400: raise urllib.error.HTTPError(path, r.status, "", None, None)
+                return json.loads(b or b"null")
+            except urllib.error.HTTPError:
+                raise
+            except Exception:
+                self.cerrar()
+                if intento == 2: raise
+    def cerrar(self):
+        try:
+            if self.con: self.con.close()
+        except Exception: pass
+        self.con = None
+
 def num(v):
     try:
         return float(v)
@@ -162,6 +189,10 @@ class Deck:
         self.rec_inicio = None      # time.time() en que empezó la grabación
         self.rec_ultima = 0.0       # duración de la última grabación (s)
         self._ip_leida = None
+        self.cli = Cliente()
+        self.despertar = threading.Event()   # lo activa el aviso del puerto 9993 (play/stop al instante)
+        self.pb_t = 0
+        self.notify = False
 
     @property
     def ip(self):
@@ -170,14 +201,14 @@ class Deck:
     def leer_meta(self):
         ip = self.ip
         try:
-            f = num((hd_get(ip, "/system/videoFormat") or {}).get("frameRate"))
+            f = num((self.cli.get(ip, "/system/videoFormat") or {}).get("frameRate"))
             if f: self.fps = f
         except Exception:
             pass
         if self.rol != "vtr":
             return
         try:
-            tl = hd_get(ip, "/timelines/0")
+            tl = self.cli.get(ip, "/timelines/0")
             acum, out = 0, []
             for c in (tl or {}).get("clips", []):
                 frames = num(c.get("frameCount")) or tc_a_frames(c.get("durationTimecode", ""), self.fps) or 0
@@ -191,7 +222,7 @@ class Deck:
             pass
         try:
             nombres = {}
-            for c in (hd_get(ip, "/clips") or {}).get("clips", []):
+            for c in (self.cli.get(ip, "/clips") or {}).get("clips", []):
                 n = os.path.basename((c.get("filePath") or "").replace("\\", "/"))
                 nombres[c.get("clipUniqueId")] = os.path.splitext(n)[0]
             self.nombres = nombres
@@ -210,19 +241,19 @@ class Deck:
             try:
                 if self.rol == "vtr":
                     # lectura rápida de la posición, con la hora exacta (punto medio de la petición)
-                    t_a = time.time(); pb = hd_get(ip, "/transports/0/playback"); t_b = time.time()
+                    t_a = time.time(); pb = self.cli.get(ip, "/transports/0/playback"); t_b = time.time()
                     t = int(((t_a + t_b) / 2 + RELOJ["offset"]) * 1000)
                     self._detectar_cambio(pb, t)
                     self.pb, self.pb_t = pb, t
                     if time.time() - ult_lento > 0.5:
-                        modo = (hd_get(ip, "/transports/0") or {}).get("mode", "")
-                        try: ci = (hd_get(ip, "/transports/0/clipIndex") or {}).get("clipIndex")
+                        modo = (self.cli.get(ip, "/transports/0") or {}).get("mode", "")
+                        try: ci = (self.cli.get(ip, "/transports/0/clipIndex") or {}).get("clipIndex")
                         except Exception: ci = self.clipIdx
                         if modo != self.modo or ci != self.clipIdx: CAMBIO.set()
                         self.modo, self.clipIdx = modo, ci
                         ult_lento = time.time()
                 else:
-                    t_a = time.time(); modo = (hd_get(ip, "/transports/0") or {}).get("mode", ""); t_b = time.time()
+                    t_a = time.time(); modo = (self.cli.get(ip, "/transports/0") or {}).get("mode", ""); t_b = time.time()
                     t = int(((t_a + t_b) / 2 + RELOJ["offset"]) * 1000)
                     self.modo = modo
                     grabando = modo == "InputRecord"
@@ -231,13 +262,13 @@ class Deck:
                     elif not grabando and self.rec_inicio is not None:
                         self.rec_ultima = (t - self.rec_inicio) / 1000; self.rec_inicio = None; CAMBIO.set()
                     if time.time() - ult_lento > 0.5:
-                        try: self.tc = (hd_get(ip, "/transports/0/timecode") or {}).get("display", "")
+                        try: self.tc = (self.cli.get(ip, "/transports/0/timecode") or {}).get("display", "")
                         except Exception: self.tc = ""
                         ult_lento = time.time()
                 if not self.conectado:
                     self.conectado = True; ult_meta = 0; CAMBIO.set()
                     try:
-                        pr = hd_get(ip, "/system/product") or {}
+                        pr = self.cli.get(ip, "/system/product") or {}
                         self.producto = pr.get("deviceName") or pr.get("productName") or "HyperDeck"
                     except Exception: pass
                 fallos = 0
@@ -248,7 +279,43 @@ class Deck:
                 if fallos >= 20:
                     if self.conectado: CAMBIO.set()
                     self.conectado = False; fallos = 0
-            time.sleep(POLL_S)
+            if self.despertar.wait(POLL_S):      # aviso del HyperDeck: leer todo al instante
+                ult_lento = 0
+            self.despertar.clear()
+
+    def escuchar_avisos(self):
+        """Protocolo Ethernet del HyperDeck (TCP 9993): avisa al instante cada cambio de transporte
+        (play, stop, cambio de clip). Así no se espera la próxima lectura. Si no se puede, sigue con lecturas."""
+        while True:
+            ip = self.ip.split(":")[0]
+            if not ip or ":" in self.ip:       # IP con puerto = equipo de prueba: sin avisos
+                self.notify = False; time.sleep(2); continue
+            s = None
+            try:
+                s = socket.create_connection((ip, 9993), timeout=3)
+                s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+                s.settimeout(5)
+                s.sendall(b"notify: transport: true\r\n")
+                self.notify = True
+                buf = b""
+                while self.ip.split(":")[0] == ip:
+                    try:
+                        dato = s.recv(4096)
+                    except socket.timeout:
+                        s.sendall(b"ping\r\n"); continue
+                    if not dato: break
+                    buf += dato
+                    if b"508 transport info" in buf or b"508 " in buf:
+                        self.despertar.set()
+                    buf = buf[-200:]
+            except Exception:
+                pass
+            finally:
+                self.notify = False
+                try:
+                    if s: s.close()
+                except Exception: pass
+            time.sleep(2)
 
     def _detectar_cambio(self, pb, t):
         """Play/stop, cambio de velocidad o salto de posición -> enviar de inmediato."""
@@ -290,6 +357,8 @@ class Deck:
         return {"estado": estado, "speed": speed, "fps": self.fps, "idx": idx, "total": len(tl),
                 "nombre": self.nombres.get(c["id"]) or f"Clip {idx + 1}",
                 "frames": c["frames"], "restante": max(0, c["start"] + c["frames"] - pos),
+                "loop": bool(pb.get("loop")), "single": bool(pb.get("singleClip")),
+                "lista": [{"n": self.nombres.get(x["id"]) or f"Clip {i + 1}", "f": x["frames"]} for i, x in enumerate(tl[:200])],
                 "t": getattr(self, "pb_t", ahora_ms())}   # hora UTC exacta de la lectura de "restante"
 
 DECKS = {r: Deck(r) for r in ROLES}
@@ -302,8 +371,8 @@ def bucle_envio():
     host = f"{SUPA_REF}.supabase.co"
     cab = {"apikey": SUPA_KEY, "Authorization": f"Bearer {SUPA_KEY}", "Content-Type": "application/json", "Connection": "keep-alive"}
     while True:
-        msgs = [{"topic": CFG["canal"], "event": "estado", "payload": DECKS["vtr"].payload()},   # VTR (compatibilidad)
-                {"topic": CFG["canal"], "event": "rec", "payload": DECKS["rec"].payload()}]
+        msgs = [{"topic": CFG["canal"], "event": "hd",
+                 "payload": {"vtr": DECKS["vtr"].payload(), "rec": DECKS["rec"].payload()}}]
         body = json.dumps({"messages": msgs})
         for intento in (1, 2):
             try:
@@ -341,7 +410,7 @@ class Panel(BaseHTTPRequestHandler):
         if self.path.startswith("/estado"):
             return self._send(200, json.dumps({
                 "decks_red": ST["decks"], "buscando": ST["buscando"],
-                "roles": {r: {"ip": d.ip, "conectado": d.conectado, "producto": d.producto, "payload": d.payload()} for r, d in DECKS.items()},
+                "roles": {r: {"ip": d.ip, "conectado": d.conectado, "avisos": d.notify, "producto": d.producto, "payload": d.payload()} for r, d in DECKS.items()},
                 "canal": CFG["canal"], "web": CFG["web"], "link": link(),
                 "internet_ok": time.time() - ST["ultimo_envio"] < 3, "reloj": RELOJ, "envio_ms": ST.get("envio_ms"), "error_envio": ST["error_envio"],
                 "ips_pc": ips_locales()}, ensure_ascii=False))
@@ -377,6 +446,7 @@ if __name__ == "__main__":
     threading.Thread(target=bucle_reloj, daemon=True).start()
     for d in DECKS.values():
         threading.Thread(target=d.bucle, daemon=True).start()
+        threading.Thread(target=d.escuchar_avisos, daemon=True).start()
     threading.Thread(target=bucle_envio, daemon=True).start()
     if ABRIR:
         import webbrowser; threading.Timer(1.0, lambda: webbrowser.open(f"http://localhost:{PORT}")).start()

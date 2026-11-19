@@ -1414,13 +1414,13 @@
     var b = $("#pHD"); if (!b) { return; }
     var t = $("span", b);
     if (!hd) { b.className = "pill"; t.textContent = "HyperDeck"; return; }
-    var d = hd.ultimo(), r = hd.restante();
-    if (!d || hd.edad() > 4000) { b.className = "pill warn"; t.textContent = "HD sin señal"; return; }
-    if (d.estado === "sinhd") { b.className = "pill warn"; t.textContent = "HD buscando…"; return; }
-    if (r === null) { b.className = "pill"; t.textContent = "HD detenido"; return; }
-    var seg = r / (d.fps || 59.94);
-    b.className = "pill " + (d.estado === "play" ? (seg <= 10 ? "warn" : "ok") : "");
-    t.textContent = (d.estado === "play" ? "▶ " : "■ ") + "-" + CG.HD.fmt(r, d.fps);
+    var d = hd.ultimo(), c = hd.vtr(), k, v;
+    if (!d || hd.edad() > 4000) { k = "pill warn"; v = "HD sin señal"; }
+    else if (d.estado === "sinhd") { k = "pill warn"; v = "HD buscando…"; }
+    else if (!c) { k = "pill"; v = "HD detenido"; }
+    else { k = "pill " + (c.corre ? (c.restante / c.fps <= 10 ? "warn" : "ok") : ""); v = (c.corre ? "▶ " : "■ ") + "-" + CG.HD.fmt(c.restante, c.fps); }
+    if (b.className !== k) { b.className = k; }
+    if (t.textContent !== v) { t.textContent = v; }
   }
   function hyperdeck() {
     var gh = "https://github.com/juandaniel30917-sys/completos-mojados-cg/tree/main/contador/estudio";
@@ -1445,17 +1445,17 @@
     $("[data-cerrar]", c).onclick = cerrarModal;
     var iv = setInterval(function () {
       if (!document.body.contains(c) || !$("#hdT", c)) { clearInterval(iv); return; }
-      var d = hd && hd.ultimo(), r = hd && hd.restante();
-      $("#hdNom", c).textContent = d && d.frames ? d.nombre + "  ·  clip " + (d.idx + 1) + " de " + d.total : "—";
-      $("#hdT", c).textContent = r !== null && r !== undefined && d ? "-" + CG.HD.fmt(r, d.fps) : "--:--:--";
+      var d = hd && hd.ultimo(), v = hd && hd.vtr();
+      $("#hdNom", c).textContent = v ? v.nombre + "  ·  clip " + (v.idx + 1) + " de " + v.total : "—";
+      $("#hdT", c).textContent = v ? "-" + CG.HD.fmt(v.restante, v.fps) : "--:--:--";
       $("#hdEst", c).textContent = !hd ? "Sin conectar" : (!d || hd.edad() > 4000) ? "Esperando al emisor del estudio…" :
-        ({play: "Al aire", stop: "Detenido", rec: "Grabando", vivo: "Entrada en vivo", sinhd: "El emisor está buscando el HyperDeck"})[d.estado] || "";
-    }, 100);
+        v && v.fin ? "Fin de la lista" : ({play: "Al aire", stop: "Detenido", rec: "Grabando", vivo: "Entrada en vivo", sinhd: "El emisor está buscando el HyperDeck"})[d.estado] || "";
+    }, 33);
   }
   if (window.CG.HD) {
     if (hdCanal) { hdConectar(hdCanal); }
     $("#pHD").onclick = hyperdeck;
-    setInterval(hdPill, 100);
+    CG.HD.cuadro(hdPill);
   } else if ($("#pHD")) { $("#pHD").hidden = true; }
 
   function copiar(t) {
