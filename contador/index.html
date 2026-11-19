@@ -30,6 +30,8 @@
   #tabs a{cursor:pointer;color:#888;text-decoration:none;font-weight:700;font-size:13px;letter-spacing:.15em;padding:6px 16px;border-radius:99px}
   #tabs a.on.vtr{background:var(--ok);color:#000} #tabs a.on.rec{background:var(--bad);color:#fff}
   body.rec #tiempo{color:#fff} body.rec.grabando #tiempo{color:var(--bad)}
+  #sync{position:fixed;bottom:calc(30px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:#151515;color:#ccc;border:1px solid #333;border-radius:99px;padding:8px 16px;font-size:14px;font-weight:700;letter-spacing:.05em;cursor:pointer;white-space:nowrap}
+  #sync.ok{color:var(--ok);border-color:#1f5d39} #sync.trabajando{opacity:.6}
   #pie{position:fixed;bottom:10px;left:0;right:0;text-align:center;font-size:12px;color:#444}
   #sinCanal{display:none;text-align:center;padding:30px;font-size:18px;line-height:1.5}
   #sinCanal input{display:block;margin:16px auto;width:min(80vw,320px);font-size:18px;padding:10px;background:#111;color:#fff;border:1px solid #444;border-radius:8px;text-align:center}
@@ -51,10 +53,11 @@
   <input id="canalInput" placeholder="hd-xxxxxx">
   <button id="canalBtn">Ver contador</button>
 </div>
+<button id="sync" title="Ajusta el reloj de esta pantalla al del estudio">⟳ Sincronizar</button>
 <div id="pie"></div>
 
-<script src="../js/config.js?v=202611192030"></script>
-<script src="../js/hyperdeck.js?v=202611192030"></script>
+<script src="../js/config.js?v=202611192045"></script>
+<script src="../js/hyperdeck.js?v=202611192045"></script>
 <script>
 (function () {
   function param(n) { var m = new RegExp("[?&]" + n + "=([^&]+)").exec(location.search); return m ? decodeURIComponent(m[1]) : ""; }
@@ -115,6 +118,20 @@
   function dibujar() { if (MODO === "rec") { dibujarRec(); } else { dibujarVtr(); } }
   HD.cuadro(dibujar);
   $("pie").textContent = "Canal " + CANAL;
+
+  /* botón Sincronizar: mide de nuevo el reloj y corrige al tiro (también se hace solo al abrir y cada 5 min) */
+  function pintarSync(t) { $("sync").textContent = t; }
+  function marcaSync() {
+    var r = HD.reloj;
+    $("sync").className = r.ok ? "ok" : "";
+    pintarSync(r.ok ? "✓ Sincronizado" : "⟳ Sincronizar");
+  }
+  $("sync").onclick = function (e) {
+    e.stopPropagation();
+    $("sync").className = "trabajando"; pintarSync("Sincronizando…");
+    HD.sincronizar(12).then(function () { con.reiniciar(); cache = {}; marcaSync(); }, marcaSync);
+  };
+  setInterval(marcaSync, 2000); setTimeout(marcaSync, 1500);
 
   function cambiar(m, ev) {
     if (ev) { ev.stopPropagation(); ev.preventDefault(); }

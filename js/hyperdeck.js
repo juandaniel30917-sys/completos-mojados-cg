@@ -17,6 +17,33 @@
   var KEY = CFG.SUPABASE_ANON_KEY || "sb_publishable_sslALDjrDSbZ-EH-wJbtyw_1DHtFZjC";
   var CANAL_DEF = "hd-completos-mojados";
 
+  /* ---------- RELOJ COMÚN ----------
+     Cada pantalla mide su desfase contra la función "hora" de Supabase (el mismo reloj que usa el emisor).
+     Se queda con la medición de menor ida y vuelta: error típico de unos pocos ms. */
+  var RELOJ = {off: 0, ok: false, rtt: null, cuando: 0};
+  function ahora() { return Date.now() + RELOJ.off; }
+  function sincronizar(n) {
+    n = n || 8;
+    var url = "https://" + REF + ".supabase.co/functions/v1/hora", mejor = null, i = 0;
+    var cab = {Authorization: "Bearer " + (CFG.SUPABASE_ANON_KEY || KEY)};
+    function una() {
+      var t1 = Date.now(), p1 = performance.now();
+      var rtt;
+      return fetch(url, {headers: cab, cache: "no-store"}).then(function (r) { rtt = performance.now() - p1; return r.json(); }).then(function (j) {
+        var t4 = t1 + rtt;
+        if (i > 0 && (!mejor || rtt < mejor.rtt)) { mejor = {rtt: rtt, off: j.t - (t1 + t4) / 2}; }   // la 1.ª abre la conexión: se descarta
+      });
+    }
+    function bucle() { return i++ < n + 1 ? una().then(bucle, bucle) : null; }
+    return bucle().then(function () {
+      if (mejor) { RELOJ.off = mejor.off; RELOJ.rtt = Math.round(mejor.rtt); RELOJ.ok = true; RELOJ.cuando = Date.now(); }
+      return RELOJ;
+    });
+  }
+  sincronizar();
+  setInterval(function () { sincronizar(); }, 300000);
+  document.addEventListener("visibilitychange", function () { if (!document.hidden && Date.now() - RELOJ.cuando > 60000) { sincronizar(); } });
+
   function z(x) { return (x < 10 ? "0" : "") + x; }
   function fmt(frames, fps) {
     fps = fps || 59.94; frames = Math.max(0, Math.floor(frames + 1e-6));
@@ -29,7 +56,7 @@
   /* ms transcurridos desde la lectura: hora exacta del emisor si el reloj de esta pantalla cuadra;
      si no (reloj desajustado), desde que llegó el mensaje. */
   function desde(d, recibido) {
-    var l = Date.now() - (d.t || 0);
+    var l = ahora() - (d.t || 0);
     return (d.t && l > -1500 && l < 8000) ? Math.max(0, l) : Date.now() - recibido;
   }
 
@@ -97,8 +124,8 @@
       var d = D.rec; if (!d) { return null; }
       var grab = d.estado === "rec", seg = d.transcurrido || 0;
       if (grab) {
-        var l = Date.now() - (d.t || 0);
-        seg = (d.inicio && d.t && l > -1500 && l < 8000) ? (Date.now() - d.inicio) / 1000 : seg + (Date.now() - R.rec) / 1000;
+        var l = ahora() - (d.t || 0);
+        seg = (d.inicio && d.t && l > -1500 && l < 8000) ? (ahora() - d.inicio) / 1000 : seg + (Date.now() - R.rec) / 1000;
       }
       return {grabando: grab, seg: Math.max(0, seg), tc: d.tc || "", sinhd: d.estado === "sinhd"};
     }
@@ -107,6 +134,7 @@
       edad: function (k) { var t = R[k || "vtr"]; return t ? Date.now() - t : Infinity; },
       ultimo: function (k) { return D[k || "vtr"]; },
       vtr: vtr, rec: rec,
+      reiniciar: function () { vis = null; },
       restante: function () { var c = vtr(); return c ? c.restante : null; }
     };
   }
@@ -118,7 +146,7 @@
   }
 
   CG.HD = {
-    escuchar: escuchar, calcVtr: calcVtr, fmt: fmt, hms: hms, cuadro: cuadro,
+    escuchar: escuchar, calcVtr: calcVtr, sincronizar: sincronizar, reloj: RELOJ, ahora: ahora, fmt: fmt, hms: hms, cuadro: cuadro,
     linkVisor: function (base, canal) { return base + "contador/?c=" + encodeURIComponent(canal); },
     /* por defecto escucha el canal fijo del emisor del estudio (sin pegar códigos) */
     canalGuardado: function () { try { var v = localStorage.getItem("cg_hd_canal"); return v === null ? CANAL_DEF : v; } catch (e) { return CANAL_DEF; } },

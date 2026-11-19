@@ -70,7 +70,7 @@ function con(r){ return r.conectado ? '<span class="ok">● '+(r.producto||"Hype
 async function refrescar(){
   try{
     var s = await (await fetch("/estado")).json(), v = s.roles.vtr, r = s.roles.rec;
-    $("net").innerHTML = s.internet_ok ? '<span class="ok">● Enviando a internet · '+(s.envio_ms||"–")+' ms'+(s.reloj&&s.reloj.ok?' · reloj NTP ✓':' · reloj sin NTP')+'</span>' : '<span class="bad">● Sin internet '+(s.error_envio||"")+'</span>';
+    $("net").innerHTML = s.internet_ok ? '<span class="ok">● Enviando a internet · '+(s.envio_ms||"–")+' ms'+(s.reloj&&s.reloj.ok?' · reloj común ✓ ±'+Math.max(1,Math.round((s.reloj.rtt_ms||0)/2))+' ms':' · reloj sin sincronizar')+'</span>' : '<span class="bad">● Sin internet '+(s.error_envio||"")+'</span>';
     var pv = v.payload||{};
     $("vtrEst").innerHTML = con(v) + (v.conectado ? " · " + ({play:"Al aire",stop:"Detenido",rec:"Grabando",vivo:"Entrada"}[pv.estado]||"") : "");
     $("vtrT").textContent = pv.frames ? "-"+fmt(pv.restante,pv.fps||59.94) : "--:--:--";

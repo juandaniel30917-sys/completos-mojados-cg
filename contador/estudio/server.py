@@ -24,6 +24,7 @@ CFG_PATH = os.path.join(HERE, "config.json")
 
 SUPA_REF = "wxfzyyvjtrflfrhwswam"
 SUPA_KEY = "sb_publishable_sslALDjrDSbZ-EH-wJbtyw_1DHtFZjC"
+SUPA_ANON_JWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind4Znp5eXZqdHJmbGZyaHdzd2FtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIzMTI5MzksImV4cCI6MjEwNzg4ODkzOX0.ybRhztYFhWM5owIUL-0yaJkqQvaQaVC2zT5AWSWkf8k"   # clave pública (anon) para la función "hora"
 BROADCAST_URL = f"https://{SUPA_REF}.supabase.co/realtime/v1/api/broadcast"
 CANAL_DEFAULT = "hd-completos-mojados"   # el panel de Completos Mojados se conecta solo a este canal
 WEB_DEFAULT = "https://juandaniel30917-sys.github.io/completos-mojados-cg/contador/"
@@ -59,7 +60,7 @@ ST = {"decks": [], "buscando": False, "ultimo_envio": 0, "error_envio": ""}
 # ---------------- reloj exacto (NTP) ----------------
 # Cada lectura lleva la hora UTC exacta en que se hizo. Las pantallas (celular/TV, que tienen la hora
 # sincronizada) restan esa hora a la suya: así el viaje por internet no agrega retraso al contador.
-RELOJ = {"offset": 0.0, "ok": False, "servidor": ""}
+RELOJ = {"offset": 0.0, "ok": False, "servidor": "", "rtt_ms": None}
 
 def sntp(servidor, timeout=2.0):
     import struct
@@ -76,8 +77,33 @@ def sntp(servidor, timeout=2.0):
     t2, t3 = ts(32), ts(40)
     return ((t2 - t1) + (t3 - t4)) / 2, (t4 - t1) - (t3 - t2)
 
+def reloj_supabase(n=10):
+    """Misma referencia que usan las pantallas: función "hora" de Supabase (HTTPS, no la bloquea la red)."""
+    import http.client
+    con = http.client.HTTPSConnection(f"{SUPA_REF}.supabase.co", timeout=4)
+    mejor = None
+    try:
+        for i in range(n + 1):
+            t1 = time.time()
+            con.request("GET", "/functions/v1/hora", headers={"Authorization": f"Bearer {SUPA_ANON_JWT}"})
+            r = con.getresponse(); j = json.loads(r.read())
+            t4 = time.time()
+            if i == 0: continue                      # la 1.ª abre la conexión TLS: se descarta
+            rtt = t4 - t1; off = j["t"] / 1000 - (t1 + t4) / 2
+            if mejor is None or rtt < mejor[1]: mejor = (off, rtt)
+    finally:
+        con.close()
+    return mejor
+
 def bucle_reloj():
     while True:
+        try:
+            m = reloj_supabase()
+            if m:
+                RELOJ.update(offset=m[0], ok=True, servidor="supabase", rtt_ms=int(m[1] * 1000))
+                time.sleep(300); continue
+        except Exception:
+            pass
         mejor = None
         for srv in ("time.google.com", "time.cloudflare.com", "pool.ntp.org", "time.windows.com"):
             for _ in range(3):
