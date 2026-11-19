@@ -514,9 +514,9 @@
     nombre: "Auspicio Mary Mechadas (logo entre humo)", cat: "menciones", icono: "estrella", capa: 59, salidaMs: 950, tipo: "MENCION", grupo: "auspicio-mary",
     desc: "El logo aparece entre humo y polvo, con un brillo que lo recorre; al salir se deshace en polvo.",
     campos: [{k: "logo", l: "Logo", t: "imagen", g: "Marca"}, POS_X, POS_Y, TAM, VEL],
-    defaults: {logo: "assets/marcas/mary_logo.png", dx: 0, dy: 0, escala: 100, vel: 100},
+    defaults: {logo: "assets/marcas/mary_logo.svg", dx: 0, dy: 0, escala: 100, vel: 100},
     render: function (d) {
-      var img = d.logo && !CG.esPendiente(d.logo) ? d.logo : "assets/marcas/mary_logo.png", polvo = "", humo = "";
+      var img = d.logo && !CG.esPendiente(d.logo) && d.logo !== "assets/marcas/mary_logo.png" ? d.logo : "assets/marcas/mary_logo.svg", polvo = "", humo = "";
       for (var i = 0; i < 34; i++) {
         var ang = (i * 137.5) % 360, r = 320 + (i * 53) % 260, x = 430 + Math.cos(ang * Math.PI / 180) * (180 + (i * 37) % 260), y = 360 + Math.sin(ang * Math.PI / 180) * (140 + (i * 29) % 200);
         polvo += '<i style="left:' + x.toFixed(0) + 'px;top:' + y.toFixed(0) + 'px;--dx:' + (Math.cos(ang * Math.PI / 180) * r).toFixed(0) + 'px;--dy:' + (Math.sin(ang * Math.PI / 180) * r * .7).toFixed(0) + 'px;--t:' + (i % 7) * 40 + 'ms;--s:' + (3 + i % 5) + 'px"></i>';

@@ -294,7 +294,7 @@
 
 /* ===== AUSPICIO MARY MECHADAS: humo y polvo → logo → brillo; sale deshaciéndose en polvo ===== */
 .sm{position:absolute;left:0;top:0;width:1920px;height:1080px;pointer-events:none}
-.sm-logo{position:absolute;left:910px;top:182px;width:860px;height:720px;z-index:2}
+.sm-logo{position:absolute;left:906px;top:180px;width:868px;height:725px;z-index:2}
 .sm-f{position:relative;width:100%;height:100%;animation:smFlota 6s ease-in-out infinite}
 .sm-f img{width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 10px 22px rgba(0,0,0,.35))}
 .sm-brillo{position:absolute;inset:0;-webkit-mask-size:100% 100%;mask-size:100% 100%;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;
