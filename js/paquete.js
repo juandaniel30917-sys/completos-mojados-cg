@@ -542,6 +542,53 @@
     }
     return h;
   }
+  /* lata en 3D real (WebGL con three.js): cilindro con la etiqueta envuelta, tapa metálica, luces que la iluminan al girar.
+     La posición en pantalla la mueve el CSS; aquí solo el giro, la inclinación y la luz del rayo / celeste. */
+  function suave(a, b, x) { var t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * t * (t * (t * 6 - 15) + 10); }
+  function lata3D(cont, imgEtq, imgHielo) {
+    var T = window.THREE; if (!T || !cont) { return null; }
+    var cv = document.createElement("canvas"), ren;
+    try { ren = new T.WebGLRenderer({canvas: cv, alpha: true, antialias: true, preserveDrawingBuffer: true}); } catch (e) { return null; }
+    var W = 272, H = 598, k = 2.4;
+    ren.setPixelRatio(1); ren.setSize(Math.round(W * k), Math.round(H * k), false); ren.setClearColor(0x000000, 0);
+    if ("useLegacyLights" in ren) { ren.useLegacyLights = true; }
+    cv.className = "sr-3d"; cont.appendChild(cv);
+    var esc = new T.Scene(), cam = new T.OrthographicCamera(-W / 2, W / 2, H / 2, -H / 2, 1, 3000); cam.position.set(0, 0, 1000);
+    esc.add(new T.AmbientLight(0xffffff, .62));
+    var l1 = new T.DirectionalLight(0xffffff, .85); l1.position.set(-.55, .35, 1); esc.add(l1);
+    var l2 = new T.DirectionalLight(0xbfe8ff, .55); l2.position.set(.9, .15, -.2); esc.add(l2);
+    var tex = new T.Texture(imgEtq); tex.wrapS = T.RepeatWrapping; if (T.SRGBColorSpace) { tex.colorSpace = T.SRGBColorSpace; } tex.anisotropy = 4;
+    var mat = new T.MeshPhongMaterial({map: tex, emissiveMap: tex, emissive: 0x000000, shininess: 60, specular: 0x4a5258});
+    var R = 116, alto = 540, cy = H / 2 - 278;
+    var inclina = new T.Group(); inclina.position.set(3, 0, 0); esc.add(inclina);
+    var gira = new T.Group(); inclina.add(gira);
+    var cuerpo = new T.Mesh(new T.CylinderGeometry(R, R, alto, 96, 1, true), mat); cuerpo.position.y = cy; cuerpo.rotation.y = Math.PI; gira.add(cuerpo);
+    var metal = new T.MeshPhongMaterial({color: 0xaeb8be, shininess: 110, specular: 0xffffff, emissive: 0x000000});
+    var hombro = new T.Mesh(new T.CylinderGeometry(R * .9, R, 16, 96, 1, true), metal); hombro.position.y = cy + alto / 2 + 8; gira.add(hombro);
+    var tapa = new T.Mesh(new T.CylinderGeometry(R * .9, R * .9, 4, 96), metal); tapa.position.y = cy + alto / 2 + 16; gira.add(tapa);
+    var anilla = new T.Mesh(new T.TorusGeometry(R * .2, 3.5, 8, 32), new T.MeshPhongMaterial({color: 0x9aa4aa, shininess: 80})); anilla.rotation.x = Math.PI / 2; anilla.position.set(0, cy + alto / 2 + 19, R * .35); gira.add(anilla);
+    var base = new T.Mesh(new T.CylinderGeometry(R, R * .9, 12, 96, 1, true), metal); base.position.y = cy - alto / 2 - 6; gira.add(base);
+    var hielo = null;
+    if (imgHielo) {
+      var th = new T.Texture(imgHielo); if (T.SRGBColorSpace) { th.colorSpace = T.SRGBColorSpace; }
+      hielo = new T.Mesh(new T.PlaneGeometry(272, 68), new T.MeshBasicMaterial({map: th, transparent: true, depthWrite: false}));
+      hielo.position.set(-3, H / 2 - 564, R + 2); inclina.add(hielo);
+    }
+    function listo(img, t) { if (img.complete && img.naturalWidth) { t.needsUpdate = true; } else { img.addEventListener("load", function () { t.needsUpdate = true; }, {once: true}); } }
+    listo(imgEtq, tex); if (hielo) { listo(imgHielo, hielo.material.map); }
+    return {
+      /* giro en grados, inclinación en radianes, luz = {r,g,b,k} */
+      pintar: function (giro, incl, luz) {
+        gira.rotation.y = giro * Math.PI / 180; inclina.rotation.x = incl;
+        var c = luz && luz.k > 0 ? luz : null;
+        mat.emissive.setRGB(c ? c.r * c.k : 0, c ? c.g * c.k : 0, c ? c.b * c.k : 0);
+        metal.emissive.setRGB(c ? c.r * c.k * .6 : 0, c ? c.g * c.k * .6 : 0, c ? c.b * c.k * .6 : 0);
+        if (hielo) { hielo.material.color.setRGB(1 + (c ? c.k * .5 : 0), 1 + (c ? c.k * .5 : 0), 1 + (c ? c.k * .5 : 0)); }
+        ren.render(esc, cam);
+      },
+      destruir: function () { try { ren.dispose(); tex.dispose(); } catch (e) {} cv.remove(); }
+    };
+  }
   P.spRayo = {
     nombre: "Auspicio Rayo Maulino (lata con rayo)", cat: "menciones", icono: "estrella", capa: 59, salidaMs: 560, entraMs: 4700, tipo: "MENCION", grupo: "auspicio-rayo",
     desc: "Como el original: cae la lata girando con el rayo, humo y anillos eléctricos, viaja a la esquina y saca su cintillo. Sale con un rayo.",
@@ -554,8 +601,8 @@
         '<div class="sr-humo sr-hA">' + humoRayo(60, 5, false) + '</div>' +
         '<div class="sr-lata"><div class="sr-f">' +
           '<svg class="sr-ar sr-atras" viewBox="-136 -30 544 658"></svg>' +
-          '<div class="sr-giro"><img class="sr-dorso" alt="" src="' + img + '"><img class="sr-cara" alt="" src="' + img + '">' +
-            '<b class="sr-tinte" style="-webkit-mask-image:url(\'' + img + '\');mask-image:url(\'' + img + '\')"></b></div>' +
+          '<div class="sr-giro"><img class="sr-plano" alt="" src="' + img + '"></div>' +
+          '<img class="sr-tex" alt="" src="assets/marcas/rayo_etiqueta.jpg"><img class="sr-tex sr-texH" alt="" src="assets/marcas/rayo_hielo.png">' +
           '<svg class="sr-ar sr-frente" viewBox="-136 -30 544 658"></svg>' +
         '</div></div>' +
         '<div class="sr-humo sr-hF">' + humoRayo(26, 9, true) + '</div>' +
@@ -564,9 +611,33 @@
         '<svg class="sr-rayoS" viewBox="0 0 1920 1080"><g>' + rayoSVG(37, 1700, -30, 860, 5, .8) + '</g></svg>' +
       '</div>';
     },
-    montar: function (el) {
+    montar: function (el, d) {
       var a = el.querySelector(".sr-atras"), f = el.querySelector(".sr-frente"), parar = a && f ? anillosVivos(a, f, 272, 598) : null;
-      return {destruir: function () { if (parar) { parar(); } }};
+      var giro = el.querySelector(".sr-giro"), texs = el.querySelectorAll(".sr-tex");
+      var l3 = (!d.lata || d.lata === "assets/marcas/rayo_lata.png") ? lata3D(giro, texs[0], texs[1]) : null;
+      if (l3) { giro.classList.add("es3d"); }
+      var vivo = true, t0 = performance.now(), entra = el.classList.contains("entra"), tS = -1;
+      var vel = Math.max(0.25, ((+d.vel || 100) / 100) * (CG.velocidad || 1));
+      function paso() {
+        if (!vivo || !l3) { return; }
+        var t = (performance.now() - t0) / 1000 * vel; if (!entra) { t += 10; }
+        var g, inc, luz = null;
+        if (t < 0.9) { g = 150 + 210 * suave(0.15, 0.9, t); inc = 0.26 - 0.16 * suave(0, 0.9, t); }
+        else { g = 360 + 11 * Math.sin((t - 0.9) * 1.25) * Math.min(1, (t - 0.9) / 0.8); inc = 0.1; }
+        if (t < 0.8) { luz = {r: 1, g: .94, b: .6, k: (1.0 + .25 * Math.sin(t * 70)) * (1 - suave(0.5, 0.82, t))}; }
+        else if (t > 0.88 && t < 2.5) { luz = {r: .45, g: .85, b: 1, k: .2 * suave(0.88, 1.1, t) * (1 - suave(2.0, 2.5, t))}; }
+        if (tS >= 0) {
+          var s = (performance.now() - tS) / 1000 * vel;
+          g += 520 * Math.pow(Math.min(1, s / 0.4), 2); luz = {r: 1, g: 1, b: .85, k: Math.min(1.2, s * 4)};
+        }
+        l3.pintar(g, inc, luz);
+        requestAnimationFrame(paso);
+      }
+      requestAnimationFrame(paso);
+      return {
+        saliendo: function () { tS = performance.now(); },
+        destruir: function () { vivo = false; if (parar) { parar(); } if (l3) { l3.destruir(); } }
+      };
     }
   };
 
