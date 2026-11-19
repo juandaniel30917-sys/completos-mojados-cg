@@ -21,21 +21,27 @@
      Cada pantalla mide su desfase contra la función "hora" de Supabase (el mismo reloj que usa el emisor).
      Se queda con la medición de menor ida y vuelta: error típico de unos pocos ms. */
   var RELOJ = {off: 0, ok: false, rtt: null, cuando: 0};
-  function ahora() { return Date.now() + RELOJ.off; }
+  /* ajuste fino de ESTA pantalla, en ms (+ = adelanta el contador). Se guarda en el equipo. */
+  var AJUSTE = 0; try { AJUSTE = +localStorage.getItem("hd_ajuste_ms") || 0; } catch (e) {}
+  function ahora() { return Date.now() + RELOJ.off + AJUSTE; }
   function sincronizar(n) {
     n = n || 8;
-    var url = "https://" + REF + ".supabase.co/functions/v1/hora", mejor = null, i = 0;
+    var url = "https://" + REF + ".supabase.co/functions/v1/hora", muestras = [], i = 0;
     var cab = {Authorization: "Bearer " + (CFG.SUPABASE_ANON_KEY || KEY)};
     function una() {
       var t1 = Date.now(), p1 = performance.now();
       var rtt;
       return fetch(url, {headers: cab, cache: "no-store"}).then(function (r) { rtt = performance.now() - p1; return r.json(); }).then(function (j) {
         var t4 = t1 + rtt;
-        if (i > 0 && (!mejor || rtt < mejor.rtt)) { mejor = {rtt: rtt, off: j.t - (t1 + t4) / 2}; }   // la 1.ª abre la conexión: se descarta
+        if (i > 0) { muestras.push({rtt: rtt, off: j.t - (t1 + t4) / 2}); }   // la 1.ª abre la conexión: se descarta
       });
     }
     function bucle() { return i++ < n + 1 ? una().then(bucle, bucle) : null; }
     return bucle().then(function () {
+      /* las 3 mediciones con menor ida y vuelta (las más simétricas) promediadas */
+      muestras.sort(function (a, b) { return a.rtt - b.rtt; });
+      var top = muestras.slice(0, 3), mejor = null;
+      if (top.length) { mejor = {rtt: top[0].rtt, off: top.reduce(function (a, m) { return a + m.off; }, 0) / top.length}; }
       if (mejor) { RELOJ.off = mejor.off; RELOJ.rtt = Math.round(mejor.rtt); RELOJ.ok = true; RELOJ.cuando = Date.now(); }
       return RELOJ;
     });
@@ -146,7 +152,8 @@
   }
 
   CG.HD = {
-    escuchar: escuchar, calcVtr: calcVtr, sincronizar: sincronizar, reloj: RELOJ, ahora: ahora, fmt: fmt, hms: hms, cuadro: cuadro,
+    escuchar: escuchar, calcVtr: calcVtr, sincronizar: sincronizar, reloj: RELOJ, ahora: ahora,
+    ajuste: function (ms) { if (ms !== undefined) { AJUSTE = Math.round(ms); try { localStorage.setItem("hd_ajuste_ms", AJUSTE); } catch (e) {} } return AJUSTE; }, fmt: fmt, hms: hms, cuadro: cuadro,
     linkVisor: function (base, canal) { return base + "contador/?c=" + encodeURIComponent(canal); },
     /* por defecto escucha el canal fijo del emisor del estudio (sin pegar códigos) */
     canalGuardado: function () { try { var v = localStorage.getItem("cg_hd_canal"); return v === null ? CANAL_DEF : v; } catch (e) { return CANAL_DEF; } },

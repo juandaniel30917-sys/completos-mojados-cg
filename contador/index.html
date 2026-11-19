@@ -30,7 +30,10 @@
   #tabs a{cursor:pointer;color:#888;text-decoration:none;font-weight:700;font-size:13px;letter-spacing:.15em;padding:6px 16px;border-radius:99px}
   #tabs a.on.vtr{background:var(--ok);color:#000} #tabs a.on.rec{background:var(--bad);color:#fff}
   body.rec #tiempo{color:#fff} body.rec.grabando #tiempo{color:var(--bad)}
-  #sync{position:fixed;bottom:calc(30px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:#151515;color:#ccc;border:1px solid #333;border-radius:99px;padding:8px 16px;font-size:14px;font-weight:700;letter-spacing:.05em;cursor:pointer;white-space:nowrap}
+  #ctl{position:fixed;bottom:calc(30px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);display:flex;gap:8px;align-items:center;white-space:nowrap}
+  #ctl button{background:#151515;color:#ccc;border:1px solid #333;border-radius:99px;padding:8px 14px;font-size:14px;font-weight:700;cursor:pointer}
+  #ajTxt{position:absolute;top:-20px;left:0;right:0;text-align:center;font-size:11px;color:#777}
+  #sync{letter-spacing:.05em}
   #sync.ok{color:var(--ok);border-color:#1f5d39} #sync.trabajando{opacity:.6}
   #pie{position:fixed;bottom:10px;left:0;right:0;text-align:center;font-size:12px;color:#444}
   #sinCanal{display:none;text-align:center;padding:30px;font-size:18px;line-height:1.5}
@@ -53,11 +56,11 @@
   <input id="canalInput" placeholder="hd-xxxxxx">
   <button id="canalBtn">Ver contador</button>
 </div>
-<button id="sync" title="Ajusta el reloj de esta pantalla al del estudio">⟳ Sincronizar</button>
+<div id="ctl"><button id="menos" title="Atrasar 1 cuadro">−1</button><button id="sync" title="Ajusta el reloj de esta pantalla al del estudio">⟳ Sincronizar</button><button id="mas" title="Adelantar 1 cuadro">+1</button><span id="ajTxt"></span></div>
 <div id="pie"></div>
 
-<script src="../js/config.js?v=202611192045"></script>
-<script src="../js/hyperdeck.js?v=202611192045"></script>
+<script src="../js/config.js?v=202611192100"></script>
+<script src="../js/hyperdeck.js?v=202611192100"></script>
 <script>
 (function () {
   function param(n) { var m = new RegExp("[?&]" + n + "=([^&]+)").exec(location.search); return m ? decodeURIComponent(m[1]) : ""; }
@@ -76,7 +79,11 @@
 
   /* escribir en pantalla solo si cambió (más fluido en celulares y TVs) */
   var cache = {};
-  function txt(id, v) { if (cache[id] !== v) { cache[id] = v; $(id).textContent = v; } }
+  function txt(id, v) {
+    if (cache[id] === v) { return; }
+    cache[id] = v; $(id).textContent = v;
+    if (id === "tiempo") { var n = Math.max(8, v.length); estilo("tiempo", "fontSize", "min(" + (150 / n).toFixed(1) + "vw, 28vh)"); }  /* siempre cabe */
+  }
   function cls(id, v) { var k = id + "#c"; if (cache[k] !== v) { cache[k] = v; $(id).className = v; } }
   function estilo(id, prop, v) { var k = id + "#" + prop; if (cache[k] !== v) { cache[k] = v; $(id).style[prop] = v; } }
   function estado(t, c) { txt("estadoTxt", t); cls("estado", c || ""); }
@@ -129,9 +136,20 @@
   $("sync").onclick = function (e) {
     e.stopPropagation();
     $("sync").className = "trabajando"; pintarSync("Sincronizando…");
-    HD.sincronizar(12).then(function () { con.reiniciar(); cache = {}; marcaSync(); }, marcaSync);
+    HD.sincronizar(16).then(function () { con.reiniciar(); cache = {}; marcaSync(); }, marcaSync);
   };
   setInterval(marcaSync, 2000); setTimeout(marcaSync, 1500);
+
+  /* ajuste fino por cuadros (calzar contra la pantalla del HyperDeck); queda guardado en este equipo */
+  function fpsActual() { var d = con.ultimo("vtr") || con.ultimo("rec"); return (d && d.fps) || 59.94; }
+  function pintarAjuste() {
+    var c = Math.round(HD.ajuste() / (1000 / fpsActual()));
+    $("ajTxt").textContent = c ? "Ajuste de esta pantalla: " + (c > 0 ? "+" : "") + c + " cuadro" + (Math.abs(c) === 1 ? "" : "s") : "";
+  }
+  function mover(n, e) { e.stopPropagation(); HD.ajuste(HD.ajuste() + n * 1000 / fpsActual()); con.reiniciar(); cache = {}; pintarAjuste(); }
+  $("mas").onclick = function (e) { mover(1, e); };
+  $("menos").onclick = function (e) { mover(-1, e); };
+  pintarAjuste();
 
   function cambiar(m, ev) {
     if (ev) { ev.stopPropagation(); ev.preventDefault(); }

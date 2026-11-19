@@ -77,11 +77,11 @@ def sntp(servidor, timeout=2.0):
     t2, t3 = ts(32), ts(40)
     return ((t2 - t1) + (t3 - t4)) / 2, (t4 - t1) - (t3 - t2)
 
-def reloj_supabase(n=10):
+def reloj_supabase(n=16):
     """Misma referencia que usan las pantallas: función "hora" de Supabase (HTTPS, no la bloquea la red)."""
     import http.client
     con = http.client.HTTPSConnection(f"{SUPA_REF}.supabase.co", timeout=4)
-    mejor = None
+    muestras = []
     try:
         for i in range(n + 1):
             t1 = time.time()
@@ -89,11 +89,12 @@ def reloj_supabase(n=10):
             r = con.getresponse(); j = json.loads(r.read())
             t4 = time.time()
             if i == 0: continue                      # la 1.ª abre la conexión TLS: se descarta
-            rtt = t4 - t1; off = j["t"] / 1000 - (t1 + t4) / 2
-            if mejor is None or rtt < mejor[1]: mejor = (off, rtt)
+            muestras.append((j["t"] / 1000 - (t1 + t4) / 2, t4 - t1))
     finally:
         con.close()
-    return mejor
+    if not muestras: return None
+    top = sorted(muestras, key=lambda m: m[1])[:3]          # las 3 más simétricas (menor ida y vuelta)
+    return (sum(m[0] for m in top) / len(top), top[0][1])
 
 def bucle_reloj():
     while True:
