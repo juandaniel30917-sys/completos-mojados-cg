@@ -234,15 +234,30 @@
 @keyframes subeAbajoTj{from{transform:translateY(130%)}to{transform:none}}
 @keyframes popCentroTj{from{transform:translate(-50%,-50%) scale(.5);opacity:0}to{transform:translate(-50%,-50%);opacity:1}}
 
-/* ===== AUSPICIO RAYO MAULINO: animación original en video (con transparencia) + cintillo HTML ===== */
+/* ===== AUSPICIO RAYO MAULINO (todo vector, calcado del video original) =====
+   0–0,75 s rayo con ramas · la lata llega girando (de espaldas, iluminada) y se da vuelta · 0,9–2,4 s humo y anillos ·
+   3,2–3,8 s viaja a la esquina · 4,07–4,6 s sale el cintillo. Salida: un rayo la borra. */
 @font-face{font-family:"Exo2R";src:url("../assets/fuentes/Exo2-ExtraBoldItalic.woff2") format("woff2");font-weight:800;font-style:italic;font-display:block}
 .sr{position:absolute;left:0;top:0;width:1920px;height:1080px;pointer-events:none}
-.sr-v{position:absolute;display:block;visibility:hidden;z-index:3}
-.sr-v.on{visibility:visible}
-.sr-intro{left:624px;top:160px;width:1232px;height:840px}
-.sr-bucle{left:1540px;top:530px;width:320px;height:460px}
-.sr-fin{left:1340px;top:0;width:580px;height:1080px}
-/* cintillo como el original: franja oscura con brillo arriba, filetes amarillos y letras doradas en relieve */
+.sr-lata{position:absolute;left:1595px;top:548px;width:200px;height:440px;z-index:3}
+.sr-f{position:relative;width:100%;height:100%}
+.sr-giro{position:absolute;inset:0;z-index:2}
+.sr-giro img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block}
+.sr-dorso{opacity:0;transform:scaleX(-1);filter:grayscale(1) contrast(.62) brightness(1.45) sepia(.55) saturate(1.9) blur(.6px)}
+.sr-tinte{position:absolute;inset:0;opacity:0;background:linear-gradient(180deg,#9FF3FF,#46C9E8);mix-blend-mode:screen;-webkit-mask-size:100% 100%;mask-size:100% 100%}
+.sr-ar{position:absolute;left:-50%;top:-5.02%;width:200%;height:110.03%;overflow:visible;filter:drop-shadow(0 0 5px #4FCBFF)}
+.sr-atras{z-index:1}.sr-frente{z-index:3}
+.sr-rayo,.sr-rayoS{position:absolute;left:0;top:0;width:1920px;height:1080px;z-index:5;overflow:visible;opacity:0;filter:drop-shadow(0 0 6px rgba(255,244,140,.85)) drop-shadow(0 0 16px rgba(255,236,120,.4))}
+.sr-rayo polyline,.sr-rayoS polyline{stroke-dasharray:1;stroke-dashoffset:1}
+.sr-destello{position:absolute;left:1395px;top:468px;width:600px;height:600px;border-radius:50%;z-index:4;opacity:0;
+  background:radial-gradient(circle,rgba(255,255,235,.95),rgba(255,236,120,.55) 26%,rgba(255,220,60,.18) 48%,transparent 66%)}
+.sr-humo{position:absolute;left:968px;top:571px;width:0;height:0;z-index:2}
+.sr-hF{z-index:4}
+.sr-humo i{position:absolute;left:-55px;top:-48px;width:110px;height:96px;border-radius:46% 54% 50% 50%;opacity:0;
+  background:radial-gradient(ellipse at 45% 40%,rgba(222,228,236,.97) 0%,rgba(190,198,210,.85) 30%,rgba(128,138,154,.5) 52%,transparent 70%);filter:blur(2px);
+  transform:translate(var(--x),var(--y)) scale(calc(var(--s) * .3))}
+.sr-hF i{background:radial-gradient(ellipse at 45% 40%,rgba(230,235,242,.9) 0%,rgba(196,204,216,.7) 32%,rgba(150,160,176,.3) 54%,transparent 70%)}
+/* cintillo como el original */
 .sr-cinta{position:absolute;left:880px;top:830px;width:740px;height:110px;z-index:2;display:flex;align-items:center;gap:52px;padding:0 90px 0 52px;box-sizing:border-box;
   background:linear-gradient(180deg,#F0EE2A 0,#F0EE2A 4px,#33403A 4px,#27352C 52%,#0C1812 66%,#0F1D16 100%);border-bottom:4px solid #E4E02A;
   clip-path:polygon(18px 0,100% 0,100% 100%,0 100%);overflow:hidden}
@@ -252,12 +267,59 @@
   filter:drop-shadow(0 3px 0 #6E5310) drop-shadow(0 3px 3px rgba(0,0,0,.7))}
 .sr-brillo{position:absolute;inset:0;background:linear-gradient(105deg,transparent 35%,rgba(255,240,170,.22) 50%,transparent 65%);background-size:300% 100%;background-position:130% 0;animation:srBrillo 6s ease-in-out 5s infinite}
 @keyframes srBrillo{0%{background-position:130% 0}25%,100%{background-position:-30% 0}}
-/* entrada: el cintillo sale de detrás de la lata justo cuando llega a la esquina (4,07 s del video original) */
-.t-spRayo.entra .sr-cinta{animation:srCinta 4.67s linear both}
-@keyframes srCinta{0%,87.1%{clip-path:polygon(100% 0,100% 0,100% 100%,100% 100%);animation-timing-function:cubic-bezier(.25,.75,.35,1)}100%{clip-path:polygon(18px 0,100% 0,100% 100%,0 100%)}}
-/* salida: el rayo del video borra la lata y el cintillo se apaga con el destello */
-.t-spRayo.sale .sr-cinta{animation:srCintaS .6s linear both}
-@keyframes srCintaS{0%,12%{opacity:1}22%{opacity:.45}36%,100%{opacity:0}}
+
+/* ---------- entrada (4,7 s) ---------- */
+.t-spRayo.entra .sr-rayo{animation:srRayoA .78s linear both}
+@keyframes srRayoA{0%{opacity:1}30%{opacity:1}36%{opacity:.6}42%{opacity:1}58%{opacity:.75}64%{opacity:1}78%{opacity:.8}100%{opacity:0}}
+.t-spRayo.entra .sr-rayo .tr{animation:srTrazo .2s cubic-bezier(.3,.6,.4,1) both}
+.t-spRayo.entra .sr-rayo .rm{animation:srTrazo .16s ease-out .16s both}
+@keyframes srTrazo{to{stroke-dashoffset:0}}
+.t-spRayo.entra .sr-rayo .ra{animation:srRA .78s steps(1) both}
+.t-spRayo.entra .sr-rayo .rb{animation:srRB .78s steps(1) both}
+@keyframes srRA{0%,35%{opacity:1}36%,50%{opacity:0}51%,72%{opacity:1}73%,84%{opacity:0}85%,100%{opacity:1}}
+@keyframes srRB{0%,35%{opacity:0}36%,50%{opacity:1}51%,72%{opacity:0}73%,84%{opacity:1}85%,100%{opacity:0}}
+.t-spRayo:not(.entra):not(.sale) .sr-rayo{display:none}
+.t-spRayo.entra .sr-lata{animation:srLata 4.7s linear both}
+@keyframes srLata{
+  0%{opacity:0;transform:translate(-743px,-212px) scale(.2) rotate(30deg)}
+  1%{opacity:1;transform:translate(-743px,-212px) scale(.23) rotate(28deg);animation-timing-function:linear}
+  3.2%{transform:translate(-752px,-206px) scale(.6) rotate(27deg);animation-timing-function:cubic-bezier(.2,.7,.35,1)}
+  6.4%{transform:translate(-763px,-198px) scale(1.2) rotate(24deg);animation-timing-function:linear}
+  12.8%{transform:translate(-750px,-195px) scale(1.27) rotate(20deg);animation-timing-function:cubic-bezier(.3,0,.3,1)}
+  17%{transform:translate(-735px,-196px) scale(1.33) rotate(12deg);animation-timing-function:cubic-bezier(.3,0,.25,1)}
+  21.5%,68%{transform:translate(-727px,-197px) scale(1.36) rotate(0);animation-timing-function:cubic-bezier(.6,0,.25,1)}
+  80.8%{transform:translate(4px,2px) scale(.99) rotate(0);animation-timing-function:ease-out}
+  85%,100%{opacity:1;transform:none}}
+/* giro: llega de espaldas (plateada e iluminada por el rayo) y se da vuelta mostrando el logo */
+.t-spRayo.entra .sr-giro{animation:srGiro 4.7s linear both}
+@keyframes srGiro{0%,11%{transform:scaleX(1);animation-timing-function:cubic-bezier(.5,0,.9,.5)}13.6%{transform:scaleX(.06);animation-timing-function:cubic-bezier(.1,.5,.4,1)}17.5%,100%{transform:scaleX(1)}}
+.t-spRayo.entra .sr-dorso{animation:srDorso 4.7s steps(1) both}
+@keyframes srDorso{0%{opacity:1}13.6%,100%{opacity:0}}
+.t-spRayo.entra .sr-cara{animation:srCara 4.7s linear both}
+@keyframes srCara{0%,13.5%{opacity:0;filter:brightness(1.35) sepia(.3)}13.6%{opacity:1;filter:brightness(1.35) sepia(.3)}20%,100%{opacity:1;filter:none}}
+.t-spRayo.entra .sr-tinte{animation:srTinte 4.7s linear both}
+@keyframes srTinte{0%,19%{opacity:0}23%{opacity:.26}44%{opacity:.2}52%,100%{opacity:0}}
+.t-spRayo.entra .sr-ar{animation:srAr 4.7s linear both}
+@keyframes srAr{0%,18.5%{opacity:0}20%,100%{opacity:1}}
+.t-spRayo.entra .sr-humo i{animation:srHumo 1.65s cubic-bezier(.2,.65,.35,1) calc(.86s + var(--d)) both}
+@keyframes srHumo{
+  0%{opacity:0;transform:translate(calc(var(--x) * .55),calc(var(--y) * .7)) scale(calc(var(--s) * .3)) rotate(0)}
+  12%{opacity:1}
+  55%{opacity:.75;transform:translate(var(--x),var(--y)) scale(var(--s)) rotate(calc(var(--r) * .5))}
+  100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(calc(var(--s) * 1.5)) rotate(var(--r))}}
+.t-spRayo.entra .sr-cinta{animation:srCinta 4.7s linear both}
+@keyframes srCinta{0%,86.6%{clip-path:polygon(100% 0,100% 0,100% 100%,100% 100%);animation-timing-function:cubic-bezier(.25,.75,.35,1)}97.9%,100%{clip-path:polygon(18px 0,100% 0,100% 100%,0 100%)}}
+
+/* ---------- salida (0,56 s): rayo sobre la lata, destello y desaparece ---------- */
+.t-spRayo.sale .sr-rayoS{animation:srRayoS .56s linear both}
+@keyframes srRayoS{0%{opacity:1}55%{opacity:1}100%{opacity:0}}
+.t-spRayo.sale .sr-rayoS polyline{animation:srTrazo .12s ease-out both}
+.t-spRayo.sale .sr-destello{animation:srDest .56s ease-out both}
+@keyframes srDest{0%{opacity:0;transform:scale(.3)}22%{opacity:1;transform:scale(.8)}100%{opacity:0;transform:scale(1.25)}}
+.t-spRayo.sale .sr-lata{animation:srLataS .56s linear both}
+@keyframes srLataS{0%,14%{opacity:1;filter:none}26%{opacity:.7;filter:brightness(2.2)}40%,100%{opacity:0;filter:brightness(2.6)}}
+.t-spRayo.sale .sr-cinta{animation:srCintaS .56s linear both}
+@keyframes srCintaS{0%,14%{opacity:1}26%{opacity:.45}40%,100%{opacity:0}}
 
 /* ===== AUSPICIO MARY MECHADAS: humo y polvo → logo → brillo; sale deshaciéndose en polvo ===== */
 .sm{position:absolute;left:0;top:0;width:1920px;height:1080px;pointer-events:none}

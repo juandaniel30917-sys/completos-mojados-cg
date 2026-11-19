@@ -462,55 +462,111 @@
   var TAM = {k: "escala", l: "Tamaño", t: "range", min: 50, max: 140, step: 5, u: "%", g: "Posición"};
   function posAus(d, origen) { return "transform:translate(" + (+d.dx || 0) + "px," + (+d.dy || 0) + "px) scale(" + ((+d.escala || 100) / 100) + ");transform-origin:" + origen; }
   /* rayos eléctricos alrededor de un objeto: polilíneas que cambian cada cuadro, en ráfagas */
-  /* Rayo Maulino: la animación es la del video original (fondo verde quitado, con transparencia) en 3 partes:
-     entrada (rayo, humo, anillos, viaje a la esquina) → bucle de la lata con electricidad → salida (rayo que la borra).
-     El cintillo es HTML para poder cambiar el texto. En la descarga MP4 los videos se mueven cuadro a cuadro con el reloj. */
-  var RAYO_V = {intro: "assets/marcas/rayo_intro.webm", bucle: "assets/marcas/rayo_bucle.webm", fin: "assets/marcas/rayo_salida.webm", corte: 4.067, largoB: 4.6, largoS: 0.55};
-  if (typeof document !== "undefined" && /salida\.html/.test(location.pathname)) {
-    CG._precargaRayo = [RAYO_V.intro, RAYO_V.bucle, RAYO_V.fin].map(function (s) { var v = document.createElement("video"); v.muted = true; v.preload = "auto"; v.src = s; return v; });
+  /* ---- Rayo Maulino: todo en vector (SVG/CSS) siguiendo cuadro a cuadro el video original ---- */
+  function azarFijo(semilla) { var s = semilla >>> 0; return function () { s = (s + 0x6D2B79F5) >>> 0; var t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+  function pts(a) { return a.map(function (q) { return q[0].toFixed(1) + "," + q[1].toFixed(1); }).join(" "); }
+  /* rayo como el original: tronco grueso casi vertical + ramas finas que bajan abiertas hacia los lados (coordenadas de pantalla) */
+  function rayoSVG(semilla, x0, y0, y1, ramas, abre) {
+    var R = azarFijo(semilla), tronco = [[x0, y0]], x = x0, y = y0, html = "";
+    while (y < y1) { y += 22 + R() * 26; x += (R() - .5) * 34 + (x0 - x) * .25; tronco.push([x, Math.min(y, y1)]); }
+    var lista = [];
+    function rama(px, py, ang, largo, nivel) {
+      var p = [[px, py]], a = ang, n = Math.max(4, Math.round(largo / 26));
+      for (var i = 0; i < n; i++) {
+        a += (R() - .5) * .55; px += Math.sin(a) * largo / n; py += Math.cos(a) * largo / n; p.push([px, py]);
+        if (nivel < 1 && i > 1 && R() < .12) { rama(px, py, a + (R() < .5 ? -1 : 1) * (.35 + R() * .5), largo * .45, nivel + 1); }
+      }
+      lista.push({p: p, n: nivel});
+    }
+    for (var k = 0; k < ramas; k++) {
+      var i = Math.floor(tronco.length * (.18 + .66 * (k / ramas)) + R() * 2), q = tronco[Math.min(i, tronco.length - 1)], lado = k % 2 ? 1 : -1;
+      rama(q[0], q[1], lado * (abre * (.5 + R() * .7)), 220 + R() * 220, 0);
+    }
+    lista.forEach(function (r) {
+      var w = r.n ? 1.2 : 2;
+      html += '<polyline class="rm" pathLength="1" points="' + pts(r.p) + '" fill="none" stroke="#F4EA6A" stroke-opacity=".38" stroke-width="' + (w * 3.5) + '" stroke-linecap="round" stroke-linejoin="round"/>' +
+              '<polyline class="rm" pathLength="1" points="' + pts(r.p) + '" fill="none" stroke="#FFFFF4" stroke-width="' + w + '" stroke-linecap="round" stroke-linejoin="round"/>';
+    });
+    var t = pts(tronco);
+    html += '<polyline class="tr" pathLength="1" points="' + t + '" fill="none" stroke="#F6E24A" stroke-opacity=".42" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>' +
+            '<polyline class="tr" pathLength="1" points="' + t + '" fill="none" stroke="#FFF7A6" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>' +
+            '<polyline class="tr" pathLength="1" points="' + t + '" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>';
+    return html;
+  }
+  /* anillos eléctricos que giran alrededor de la lata (la mitad de atrás pasa detrás de la lata) */
+  function anillosVivos(atras, frente, w, h) {
+    var vivo = true, t0 = performance.now(), id = null;
+    var an = [{cy: .34, rx: 1.36, ry: .055, inc: -9, vel: 2.4, ph: 0, arco: 1.45, j: 10},
+              {cy: .86, rx: 1.4, ry: .06, inc: 5, vel: -2.0, ph: 2.6, arco: 1.6, j: 12},
+              {cy: .55, rx: 1.5, ry: .14, inc: -24, vel: 3.2, ph: 4.0, arco: 1.4, j: 20, de: .9, hasta: 2.4},
+              {cy: .72, rx: 1.45, ry: .11, inc: 16, vel: -2.8, ph: 1.0, arco: 1.3, j: 20, de: .9, hasta: 2.3},
+              {cy: .2, rx: 1.3, ry: .09, inc: 12, vel: 2.2, ph: 5.1, arco: 1.1, j: 16, de: 1.0, hasta: 2.1}];
+    function trazo(p, op) {
+      p = p.join(" ");
+      return '<polyline points="' + p + '" fill="none" stroke="#8FDFFF" stroke-opacity="' + (op * .6).toFixed(2) + '" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>' +
+             '<polyline points="' + p + '" fill="none" stroke="#FFFFFF" stroke-opacity="' + op.toFixed(2) + '" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/>';
+    }
+    function cuadro() {
+      if (!vivo) { return; }
+      var t = (performance.now() - t0) / 1000, hA = "", hF = "";
+      an.forEach(function (a) {
+        if ((a.hasta && t > a.hasta) || (a.de && t < a.de)) { return; }
+        var op = a.hasta ? Math.max(0, Math.min(1, (a.hasta - t) / .4, (t - a.de) / .15)) : 1, n = 40, ini = a.ph + a.vel * t;
+        var co = Math.cos(a.inc * Math.PI / 180), si = Math.sin(a.inc * Math.PI / 180), cx = w / 2, cy = a.cy * h;
+        for (var hilo = 0; hilo < 2; hilo++) {
+          var tramo = [], lado = null, o = hilo ? op * .55 : op, desf = hilo ? .25 : 0;
+          for (var i = 0; i <= n; i++) {
+            var th = ini + desf + a.arco * Math.PI * i / n, ex = Math.cos(th) * a.rx * w / 2, ey = Math.sin(th) * a.ry * h;
+            var j = (i === 0 || i === n) ? 0 : (Math.random() - .5) * a.j * (hilo ? 1.4 : 1);
+            var x = cx + ex * co - ey * si, y = cy + ex * si + ey * co + j, l = Math.sin(th) >= 0 ? "f" : "a";
+            if (lado && l !== lado) { var q = tramo[tramo.length - 1]; if (lado === "f") { hF += trazo(tramo, o); } else { hA += trazo(tramo, o * .75); } tramo = [q]; }
+            lado = l; tramo.push(x.toFixed(1) + "," + y.toFixed(1));
+          }
+          if (tramo.length > 1) { if (lado === "f") { hF += trazo(tramo, o); } else { hA += trazo(tramo, o * .75); } }
+        }
+      });
+      atras.innerHTML = hA; frente.innerHTML = hF;
+      id = setTimeout(cuadro, 40);
+    }
+    cuadro();
+    return function () { vivo = false; clearTimeout(id); atras.innerHTML = ""; frente.innerHTML = ""; };
+  }
+  function humoRayo(cuantos, semilla, frente) {
+    var R = azarFijo(semilla), h = "";
+    for (var i = 0; i < cuantos; i++) {
+      var lado = R() < .5 ? -1 : 1, y = -240 + R() * 540, x = lado * (128 + R() * 75 + Math.max(0, y - 120) * .3);
+      if (R() < .28) { x = (R() - .5) * 300; y = 235 + R() * 70; }
+      if (frente) { y = -60 + R() * 360; x = lado * (110 + R() * 70); }
+      var s = .5 + R() * .7, dx = x * (1.3 + R() * .35), dy = y * 1.05 - 30 - R() * 50;
+      h += '<i style="--x:' + x.toFixed(0) + 'px;--y:' + y.toFixed(0) + 'px;--dx:' + dx.toFixed(0) + 'px;--dy:' + dy.toFixed(0) + 'px;--s:' + s.toFixed(2) + ';--r:' + ((R() - .5) * 120).toFixed(0) + 'deg;--d:' + (R() * .25).toFixed(2) + 's"></i>';
+    }
+    return h;
   }
   P.spRayo = {
-    nombre: "Auspicio Rayo Maulino (lata con rayo)", cat: "menciones", icono: "estrella", capa: 59, salidaMs: 600, entraMs: 4700, tipo: "MENCION", grupo: "auspicio-rayo",
-    desc: "La animación original: cae la lata con el rayo, humo y anillos eléctricos, viaja a la esquina y saca su cintillo. Sale con un rayo.",
-    campos: [{k: "texto", l: "Texto del cintillo", t: "text", g: "Texto"}, POS_X, POS_Y, TAM, VEL],
-    defaults: {texto: "RAYO MAULINO", dx: 0, dy: 0, escala: 100, vel: 100},
+    nombre: "Auspicio Rayo Maulino (lata con rayo)", cat: "menciones", icono: "estrella", capa: 59, salidaMs: 560, entraMs: 4700, tipo: "MENCION", grupo: "auspicio-rayo",
+    desc: "Como el original: cae la lata girando con el rayo, humo y anillos eléctricos, viaja a la esquina y saca su cintillo. Sale con un rayo.",
+    campos: [{k: "texto", l: "Texto del cintillo", t: "text", g: "Texto"}, {k: "lata", l: "Imagen del producto", t: "imagen", g: "Marca"}, POS_X, POS_Y, TAM, VEL],
+    defaults: {texto: "RAYO MAULINO", lata: "assets/marcas/rayo_lata.png", dx: 0, dy: 0, escala: 100, vel: 100},
     render: function (d) {
+      var img = esc(d.lata && !CG.esPendiente(d.lata) ? d.lata : "assets/marcas/rayo_lata.png");
       return '<div class="sr" style="' + posAus(d, "1700px 980px") + '">' +
         '<div class="sr-cinta"><i class="sr-ico"></i><span data-fit="520">' + tx(d.texto) + '</span><b class="sr-brillo"></b></div>' +
-        '<video class="sr-v sr-intro" muted playsinline preload="auto" src="' + RAYO_V.intro + '"></video>' +
-        '<video class="sr-v sr-bucle" muted playsinline loop preload="auto" src="' + RAYO_V.bucle + '"></video>' +
-        '<video class="sr-v sr-fin" muted playsinline preload="auto" src="' + RAYO_V.fin + '"></video>' +
+        '<div class="sr-humo sr-hA">' + humoRayo(60, 5, false) + '</div>' +
+        '<div class="sr-lata"><div class="sr-f">' +
+          '<svg class="sr-ar sr-atras" viewBox="-136 -30 544 658"></svg>' +
+          '<div class="sr-giro"><img class="sr-dorso" alt="" src="' + img + '"><img class="sr-cara" alt="" src="' + img + '">' +
+            '<b class="sr-tinte" style="-webkit-mask-image:url(\'' + img + '\');mask-image:url(\'' + img + '\')"></b></div>' +
+          '<svg class="sr-ar sr-frente" viewBox="-136 -30 544 658"></svg>' +
+        '</div></div>' +
+        '<div class="sr-humo sr-hF">' + humoRayo(26, 9, true) + '</div>' +
+        '<svg class="sr-rayo" viewBox="0 0 1920 1080"><g class="ra">' + rayoSVG(11, 958, -30, 930, 6, 1.0) + '</g><g class="rb">' + rayoSVG(23, 964, -30, 930, 6, .95) + '</g></svg>' +
+        '<div class="sr-destello"></div>' +
+        '<svg class="sr-rayoS" viewBox="0 0 1920 1080"><g>' + rayoSVG(37, 1700, -30, 860, 5, .8) + '</g></svg>' +
       '</div>';
     },
-    montar: function (el, d) {
-      var vi = el.querySelector(".sr-intro"), vb = el.querySelector(".sr-bucle"), vs = el.querySelector(".sr-fin");
-      if (!vi || !vb || !vs) { return null; }
-      var exp = !!window.RELOJ, vivo = true, t0 = performance.now(), tB = 0, tS = 0;
-      var vel = Math.max(0.25, ((+d.vel || 100) / 100) * (CG.velocidad || 1));
-      var fase = el.classList.contains("entra") ? "intro" : "bucle";
-      [vi, vb, vs].forEach(function (v) { v.muted = true; v.playbackRate = vel; });
-      function ver(v) { [vi, vb, vs].forEach(function (x) { x.classList.toggle("on", x === v); }); }
-      function jugar(v) { try { var p = v.play(); if (p && p.catch) { p.catch(function () {}); } } catch (e) {} }
-      function irA(v, s) { if (Math.abs(v.currentTime - s) > 0.001) { try { v.currentTime = s; } catch (e) {} } }
-      if (fase === "intro") { ver(vi); if (!exp) { jugar(vi); } } else { ver(vb); if (!exp) { jugar(vb); } }
-      function paso() {
-        if (!vivo) { return; }
-        var s = (performance.now() - t0) / 1000 * vel;
-        if (fase === "intro" && (exp ? s >= RAYO_V.corte : (vi.currentTime >= RAYO_V.corte - 0.03 || vi.ended))) {
-          fase = "bucle"; tB = exp ? RAYO_V.corte : s; vb.currentTime = 0; ver(vb); if (!exp) { jugar(vb); vi.pause(); }
-        }
-        if (exp) {
-          if (fase === "intro") { irA(vi, s); }
-          else if (fase === "bucle") { irA(vb, (s - tB) % RAYO_V.largoB); }
-          else { irA(vs, Math.min(RAYO_V.largoS - 0.01, (performance.now() - tS) / 1000 * vel)); }
-        }
-        requestAnimationFrame(paso);
-      }
-      requestAnimationFrame(paso);
-      return {
-        saliendo: function () { fase = "salida"; tS = performance.now(); vs.currentTime = 0; ver(vs); vi.pause(); vb.pause(); if (!exp) { jugar(vs); } },
-        destruir: function () { vivo = false; [vi, vb, vs].forEach(function (v) { try { v.pause(); v.removeAttribute("src"); v.load(); } catch (e) {} }); }
-      };
+    montar: function (el) {
+      var a = el.querySelector(".sr-atras"), f = el.querySelector(".sr-frente"), parar = a && f ? anillosVivos(a, f, 272, 598) : null;
+      return {destruir: function () { if (parar) { parar(); } }};
     }
   };
 
