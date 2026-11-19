@@ -29,7 +29,7 @@ CANAL_DEFAULT = "hd-completos-mojados"   # el panel de Completos Mojados se cone
 WEB_DEFAULT = "https://juandaniel30917-sys.github.io/completos-mojados-cg/contador/"
 IPS_DEFAULT = {"vtr": "192.168.10.20", "rec": "192.168.10.10"}
 
-POLL_S = 0.2      # lectura de cada HyperDeck
+POLL_S = 0.1      # lectura de la posición / estado de grabación
 META_S = 3.0      # lista de clips / nombres (VTR)
 PUB_S = 0.5       # envío a internet (los visores interpolan entre mensajes)
 ROLES = ("vtr", "rec")
@@ -55,6 +55,46 @@ def guardar_cfg(c):
 CFG = cargar_cfg()
 LOCK = threading.Lock()
 ST = {"decks": [], "buscando": False, "ultimo_envio": 0, "error_envio": ""}
+
+# ---------------- reloj exacto (NTP) ----------------
+# Cada lectura lleva la hora UTC exacta en que se hizo. Las pantallas (celular/TV, que tienen la hora
+# sincronizada) restan esa hora a la suya: así el viaje por internet no agrega retraso al contador.
+RELOJ = {"offset": 0.0, "ok": False, "servidor": ""}
+
+def sntp(servidor, timeout=2.0):
+    import struct
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM); s.settimeout(timeout)
+    try:
+        t1 = time.time()
+        s.sendto(b"\x1b" + 47 * b"\0", (servidor, 123))
+        data, _ = s.recvfrom(48)
+        t4 = time.time()
+    finally:
+        s.close()
+    def ts(i):
+        seg, frac = struct.unpack("!II", data[i:i + 8]); return seg - 2208988800 + frac / 2**32
+    t2, t3 = ts(32), ts(40)
+    return ((t2 - t1) + (t3 - t4)) / 2, (t4 - t1) - (t3 - t2)
+
+def bucle_reloj():
+    while True:
+        mejor = None
+        for srv in ("time.google.com", "time.cloudflare.com", "pool.ntp.org", "time.windows.com"):
+            for _ in range(3):
+                try:
+                    off, rtt = sntp(srv)
+                    if mejor is None or rtt < mejor[1]: mejor = (off, rtt, srv)
+                except Exception:
+                    pass
+            if mejor: break
+        if mejor:
+            RELOJ.update(offset=mejor[0], ok=True, servidor=mejor[2])
+        time.sleep(600 if mejor else 30)
+
+def ahora_ms():
+    return int((time.time() + RELOJ["offset"]) * 1000)
+
+CAMBIO = threading.Event()   # avisa al envío que algo cambió (play/stop/salto/clip) para mandarlo al tiro
 
 # ---------------- utilidades ----------------
 def hd_get(ip, path, timeout=1.0):
@@ -159,7 +199,7 @@ class Deck:
             pass
 
     def bucle(self):
-        fallos, ult_meta = 0, 0
+        fallos, ult_meta, ult_lento, vuelta = 0, 0, 0, 0
         while True:
             ip = self.ip
             if not ip:
@@ -168,21 +208,34 @@ class Deck:
                 self._ip_leida = ip; self.conectado = False
                 self.timeline, self.nombres, self.pb = [], {}, None
             try:
-                self.modo = (hd_get(ip, "/transports/0") or {}).get("mode", "")
                 if self.rol == "vtr":
-                    self.pb = hd_get(ip, "/transports/0/playback")
-                    try: self.clipIdx = (hd_get(ip, "/transports/0/clipIndex") or {}).get("clipIndex")
-                    except Exception: pass
+                    # lectura rápida de la posición, con la hora exacta (punto medio de la petición)
+                    t_a = time.time(); pb = hd_get(ip, "/transports/0/playback"); t_b = time.time()
+                    t = int(((t_a + t_b) / 2 + RELOJ["offset"]) * 1000)
+                    self._detectar_cambio(pb, t)
+                    self.pb, self.pb_t = pb, t
+                    if time.time() - ult_lento > 0.5:
+                        modo = (hd_get(ip, "/transports/0") or {}).get("mode", "")
+                        try: ci = (hd_get(ip, "/transports/0/clipIndex") or {}).get("clipIndex")
+                        except Exception: ci = self.clipIdx
+                        if modo != self.modo or ci != self.clipIdx: CAMBIO.set()
+                        self.modo, self.clipIdx = modo, ci
+                        ult_lento = time.time()
                 else:
-                    try: self.tc = (hd_get(ip, "/transports/0/timecode") or {}).get("display", "")
-                    except Exception: self.tc = ""
-                    grabando = self.modo == "InputRecord"
+                    t_a = time.time(); modo = (hd_get(ip, "/transports/0") or {}).get("mode", ""); t_b = time.time()
+                    t = int(((t_a + t_b) / 2 + RELOJ["offset"]) * 1000)
+                    self.modo = modo
+                    grabando = modo == "InputRecord"
                     if grabando and self.rec_inicio is None:
-                        self.rec_inicio = time.time()
+                        self.rec_inicio = t; CAMBIO.set()
                     elif not grabando and self.rec_inicio is not None:
-                        self.rec_ultima = time.time() - self.rec_inicio; self.rec_inicio = None
+                        self.rec_ultima = (t - self.rec_inicio) / 1000; self.rec_inicio = None; CAMBIO.set()
+                    if time.time() - ult_lento > 0.5:
+                        try: self.tc = (hd_get(ip, "/transports/0/timecode") or {}).get("display", "")
+                        except Exception: self.tc = ""
+                        ult_lento = time.time()
                 if not self.conectado:
-                    self.conectado = True; ult_meta = 0
+                    self.conectado = True; ult_meta = 0; CAMBIO.set()
                     try:
                         pr = hd_get(ip, "/system/product") or {}
                         self.producto = pr.get("deviceName") or pr.get("productName") or "HyperDeck"
@@ -192,17 +245,33 @@ class Deck:
                     self.leer_meta(); ult_meta = time.time()
             except Exception:
                 fallos += 1
-                if fallos >= 10:
+                if fallos >= 20:
+                    if self.conectado: CAMBIO.set()
                     self.conectado = False; fallos = 0
             time.sleep(POLL_S)
+
+    def _detectar_cambio(self, pb, t):
+        """Play/stop, cambio de velocidad o salto de posición -> enviar de inmediato."""
+        ant = self.pb
+        if not ant or not pb:
+            CAMBIO.set(); return
+        if ant.get("type") != pb.get("type") or num(ant.get("speed")) != num(pb.get("speed")):
+            CAMBIO.set(); return
+        p0, p1 = num(ant.get("position")) or 0, num(pb.get("position")) or 0
+        sp = num(pb.get("speed")) or 0
+        esperado = p0 + (t - getattr(self, "pb_t", t)) / 1000 * self.fps * (sp if pb.get("type") in ("Play", "Shuttle", "Var") else 0)
+        if abs(p1 - esperado) > self.fps * 0.25:
+            CAMBIO.set()
 
     def payload(self):
         if not self.conectado:
             return {"estado": "sinhd", "frames": 0}
         if self.rol == "rec":
             grabando = self.rec_inicio is not None
+            ahora = ahora_ms()
             return {"estado": "rec" if grabando else "stop", "fps": self.fps, "tc": self.tc,
-                    "transcurrido": (time.time() - self.rec_inicio) if grabando else self.rec_ultima,
+                    "inicio": self.rec_inicio, "t": ahora,
+                    "transcurrido": (ahora - self.rec_inicio) / 1000 if grabando else self.rec_ultima,
                     "nombre": self.producto}
         pb, tl = self.pb or {}, self.timeline
         pos = num(pb.get("position")) or 0
@@ -220,7 +289,8 @@ class Deck:
         c = tl[idx]
         return {"estado": estado, "speed": speed, "fps": self.fps, "idx": idx, "total": len(tl),
                 "nombre": self.nombres.get(c["id"]) or f"Clip {idx + 1}",
-                "frames": c["frames"], "restante": max(0, c["start"] + c["frames"] - pos)}
+                "frames": c["frames"], "restante": max(0, c["start"] + c["frames"] - pos),
+                "t": getattr(self, "pb_t", ahora_ms())}   # hora UTC exacta de la lectura de "restante"
 
 DECKS = {r: Deck(r) for r in ROLES}
 
@@ -235,7 +305,7 @@ def bucle_envio():
             ST["ultimo_envio"] = time.time(); ST["error_envio"] = ""
         except Exception as e:
             ST["error_envio"] = str(e)[:120]
-        time.sleep(PUB_S)
+        CAMBIO.wait(PUB_S); CAMBIO.clear()
 
 def link():
     return CFG["web"].rstrip("/") + "/?c=" + CFG["canal"]
@@ -258,7 +328,7 @@ class Panel(BaseHTTPRequestHandler):
                 "decks_red": ST["decks"], "buscando": ST["buscando"],
                 "roles": {r: {"ip": d.ip, "conectado": d.conectado, "producto": d.producto, "payload": d.payload()} for r, d in DECKS.items()},
                 "canal": CFG["canal"], "web": CFG["web"], "link": link(),
-                "internet_ok": time.time() - ST["ultimo_envio"] < 3, "error_envio": ST["error_envio"],
+                "internet_ok": time.time() - ST["ultimo_envio"] < 3, "reloj": RELOJ, "error_envio": ST["error_envio"],
                 "ips_pc": ips_locales()}, ensure_ascii=False))
         with open(os.path.join(HERE, "panel.html"), "rb") as f:
             return self._send(200, f.read(), "text/html")
@@ -289,6 +359,7 @@ if __name__ == "__main__":
         if ABRIR:
             import webbrowser; webbrowser.open(f"http://localhost:{PORT}")
         sys.exit(0)
+    threading.Thread(target=bucle_reloj, daemon=True).start()
     for d in DECKS.values():
         threading.Thread(target=d.bucle, daemon=True).start()
     threading.Thread(target=bucle_envio, daemon=True).start()

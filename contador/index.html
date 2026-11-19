@@ -110,6 +110,10 @@
   }
   function estado(txt, cls) { $("estadoTxt").textContent = txt; $("estado").className = cls || ""; }
 
+  /* ms desde la lectura del HyperDeck. Usa la hora exacta del emisor (NTP) si el reloj de esta
+     pantalla cuadra; si no, cae al tiempo desde que llegó el mensaje. */
+  function relojOk(d) { var l = Date.now() - (d.t || 0); return d.t && l > -1500 && l < 8000; }
+  function transcurrido(d, edad) { return relojOk(d) ? Math.max(0, Date.now() - d.t) : edad; }
   function hms(sec) { sec = Math.max(0, Math.floor(sec)); return z(Math.floor(sec / 3600)) + ":" + z(Math.floor(sec % 3600 / 60)) + ":" + z(sec % 60); }
   function dibujarRec() {
     var d = ultimo, edad = Date.now() - recibido;
@@ -117,7 +121,7 @@
     if (!d || edad > 4000) { estado(d ? "SIN SEÑAL DEL ESTUDIO" : "ESPERANDO AL ESTUDIO…", "off"); $("tiempo").textContent = "--:--:--"; $("clip").textContent = "Grabación"; $("duracion").textContent = ""; return; }
     if (d.estado === "sinhd") { estado("SIN CONEXIÓN CON EL REC", "off"); $("tiempo").textContent = "--:--:--"; return; }
     var grab = d.estado === "rec", t = d.transcurrido || 0;
-    if (grab) { t += edad / 1000; }
+    if (grab) { t = d.inicio && relojOk(d) ? (Date.now() - d.inicio) / 1000 : t + edad / 1000; }
     document.body.className = "rec" + (grab ? " grabando" : "");
     estado(grab ? "GRABANDO" : "DETENIDO", grab ? "rec" : "");
     $("clip").textContent = grab ? "Duración de la grabación" : "Última grabación";
@@ -147,7 +151,7 @@
     }
     var fps = d.fps || 59.94;
     var restante = d.restante;
-    if (d.estado === "play" && edad < 4000) restante -= edad / 1000 * fps * (d.speed || 1);
+    if (d.estado === "play" && edad < 4000) restante -= transcurrido(d, edad) / 1000 * fps * (d.speed || 1);
     restante = Math.max(0, restante);
     var seg = restante / fps;
 

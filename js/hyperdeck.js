@@ -46,7 +46,10 @@
       restante: function () {
         if (!ult || !ult.frames) { return null; }
         var r = ult.restante, e = Date.now() - rec;
-        if (ult.estado === "play" && e < 4000) { r -= e / 1000 * (ult.fps || 59.94) * (ult.speed || 1); }
+        if (ult.estado === "play" && e < 4000) {
+          var l = Date.now() - (ult.t || 0); if (ult.t && l > -1500 && l < 8000) { e = Math.max(0, l); }   /* hora exacta de la lectura */
+          r -= e / 1000 * (ult.fps || 59.94) * (ult.speed || 1);
+        }
         return Math.max(0, r);
       }
     };
