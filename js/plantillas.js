@@ -35,7 +35,7 @@
 
   /* ===================== CINTILLOS ===================== */
   P.barraConcurso = {
-    nombre: "Barra concurso", cat: "cintillos", icono: "barra", capa: 40, salidaMs: 1500,
+    nombre: "Barra concurso", cat: "cintillos", icono: "barra", capa: 40, salidaMs: 900,
     desc: "Barra blanca con logo y mensajes que van cambiando (como tu GC de las mechadas).",
     campos: [
       {k: "mensajes", l: "Mensajes (rotan solos)", t: "lista", g: "Texto", nuevo: {a: "NUEVO MENSAJE", ca: "#FFA500", b: "", cb: "#FF0000"},

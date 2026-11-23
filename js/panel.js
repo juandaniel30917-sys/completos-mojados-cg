@@ -1796,9 +1796,9 @@
      (y se quita el botón suelto @MARYMECHADAS que se había agregado solo) */
   /* una sola vez por sala: botón propio «MENCIÓN MARY MECHADAS» (si ningún botón muestra ya la mención) */
   function botonMencionMary3(e) {
-    var bt = e.botonera; if (!bt || !Array.isArray(bt.botones) || bt.mencionMary3) { return false; }
+    var bt = e.botonera; if (!bt || !Array.isArray(bt.botones) || bt.mencionMary4) { return false; }
     if (!(e.elementos || []).some(function (x) { return x.id === "lb-mencion-mary"; })) { return false; }
-    bt.mencionMary3 = true;
+    bt.mencionMary4 = true;
     if (bt.botones.some(function (b) { return (b.els || [b.el]).indexOf("lb-mencion-mary") >= 0; })) { return false; }
     var i = -1; bt.botones.forEach(function (b, j) { if (/mary/.test((b.els || [b.el]).join(" "))) { i = j; } });
     bt.botones.splice(i < 0 ? bt.botones.length : i + 1, 0, nuevoBoton({el: "lb-mencion-mary", esp: "", etiqueta: "MENCIÓN MARY MECHADAS", color: "#E8392A", tecla: ""}));
