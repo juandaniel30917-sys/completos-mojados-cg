@@ -558,7 +558,7 @@
     return '<div class="smy" style="--d:' + Math.round(px) + 'px"><i class="smy-onda"></i><div class="smy-in"><div class="smy-cara"><img alt="Mary Mechadas" src="' + src + '"></div><b class="smy-zona"><i class="smy-doblez"></i></b></div></div>';
   };
   P.mencionMary = {
-    nombre: "Mención Mary Mechadas (@Marymechadas)", cat: "menciones", icono: "estrella", capa: 58, salidaMs: 1400, entraMs: 3200, tipo: "MENCION", grupo: "mencion-mary",
+    nombre: "Mención Mary Mechadas (@Marymechadas)", cat: "menciones", icono: "estrella", capa: 58, salidaMs: 1000, entraMs: 2000, tipo: "MENCION", grupo: "mencion-mary",
     desc: "Sticker redondo de Mary Mechadas abajo a la derecha y franja roja con Instagram @Marymechadas (como su video).",
     campos: [{k: "usuario", l: "Usuario de Instagram", t: "text", g: "Texto"}, POS_X, POS_Y, TAM, VEL],
     defaults: {usuario: "@Marymechadas", dx: 0, dy: 0, escala: 100, vel: 100},
