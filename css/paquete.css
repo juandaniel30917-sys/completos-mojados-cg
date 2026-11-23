@@ -353,32 +353,28 @@
    Cae girando como un sticker que se despega; la esquina doblada (--p) se estira al final. */
 @property --p{syntax:"<percentage>";inherits:true;initial-value:0%}
 .smy{position:relative;width:var(--d);height:var(--d);--p:0%}
-.smy-in{position:absolute;inset:0;filter:drop-shadow(0 8px 14px rgba(0,0,0,.3));transform-origin:60% 40%}
+/* --p = dónde va la línea del pliegue (0% = pegado entero, 200% = despegado entero).
+   La línea cruza en diagonal «/» y avanza de arriba-izquierda hacia abajo-derecha, como un sticker real que se despega. */
+.smy-in{position:absolute;inset:0;filter:drop-shadow(0 6px 10px rgba(0,0,0,.3))}
 .smy-cara{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 38% 30%,#FFFFFF 0%,#F1F3F9 55%,#E2E6EF 100%);display:flex;align-items:center;justify-content:center;overflow:hidden;
-  clip-path:polygon(calc(-200% - var(--p)) -300%,calc(400% - var(--p)) 300%,-300% 300%)}
+  clip-path:polygon(calc(var(--p) + 300%) -300%,calc(var(--p) - 300%) 300%,300% 300%)}
 .smy-cara:after{content:"";position:absolute;inset:-20%;background:linear-gradient(115deg,transparent 40%,rgba(255,255,255,.85) 50%,transparent 60%);transform:translateX(-120%);animation:smyGlint 7s ease-in-out 1.2s infinite;pointer-events:none}
 @keyframes smyGlint{0%{transform:translateX(-120%)}14%,100%{transform:translateX(120%)}}
 .smy-cara img{width:77%;height:auto;margin-top:-6%;display:block;animation:smyResp 2.8s ease-in-out infinite}
-/* la parte que aún no se pega (o que se está despegando): el mismo sticker levantado hacia la cámara,
-   acortado hacia la línea de pliegue y un poco más oscuro */
-.smy-lev{transform-origin:0 0;filter:brightness(.88) saturate(.95);
-  transform:translate(calc(100% - var(--p)),0) rotate(-45deg) scaleX(.7) rotate(45deg) translate(calc(var(--p) - 100%),0);
-  clip-path:polygon(calc(-200% - var(--p)) -300%,calc(400% - var(--p)) 300%,300% -300%)}
-.smy-lev:after{display:none}
-.smy-lev:before{content:"";position:absolute;inset:0;background:linear-gradient(45deg,rgba(0,0,0,.18),rgba(255,255,255,.12) 60%,rgba(255,255,255,0));z-index:2}
+/* sombra que deja la parte doblada sobre lo que sigue pegado */
+.smy-cara:before{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;
+  background:linear-gradient(135deg,transparent calc(var(--p) / 2 - .5%),rgba(0,0,0,.28) calc(var(--p) / 2),rgba(0,0,0,.1) calc(var(--p) / 2 + 3%),transparent calc(var(--p) / 2 + 9%))}
+/* la parte despegada: el sticker reflejado sobre la línea del pliegue, por su reverso (papel), con brillo en la curva */
+.smy-doblez{position:absolute;inset:0;border-radius:50%;transform-origin:0 0;
+  transform:translate(var(--p),var(--p)) matrix(0,-1,-1,0,0,0);
+  background:linear-gradient(135deg,#A9A595 calc(var(--p) / 2 - 70%),#C9C6B7 calc(var(--p) / 2 - 22%),#DEDBCF calc(var(--p) / 2 - 7%),#F4F2EC calc(var(--p) / 2 - 2.2%),#FFFFFF calc(var(--p) / 2 - .4%),#D8D5C9 calc(var(--p) / 2));
+  clip-path:polygon(calc(var(--p) + 300%) -300%,calc(var(--p) - 300%) 300%,-300% -300%)}
 @keyframes smyResp{0%,100%{transform:scale(1) rotate(0)}50%{transform:scale(1.035) rotate(-.6deg)}}
-/* se pega completo: llega en el aire, toca la pantalla por la orilla de abajo a la izquierda y se va alisando
-   hasta la esquina de arriba a la derecha (--p: 200% = todo despegado, 0% = todo pegado). Al salir se despega entero. */
-@keyframes smyEnt{
-  0%{opacity:0;transform:translate(4%,-8%) scale(1.12);filter:drop-shadow(18px 30px 24px rgba(0,0,0,0));animation-timing-function:cubic-bezier(.3,.1,.3,1)}
-  10%{opacity:1;filter:drop-shadow(14px 24px 20px rgba(0,0,0,.28))}
-  34%{transform:none;filter:drop-shadow(4px 8px 10px rgba(0,0,0,.32));animation-timing-function:ease-out}
-  100%{opacity:1;transform:none;filter:drop-shadow(0 5px 8px rgba(0,0,0,.3))}}
-@keyframes smyDob{0%,18%{--p:185%;animation-timing-function:cubic-bezier(.45,.05,.3,1)}100%{--p:0%}}
-@keyframes smySal{
-  0%{opacity:1;transform:none;--p:0%;filter:drop-shadow(0 5px 8px rgba(0,0,0,.3));animation-timing-function:cubic-bezier(.5,0,.4,1)}
-  78%{opacity:1;transform:none;--p:185%;filter:drop-shadow(6px 12px 12px rgba(0,0,0,.3));animation-timing-function:ease-in}
-  100%{opacity:0;transform:translate(-6%,8%) scale(.96);--p:200%;filter:drop-shadow(6px 12px 12px rgba(0,0,0,0))}}
+/* entrada: la parte doblada llega desde abajo a la derecha y el sticker se va pegando entero hasta la esquina de arriba */
+@keyframes smyEnt{0%{opacity:0}8%,100%{opacity:1}}
+@keyframes smyDob{0%{--p:200%;animation-timing-function:cubic-bezier(.3,.05,.25,1)}100%{--p:0%}}
+/* salida: se despega entero desde arriba a la izquierda y la parte doblada se va por abajo a la derecha */
+@keyframes smySal{0%{--p:0%;opacity:1;animation-timing-function:cubic-bezier(.55,0,.6,1)}92%{opacity:1}100%{--p:200%;opacity:0}}
 .smy-onda{display:none}
 
 /* ===== MENCIÓN MARY MECHADAS: sticker abajo a la derecha + franja roja con Instagram ===== */
@@ -397,8 +393,8 @@
 .mmy-brillo{position:absolute;inset:0;background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,.38) 48%,transparent 62%);background-size:260% 100%;background-position:150% 0;pointer-events:none}
 .mmy-barra:after{content:"";position:absolute;left:0;right:0;bottom:0;height:6px;background:#B91D10;transform-origin:100% 50%}
 .mmy-barra span{position:relative;z-index:1;color:#fff;font:400 46px/1 Arial,"Helvetica Neue",Helvetica,sans-serif;letter-spacing:.085em;white-space:nowrap}
-.t-mencionMary.entra .smy-in{animation:smyEnt 1.7s linear both}
-.t-mencionMary.entra .smy{animation:smyDob 1.7s linear both}
+.t-mencionMary.entra .smy-in{animation:smyEnt 1.4s linear both}
+.t-mencionMary.entra .smy{animation:smyDob 1.4s linear both}
 .t-mencionMary.entra .mmy-barra{animation:mmyBarra .6s cubic-bezier(.16,.84,.3,1) 1.55s both}
 .t-mencionMary.entra .mmy-ig{animation:mmyPop .5s cubic-bezier(.3,1.6,.5,1) 1.9s both}
 .t-mencionMary.entra .mmy-tx i{animation:mmyChar .5s cubic-bezier(.2,.9,.3,1.25) calc(1.92s + var(--i) * .032s) both}
@@ -417,6 +413,6 @@
 .t-mencionMary.sale .mmy-ig{animation:mmyFuera .2s ease-in both}
 @keyframes mmyCharS{to{opacity:0;transform:translateY(-60%)}}
 .t-mencionMary.sale .mmy-barra{animation:mmyBarraS .4s cubic-bezier(.6,0,.8,.3) .1s both}
-.t-mencionMary.sale .smy-in{animation:smySal .9s linear .3s both}
+.t-mencionMary.sale .smy-in{animation:smySal 1.05s linear .3s both}
 @keyframes mmyFuera{to{opacity:0}}
 @keyframes mmyBarraS{0%{clip-path:inset(0 0 0 0)}100%{clip-path:inset(0 0 0 100%)}}
