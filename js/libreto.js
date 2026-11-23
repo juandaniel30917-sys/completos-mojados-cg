@@ -74,7 +74,7 @@
   E("mencion-mary", "mencion", "Mención Mary Mechadas", {marca: "MARY MECHADAS", logo: "", texto: "¡UNA MECHADA DE VERDAD!", color: "mostaza",
     puntos: ["Carne mechada cocinada por horas a fuego lento", "Pan de masa padre crujiente", "Salsas de la casa", "Jugos de jamaica, limón y tamarindo"], delivery: true, textoDelivery: "PÍDELO POR DELIVERY"}, {pend: {logo: "PENDIENTE_LOGO_MARY_MECHADAS"}});
   E("aus-mary", "spMary", "Auspicio animado Mary Mechadas", {});
-  E("mencion-mary", "mencionMary", "Mención Mary Mechadas (@Marymechadas)", {});
+  E("ig-mary", "mencionMary", "Mención Mary Mechadas (@Marymechadas)", {});
   E("aus-rayo", "spRayo", "Auspicio animado Rayo Maulino", {texto: "RAYO MAULINO"});
   E("gc-mary", "gcPersona", "GC marca Mary Mechadas", {etiqueta: "MENCIÓN", nombre: "Mary Mechadas", cargo: "La reina indiscutible de los sabores auténticos", colorEtq: "naranjo"});
   E("placa-p2", "placa", "Placa Talquinos: personaje 2", {titulo: "TALQUINOS", sub: "PENDIENTE_PERSONAJE_2", fondo: "cierre"}, {pend: {sub: "PENDIENTE_PERSONAJE_2"}});
