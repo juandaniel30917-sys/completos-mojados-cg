@@ -1742,7 +1742,7 @@
   /* ------------------------------------------------------------------ arranque */
   function normalizar(e) {
     e = e || {}; var ini = CG.estadoInicial();
-    if (!Array.isArray(e.elementos) || !e.elementos.length) { CG.sembrarLibreto(ini); sembrarBotonera(ini); botonesAuspicios(ini); zocaloConVivo(ini); botonMencionMary(ini); return ini; }
+    if (!Array.isArray(e.elementos) || !e.elementos.length) { CG.sembrarLibreto(ini); sembrarBotonera(ini); botonesAuspicios(ini); zocaloConVivo(ini); botonMencionMary(ini); mencionEnBotonMary(ini); return ini; }
     e.elementos = e.elementos.filter(function (x) { return x && P[x.plantilla]; }).map(function (x) {
       x.datos = Object.assign(clon(P[x.plantilla].defaults), x.datos || {}); x.on = !!x.on; return x;
     });
@@ -1754,6 +1754,8 @@
     if (botonesAuspicios(e)) { e._sembrado = true; e._ausNuevos = true; }
     if (zocaloConVivo(e)) { e._sembrado = true; e._zcVivo = true; }
     if (botonMencionMary(e)) { e._sembrado = true; e._mmNuevo = true; }
+    if (mencionEnBotonMary(e)) { e._sembrado = true; e._mmBoton = true; }
+    if (barraSobreZocalo(e)) { e._sembrado = true; }
     return e;
   }
   /* una sola vez por sala: el EN VIVO + hora ahora va dentro del zócalo. Se saca la gráfica EN VIVO suelta
@@ -1787,6 +1789,27 @@
     if (bt.botones.some(function (b) { return (b.els || [b.el]).indexOf("lb-mencion-mary") >= 0; })) { return false; }
     var i = -1; bt.botones.forEach(function (b, j) { if (/aus-mary|aus-rayo/.test(b.el || "")) { i = j; } });
     bt.botones.splice(i < 0 ? bt.botones.length : i + 1, 0, nuevoBoton({el: "lb-mencion-mary", esp: "", etiqueta: "@MARYMECHADAS 📸", color: "#E8392A", tecla: ""}));
+    return true;
+  }
+  /* una sola vez por sala: el botón del auspicio animado Mary Mechadas también muestra la mención @Marymechadas
+     (y se quita el botón suelto @MARYMECHADAS que se había agregado solo) */
+  /* una sola vez por sala: la barra concurso sube un poco para no chocar con el zócalo (EN VIVO) */
+  function barraSobreZocalo(e) {
+    var bt = e.botonera; if (!bt || bt.barraArriba) { return false; }
+    bt.barraArriba = true; var hubo = false;
+    (e.elementos || []).forEach(function (x) { if (x.plantilla === "barraConcurso" && x.datos && +x.datos.y === 798) { x.datos.y = 768; hubo = true; } });
+    return hubo;
+  }
+  function mencionEnBotonMary(e) {
+    var bt = e.botonera; if (!bt || !Array.isArray(bt.botones) || bt.mencionMary2) { return false; }
+    if (!(e.elementos || []).some(function (x) { return x.id === "lb-mencion-mary"; })) { return false; }
+    bt.mencionMary2 = true;
+    var b7 = bt.botones.filter(function (b) { return (b.els || [b.el]).indexOf("lb-aus-mary") >= 0; })[0];
+    if (!b7) { return false; }
+    var ids = (b7.els || [b7.el]).slice();
+    if (ids.indexOf("lb-mencion-mary") < 0) { ids.push("lb-mencion-mary"); }
+    b7.els = ids; b7.varias = true;
+    bt.botones = bt.botones.filter(function (b) { return !(b !== b7 && !b.els && b.el === "lb-mencion-mary" && b.etiqueta === "@MARYMECHADAS 📸"); });
     return true;
   }
   /* una sola vez por sala: agrega a la botonera guardada un botón por cada auspicio animado (Rayo Maulino y Mary Mechadas) */
@@ -1846,7 +1869,8 @@
       if (!LOCAL) { outKey = r.outKey; guardarSala(sala, token, r.nombre); }
       borr = leerLS("cg_borr_" + sala, {}); Object.keys(borr).forEach(function (id) { if (!el(id)) { delete borr[id]; } });
       if (nuevo || estado._sembrado) {
-        var aus = estado._ausNuevos, zv = estado._zcVivo, mm = estado._mmNuevo; delete estado._sembrado; delete estado._ausNuevos; delete estado._zcVivo; delete estado._mmNuevo; publicar();
+        var aus = estado._ausNuevos, zv = estado._zcVivo, mm = estado._mmNuevo, mb = estado._mmBoton; delete estado._sembrado; delete estado._ausNuevos; delete estado._zcVivo; delete estado._mmNuevo; delete estado._mmBoton; publicar();
+        if (!nuevo && mb && !zv) { toast("El botón de Mary Mechadas ahora también muestra la mención @Marymechadas", "ok"); } else
         if (!nuevo) { toast(zv || mm ? (zv ? "El EN VIVO y la hora ahora van dentro del zócalo (botonera actualizada)" : "") + (zv && mm ? " · " : "") + (mm ? "Se agregó el botón @MARYMECHADAS" : "") : aus ? "Se agregaron a tu botonera los auspicios animados de Rayo Maulino y Mary Mechadas" : "Se agregó la escaleta del libreto a esta sala (tus gráficas anteriores siguen en Categorías)", "ok"); }
       } else { pgm(); }
       dibujarLista(); dibujarBotonera();   /* también al recargar: si no, la botonera del celular quedaba vacía hasta el primer cambio */

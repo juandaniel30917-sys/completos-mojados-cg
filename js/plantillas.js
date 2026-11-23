@@ -35,7 +35,7 @@
 
   /* ===================== CINTILLOS ===================== */
   P.barraConcurso = {
-    nombre: "Barra concurso", cat: "cintillos", icono: "barra", capa: 40, salidaMs: 900,
+    nombre: "Barra concurso", cat: "cintillos", icono: "barra", capa: 40, salidaMs: 950,
     desc: "Barra blanca con logo y mensajes que van cambiando (como tu GC de las mechadas).",
     campos: [
       {k: "mensajes", l: "Mensajes (rotan solos)", t: "lista", g: "Texto", nuevo: {a: "NUEVO MENSAJE", ca: "#FFA500", b: "", cb: "#FF0000"},
@@ -49,7 +49,7 @@
       {k: "y", l: "Altura en pantalla", t: "range", min: 0, max: 1000, step: 2, u: "px", g: "Posición"},
       {k: "alto", l: "Grosor de la barra", t: "range", min: 100, max: 300, step: 2, u: "px", g: "Posición"}
     ],
-    defaults: {mensajes: [{a: "CONCURSA POR", ca: "#FFA500", b: "2 MECHADAS!", cb: "#FF0000"}, {a: "LLAMA AQUÍ:", ca: "#1E9BF0", b: "+569 71091849", cb: "#8A7D5E"}], intervalo: 5, fondo: "#EEF2F8", logo: true, logoEstilo: "mary", tamTexto: 78, y: 798, alto: 194},
+    defaults: {mensajes: [{a: "CONCURSA POR", ca: "#FFA500", b: "2 MECHADAS!", cb: "#FF0000"}, {a: "LLAMA AQUÍ:", ca: "#1E9BF0", b: "+569 71091849", cb: "#8A7D5E"}], intervalo: 5, fondo: "#EEF2F8", logo: true, logoEstilo: "mary", tamTexto: 78, y: 768, alto: 194},
     render: function (d, ctx) {
       var ms = (d.mensajes || []).filter(function (m) { return (m.a || m.b); });
       return '<div class="bc" style="top:' + d.y + 'px;height:' + d.alto + 'px;--fondo:' + esc(d.fondo) + ';--tam:' + d.tamTexto + 'px">' +
