@@ -229,12 +229,10 @@
     desc: "Tu logo pequeño en una esquina (mosca).",
     campos: [{k: "esquina", l: "Esquina", t: "seg", g: "Posición", o: [["si", "↖"], ["sd", "↗"], ["ii", "↙"], ["id", "↘"]]},
       {k: "tam", l: "Tamaño", t: "range", min: 80, max: 400, step: 2, u: "px", g: "Posición"}, {k: "margen", l: "Margen", t: "range", min: 10, max: 160, step: 2, u: "px", g: "Posición"},
-      {k: "estilo", l: "Logo", t: "seg", g: "Estilo", o: [["mary", "Mary Mechadas (sticker)"], ["imagen", "Imagen / logo del programa"]]},
-      {k: "imagen", l: "Imagen (vacío = logo del programa)", t: "imagen", g: "Estilo", si: "estilo=imagen"}],
-    defaults: {esquina: "sd", tam: 170, margen: 50, estilo: "mary", imagen: ""},
+      {k: "imagen", l: "Imagen (vacío = logo del programa)", t: "imagen", g: "Estilo"}],
+    defaults: {esquina: "sd", tam: 170, margen: 50, imagen: ""},
     render: function (d, ctx) {
       var m = +d.margen || 50, pos = {si: "left:" + m + "px;top:" + m + "px", sd: "right:" + m + "px;top:" + m + "px", ii: "left:" + m + "px;bottom:" + m + "px", id: "right:" + m + "px;bottom:" + m + "px"}[d.esquina] || "";
-      if (d.estilo !== "imagen" && !d.imagen && CG.stickerMary) { return '<div class="mo mo-mary" style="' + pos + '">' + CG.stickerMary(+d.tam || 170, ctx) + '</div>'; }
       return '<div class="mo" style="' + pos + '"><img alt="" src="' + esc(logoSrc(ctx, d.imagen)) + '" style="width:' + d.tam + 'px"></div>';
     }
   };
