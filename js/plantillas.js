@@ -39,8 +39,9 @@
     desc: "Barra blanca con logo y mensajes que van cambiando (como tu GC de las mechadas).",
     campos: [
       {k: "mensajes", l: "Mensajes (rotan solos)", t: "lista", g: "Texto", nuevo: {a: "NUEVO MENSAJE", ca: "#FFA500", b: "", cb: "#FF0000"},
-        campos: [{k: "a", l: "Texto 1", t: "text"}, {k: "ca", l: "Color 1", t: "color"}, {k: "b", l: "Texto 2", t: "text"}, {k: "cb", l: "Color 2", t: "color"}]},
-      {k: "intervalo", l: "Cambiar cada", t: "range", min: 2, max: 20, step: 0.5, u: "s", g: "Texto"},
+        campos: [{k: "a", l: "Texto 1", t: "text"}, {k: "ca", l: "Color 1", t: "color"}, {k: "b", l: "Texto 2", t: "text"}, {k: "cb", l: "Color 2", t: "color"},
+          {k: "dur", l: "Segundos en pantalla (vacío = «Cambiar cada»)", ph: "seg", t: "num", ancho: 74, min: 1, max: 120, step: 0.5}]},
+      {k: "intervalo", l: "Cambiar cada (si el mensaje no tiene sus segundos)", t: "range", min: 2, max: 20, step: 0.5, u: "s", g: "Texto"},
       {k: "fondo", l: "Color de la barra", t: "color", g: "Estilo"},
       {k: "logo", l: "Mostrar logo", t: "toggle", g: "Estilo"},
       {k: "tamTexto", l: "Tamaño del texto", t: "range", min: 40, max: 110, step: 1, u: "px", g: "Estilo"},
@@ -58,15 +59,19 @@
         '</div></div>';
     },
     montar: function (el, d) {
-      var msgs = el.querySelectorAll(".bc-msg"), i = 0, t = null;
-      if (msgs.length > 1) {
-        t = setInterval(function () {
-          var a = msgs[i]; i = (i + 1) % msgs.length; var b = msgs[i];
-          a.classList.remove("on"); a.classList.add("fuera"); b.classList.remove("fuera"); b.classList.add("on");
-          setTimeout(function () { a.classList.remove("fuera"); }, 700);
-        }, Math.max(1500, (+d.intervalo || 5) * 1000));
+      /* cada mensaje se queda sus propios segundos (campo «seg» del mensaje); si no tiene, usa «Cambiar cada» */
+      var msgs = el.querySelectorAll(".bc-msg"), i = 0, t = null, vivo = true;
+      var lista = (d.mensajes || []).filter(function (m) { return (m.a || m.b); });
+      function durDe(k) { var x = parseFloat(String((lista[k] || {}).dur || "").replace(",", ".")); return Math.max(1000, (x > 0 ? x : (+d.intervalo || 5)) * 1000); }
+      function siguiente() {
+        if (!vivo) { return; }
+        var a = msgs[i]; i = (i + 1) % msgs.length; var b = msgs[i];
+        a.classList.remove("on"); a.classList.add("fuera"); b.classList.remove("fuera"); b.classList.add("on");
+        setTimeout(function () { a.classList.remove("fuera"); }, 700);
+        t = setTimeout(siguiente, durDe(i));
       }
-      return {destruir: function () { clearInterval(t); }};
+      if (msgs.length > 1) { t = setTimeout(siguiente, durDe(0)); }
+      return {destruir: function () { vivo = false; clearTimeout(t); }};
     }
   };
 
@@ -74,18 +79,22 @@
     nombre: "Zócalo (texto en movimiento)", cat: "cintillos", icono: "ticker", capa: 45, salidaMs: 600,
     desc: "Franja inferior con mensajes que pasan de derecha a izquierda.",
     campos: [
-      {k: "etiqueta", l: "Etiqueta", t: "text", g: "Texto"},
+      {k: "envivo", l: "EN VIVO + hora en vez de la etiqueta", t: "toggle", g: "Texto"},
+      {k: "textoVivo", l: "Texto EN VIVO", t: "text", g: "Texto", si: "envivo=true"},
+      {k: "ciudad", l: "Ciudad junto a la hora", t: "text", g: "Texto", si: "envivo=true"},
+      {k: "etiqueta", l: "Etiqueta", t: "text", g: "Texto", si: "envivo=false"},
       {k: "items", l: "Mensajes (uno por línea)", t: "lineas", g: "Texto"},
       {k: "velocidad", l: "Velocidad", t: "range", min: 40, max: 320, step: 10, g: "Texto"},
       {k: "colorEtq", l: "Color etiqueta", t: "color", g: "Estilo"},
       {k: "colorFondo", l: "Color franja", t: "color", g: "Estilo"},
       {k: "colorTexto", l: "Color texto", t: "color", g: "Estilo"}
     ],
-    defaults: {etiqueta: "COMPLETOS MOJADOS", items: ["TALCA · MAULE · COMPLETOS MOJADOS", "SÍGUENOS EN REDES @COMPLETOSMOJADOS", "EL PROGRAMA MÁS GRANDE DE CHILE"], velocidad: 140, colorEtq: "#D90429", colorFondo: "#0A0A0A", colorTexto: "#FFFFFF"},
+    defaults: {envivo: true, textoVivo: "EN VIVO", ciudad: "TALCA", etiqueta: "COMPLETOS MOJADOS", items: ["TALCA · MAULE · COMPLETOS MOJADOS", "SÍGUENOS EN REDES @COMPLETOSMOJADOS", "EL PROGRAMA MÁS GRANDE DE CHILE"], velocidad: 140, colorEtq: "#D90429", colorFondo: "#0A0A0A", colorTexto: "#FFFFFF"},
     render: function (d) {
       var uno = (d.items || []).filter(Boolean).map(function (s) { return '<span class="zc-it"><i class="zc-gota"></i>' + esc(s) + '</span>'; }).join("");
       return '<div class="zc" style="--etq:' + esc(d.colorEtq) + ';--fondo:' + esc(d.colorFondo) + ';--tx:' + esc(d.colorTexto) + '">' +
-        (d.etiqueta ? '<div class="zc-etq"><span>' + esc(d.etiqueta) + '</span></div>' : '') + '<div class="zc-via"><div class="zc-tira" data-uno="1">' + uno + '</div></div></div>';
+        (d.envivo !== false ? '<div class="zc-etq zc-vivo"><i class="zc-pt"></i><span>' + esc(d.textoVivo || "EN VIVO") + '</span></div><div class="zc-hora"><b class="ev-h">00:00</b>' + (d.ciudad ? '<small>' + esc(d.ciudad) + '</small>' : '') + '</div>'
+          : (d.etiqueta ? '<div class="zc-etq"><span>' + esc(d.etiqueta) + '</span></div>' : '')) + '<div class="zc-via"><div class="zc-tira" data-uno="1">' + uno + '</div></div></div>';
     },
     montar: function (el, d) {
       var tira = el.querySelector(".zc-tira"), via = el.querySelector(".zc-via"), x = 0, w = 0, raf, ult = 0, v = +d.velocidad || 140;
@@ -93,7 +102,10 @@
       medir();
       function paso(t) { var dt = ult ? Math.min(0.1, (t - ult) / 1000) : 0; ult = t; if (w > 0) { x -= v * dt * (CG.velocidad || 1); if (-x >= w) { x += w; } tira.style.transform = "translate3d(" + x.toFixed(1) + "px,0,0)"; } raf = requestAnimationFrame(paso); }
       raf = requestAnimationFrame(paso);
-      return {destruir: function () { cancelAnimationFrame(raf); }};
+      var h = el.querySelector(".ev-h"), reloj = null;
+      function hora() { var f = new Date(); h.textContent = (f.getHours() < 10 ? "0" : "") + f.getHours() + ":" + (f.getMinutes() < 10 ? "0" : "") + f.getMinutes(); }
+      if (h) { hora(); reloj = setInterval(hora, 1000); }
+      return {destruir: function () { cancelAnimationFrame(raf); clearInterval(reloj); }};
     }
   };
 
@@ -215,10 +227,12 @@
     desc: "Tu logo pequeño en una esquina (mosca).",
     campos: [{k: "esquina", l: "Esquina", t: "seg", g: "Posición", o: [["si", "↖"], ["sd", "↗"], ["ii", "↙"], ["id", "↘"]]},
       {k: "tam", l: "Tamaño", t: "range", min: 80, max: 400, step: 2, u: "px", g: "Posición"}, {k: "margen", l: "Margen", t: "range", min: 10, max: 160, step: 2, u: "px", g: "Posición"},
-      {k: "imagen", l: "Imagen (vacío = logo del programa)", t: "imagen", g: "Estilo"}],
-    defaults: {esquina: "sd", tam: 170, margen: 50, imagen: ""},
+      {k: "estilo", l: "Logo", t: "seg", g: "Estilo", o: [["mary", "Mary Mechadas (sticker)"], ["imagen", "Imagen / logo del programa"]]},
+      {k: "imagen", l: "Imagen (vacío = logo del programa)", t: "imagen", g: "Estilo", si: "estilo=imagen"}],
+    defaults: {esquina: "sd", tam: 170, margen: 50, estilo: "mary", imagen: ""},
     render: function (d, ctx) {
       var m = +d.margen || 50, pos = {si: "left:" + m + "px;top:" + m + "px", sd: "right:" + m + "px;top:" + m + "px", ii: "left:" + m + "px;bottom:" + m + "px", id: "right:" + m + "px;bottom:" + m + "px"}[d.esquina] || "";
+      if (d.estilo !== "imagen" && !d.imagen && CG.stickerMary) { return '<div class="mo mo-mary" style="' + pos + '">' + CG.stickerMary(+d.tam || 170, ctx) + '</div>'; }
       return '<div class="mo" style="' + pos + '"><img alt="" src="' + esc(logoSrc(ctx, d.imagen)) + '" style="width:' + d.tam + 'px"></div>';
     }
   };

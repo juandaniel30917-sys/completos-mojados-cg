@@ -551,6 +551,23 @@
     }
   };
 
+  /* ---- Sticker redondo de Mary Mechadas (vector): lo usan el logo de la esquina y la mención @Marymechadas ----
+     Entra como un sticker que se despega y cae girando; la esquina doblada se estira al final. */
+  CG.stickerMary = function (px, ctx) {
+    var src = ((ctx && ctx.base) || "") + "assets/marcas/mary_logo.svg";
+    return '<div class="smy" style="--d:' + Math.round(px) + 'px"><div class="smy-in"><div class="smy-cara"><img alt="Mary Mechadas" src="' + src + '"></div><i class="smy-doblez"></i></div></div>';
+  };
+  P.mencionMary = {
+    nombre: "Mención Mary Mechadas (@Marymechadas)", cat: "menciones", icono: "estrella", capa: 58, salidaMs: 900, entraMs: 2000, tipo: "MENCION", grupo: "mencion-mary",
+    desc: "Sticker redondo de Mary Mechadas abajo a la derecha y franja roja con Instagram @Marymechadas (como su video).",
+    campos: [{k: "usuario", l: "Usuario de Instagram", t: "text", g: "Texto"}, POS_X, POS_Y, TAM, VEL],
+    defaults: {usuario: "@Marymechadas", dx: 0, dy: 0, escala: 100, vel: 100},
+    render: function (d, ctx) {
+      return '<div class="mmy" style="' + posAus(d, "1637px 833px") + '">' +
+        '<div class="mmy-barra"><i class="mmy-ig"><b></b></i><span data-fit="470">' + tx(d.usuario) + '</span></div>' +
+        '<div class="mmy-st">' + CG.stickerMary(322, ctx) + '</div></div>';
+    }
+  };
   P.spMary = {
     nombre: "Auspicio Mary Mechadas (logo entre humo)", cat: "menciones", icono: "estrella", capa: 59, salidaMs: 950, tipo: "MENCION", grupo: "auspicio-mary",
     desc: "El logo aparece entre humo y polvo, con un brillo que lo recorre; al salir se deshace en polvo.",
