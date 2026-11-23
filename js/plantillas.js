@@ -44,16 +44,18 @@
       {k: "intervalo", l: "Cambiar cada (si el mensaje no tiene sus segundos)", t: "range", min: 2, max: 20, step: 0.5, u: "s", g: "Texto"},
       {k: "fondo", l: "Color de la barra", t: "color", g: "Estilo"},
       {k: "logo", l: "Mostrar logo", t: "toggle", g: "Estilo"},
+      {k: "logoEstilo", l: "Logo", t: "seg", g: "Estilo", si: "logo=true", o: [["mary", "Mary Mechadas (sticker)"], ["programa", "Logo del programa"]]},
       {k: "tamTexto", l: "Tamaño del texto", t: "range", min: 40, max: 110, step: 1, u: "px", g: "Estilo"},
       {k: "y", l: "Altura en pantalla", t: "range", min: 0, max: 1000, step: 2, u: "px", g: "Posición"},
       {k: "alto", l: "Grosor de la barra", t: "range", min: 100, max: 300, step: 2, u: "px", g: "Posición"}
     ],
-    defaults: {mensajes: [{a: "CONCURSA POR", ca: "#FFA500", b: "2 MECHADAS!", cb: "#FF0000"}, {a: "LLAMA AQUÍ:", ca: "#1E9BF0", b: "+569 71091849", cb: "#8A7D5E"}], intervalo: 5, fondo: "#EEF2F8", logo: true, tamTexto: 78, y: 798, alto: 194},
+    defaults: {mensajes: [{a: "CONCURSA POR", ca: "#FFA500", b: "2 MECHADAS!", cb: "#FF0000"}, {a: "LLAMA AQUÍ:", ca: "#1E9BF0", b: "+569 71091849", cb: "#8A7D5E"}], intervalo: 5, fondo: "#EEF2F8", logo: true, logoEstilo: "mary", tamTexto: 78, y: 798, alto: 194},
     render: function (d, ctx) {
       var ms = (d.mensajes || []).filter(function (m) { return (m.a || m.b); });
       return '<div class="bc" style="top:' + d.y + 'px;height:' + d.alto + 'px;--fondo:' + esc(d.fondo) + ';--tam:' + d.tamTexto + 'px">' +
         '<div class="bc-barra"></div>' +
-        (d.logo ? '<img class="bc-logo" alt="" src="' + esc(logoSrc(ctx)) + '" style="height:' + Math.round(d.alto * 1.18) + 'px">' : '') +
+        (d.logo ? (d.logoEstilo !== "programa" && CG.stickerMary ? '<div class="bc-logo bc-mary">' + CG.stickerMary(Math.round(d.alto * 1.12), ctx) + '</div>'
+          : '<img class="bc-logo" alt="" src="' + esc(logoSrc(ctx)) + '" style="height:' + Math.round(d.alto * 1.18) + 'px">') : '') +
         '<div class="bc-txt" style="left:' + (d.logo ? Math.round(d.alto * 1.88) : 90) + 'px">' +
         ms.map(function (m, i) { return '<div class="bc-msg' + (i === 0 ? " on" : "") + '"><span style="color:' + esc(m.ca) + '">' + esc(m.a) + '</span>' + (m.b ? ' <span style="color:' + esc(m.cb) + '">' + esc(m.b) + '</span>' : '') + '</div>'; }).join("") +
         '</div></div>';

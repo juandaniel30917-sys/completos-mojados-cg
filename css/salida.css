@@ -40,6 +40,11 @@ body.monitor{background:transparent}
 .t-barraConcurso.sale{animation:none}
 .t-barraConcurso.sale .bc-txt{animation:desaparece .25s ease forwards}
 .t-barraConcurso.sale .bc-logo{animation:popOutC .35s var(--sale) forwards}
+.bc-logo.bc-mary{filter:none}
+.t-barraConcurso.entra .bc-logo.bc-mary,.t-barraConcurso.sale .bc-logo.bc-mary{animation:none}
+.t-barraConcurso.entra .bc-mary .smy-in{animation:smyEnt .95s linear .3s both}
+.t-barraConcurso.entra .bc-mary .smy{animation:smyDob .95s linear .3s both}
+.t-barraConcurso.sale .bc-mary .smy-in{animation:smySal .45s cubic-bezier(.5,0,.75,0) both}
 .t-barraConcurso.sale .bc-barra{animation:wipeOut .55s var(--sale) .2s forwards}
 
 /* ===================== ZÓCALO ===================== */

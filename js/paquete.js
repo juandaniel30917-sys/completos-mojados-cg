@@ -558,13 +558,14 @@
     return '<div class="smy" style="--d:' + Math.round(px) + 'px"><div class="smy-in"><div class="smy-cara"><img alt="Mary Mechadas" src="' + src + '"></div><i class="smy-doblez"></i></div></div>';
   };
   P.mencionMary = {
-    nombre: "Mención Mary Mechadas (@Marymechadas)", cat: "menciones", icono: "estrella", capa: 58, salidaMs: 900, entraMs: 2000, tipo: "MENCION", grupo: "mencion-mary",
+    nombre: "Mención Mary Mechadas (@Marymechadas)", cat: "menciones", icono: "estrella", capa: 58, salidaMs: 900, entraMs: 2600, tipo: "MENCION", grupo: "mencion-mary",
     desc: "Sticker redondo de Mary Mechadas abajo a la derecha y franja roja con Instagram @Marymechadas (como su video).",
     campos: [{k: "usuario", l: "Usuario de Instagram", t: "text", g: "Texto"}, POS_X, POS_Y, TAM, VEL],
     defaults: {usuario: "@Marymechadas", dx: 0, dy: 0, escala: 100, vel: 100},
     render: function (d, ctx) {
       return '<div class="mmy" style="' + posAus(d, "1637px 833px") + '">' +
-        '<div class="mmy-barra"><i class="mmy-ig"><b></b></i><span data-fit="470">' + tx(d.usuario) + '</span></div>' +
+        '<div class="mmy-barra"><i class="mmy-ig"><b></b></i><span class="mmy-tx" data-fit="470">' + Array.from(String(d.usuario || "")).map(function (c, i) { return '<i style="--i:' + i + '">' + (c === " " ? "&nbsp;" : esc(c)) + '</i>'; }).join("") + '</span>' +
+          '<b class="mmy-brillo"></b><b class="mmy-filo"></b></div>' +
         '<div class="mmy-st">' + CG.stickerMary(322, ctx) + '</div></div>';
     }
   };
