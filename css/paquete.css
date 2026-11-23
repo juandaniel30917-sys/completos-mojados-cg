@@ -252,12 +252,12 @@
   background:linear-gradient(180deg,#FFF3B0 0%,#F5CF45 40%,#D9A514 62%,#F2CC4A 100%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 2px 0 rgba(0,0,0,.65))}
 .sr-brillo{position:absolute;inset:0;background:linear-gradient(105deg,transparent 35%,rgba(255,240,170,.32) 50%,transparent 65%);background-size:300% 100%;background-position:130% 0;animation:srBrillo 6s ease-in-out 5s infinite}
 @keyframes srBrillo{0%{background-position:130% 0}25%,100%{background-position:-30% 0}}
-.sr-rayo{position:absolute;left:610px;top:-60px;width:700px;height:900px;z-index:4;opacity:0;overflow:visible;filter:drop-shadow(0 0 10px #FFD21A) drop-shadow(0 0 34px rgba(255,236,140,.8))}
+.sr-rayo{position:absolute;left:1210px;top:-60px;width:700px;height:900px;z-index:4;opacity:0;overflow:visible;filter:drop-shadow(0 0 10px #FFD21A) drop-shadow(0 0 34px rgba(255,236,140,.8))}
 .sr-rayo polyline{stroke-dasharray:1;stroke-dashoffset:1}
 .sr-rayo .rb{opacity:0}
-.sr-golpe{position:absolute;left:660px;top:200px;width:600px;height:600px;border-radius:50%;z-index:1;opacity:0;
+.sr-golpe{position:absolute;left:1260px;top:200px;width:600px;height:600px;border-radius:50%;z-index:1;opacity:0;
   background:radial-gradient(circle,rgba(255,252,225,.95),rgba(255,226,74,.5) 28%,rgba(150,205,255,.2) 52%,transparent 68%)}
-.sr-humo{position:absolute;left:960px;top:520px;width:0;height:0;z-index:2}
+.sr-humo{position:absolute;left:1560px;top:520px;width:0;height:0;z-index:2}
 .sr-humo i{position:absolute;left:-110px;top:-110px;width:220px;height:220px;border-radius:50%;opacity:0;
   background:radial-gradient(circle at 42% 38%,#F4F7FA 0%,rgba(226,233,240,.96) 34%,rgba(176,188,200,.75) 52%,rgba(150,162,176,.25) 64%,transparent 71%);filter:blur(7px);
   transform:translate(var(--x),var(--y)) scale(.3) rotate(0)}
@@ -284,11 +284,11 @@
 @keyframes srAr{0%,21%{opacity:0}27%,100%{opacity:1}}
 .t-spRayo.entra .sr-lata{animation:srLata 4.8s linear both}
 @keyframes srLata{
-  0%{opacity:0;transform:translate(-737.5px,-760px) scale(.12);animation-timing-function:linear}
-  2%{opacity:1;transform:translate(-737.5px,-730px) scale(.16);animation-timing-function:cubic-bezier(.35,.1,.25,1)}
-  24%{transform:translate(-737.5px,-262px) scale(1.44);animation-timing-function:cubic-bezier(.4,0,.4,1)}
-  30%,60%{transform:translate(-737.5px,-275px) scale(1.4);animation-timing-function:cubic-bezier(.55,0,.35,1)}
-  71%{transform:translate(-360px,-118px) scale(1.12);animation-timing-function:cubic-bezier(.2,.6,.3,1)}
+  0%{opacity:0;transform:translate(-137.5px,-760px) scale(.12);animation-timing-function:linear}
+  2%{opacity:1;transform:translate(-137.5px,-730px) scale(.16);animation-timing-function:cubic-bezier(.35,.1,.25,1)}
+  24%{transform:translate(-137.5px,-262px) scale(1.44);animation-timing-function:cubic-bezier(.4,0,.4,1)}
+  30%,60%{transform:translate(-137.5px,-275px) scale(1.4);animation-timing-function:cubic-bezier(.55,0,.35,1)}
+  71%{transform:translate(-62px,-118px) scale(1.12);animation-timing-function:cubic-bezier(.2,.6,.3,1)}
   81%{transform:translate(8px,5px) scale(.97);animation-timing-function:cubic-bezier(.4,0,.4,1)}
   87%{transform:translate(-2px,-1px) scale(1.01)}
   92%,100%{opacity:1;transform:none}}
@@ -348,3 +348,72 @@
 .t-spMary.sale .sm-polvo i{animation:smPolvoS .95s cubic-bezier(.3,.6,.4,1) var(--t) both}
 @keyframes smPolvoS{0%{opacity:0;transform:none}20%{opacity:.85}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(1.4)}}
 .t-spMary.sale .sm-humo i{animation:smHumo .95s ease-out calc(var(--i) * 40ms) both}
+
+/* ===== STICKER MARY MECHADAS (logo de la esquina y mención @Marymechadas) =====
+   Cae girando como un sticker que se despega; la esquina doblada (--p) se estira al final. */
+@property --p{syntax:"<percentage>";inherits:true;initial-value:0%}
+.smy{position:relative;width:var(--d);height:var(--d);--p:0%}
+.smy-in{position:absolute;inset:0;filter:drop-shadow(0 8px 14px rgba(0,0,0,.3));transform-origin:60% 40%}
+.smy-cara{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 38% 30%,#FFFFFF 0%,#F1F3F9 55%,#E2E6EF 100%);display:flex;align-items:center;justify-content:center;overflow:hidden;
+  clip-path:polygon(0 0,calc(100% - var(--p)) 0,100% var(--p),100% 100%,0 100%)}
+.smy-cara:after{content:"";position:absolute;inset:-20%;background:linear-gradient(115deg,transparent 40%,rgba(255,255,255,.85) 50%,transparent 60%);transform:translateX(-120%);animation:smyGlint 7s ease-in-out 1.2s infinite;pointer-events:none}
+@keyframes smyGlint{0%{transform:translateX(-120%)}14%,100%{transform:translateX(120%)}}
+.smy-cara img{width:77%;height:auto;margin-top:-6%;display:block;animation:smyResp 2.8s ease-in-out infinite}
+.smy-doblez{position:absolute;inset:0;border-radius:50%;
+  background:linear-gradient(225deg,#B9C1CC 0%,#E9EDF3 38%,#FFFFFF 55%,#D3D9E2 100%);
+  transform:translate(calc(100% - var(--p)),calc(var(--p) - 100%));
+  clip-path:polygon(0 calc(100% - var(--p)),var(--p) 100%,0 100%)}
+@keyframes smyResp{0%,100%{transform:scale(1) rotate(0)}50%{transform:scale(1.035) rotate(-.6deg)}}
+@keyframes smyEnt{
+  0%{opacity:0;transform:translate(55%,-95%) rotate(-38deg) scale(.72);animation-timing-function:cubic-bezier(.25,.6,.35,1)}
+  12%{opacity:1}
+  42%{transform:translate(5%,-5%) rotate(-7deg) scale(1.04);animation-timing-function:cubic-bezier(.4,0,.4,1)}
+  56%{transform:translate(0,1.5%) rotate(2.4deg) scale(1.03,.95);animation-timing-function:cubic-bezier(.4,0,.4,1)}
+  70%{transform:translate(0,-.6%) rotate(-1.2deg) scale(.99,1.015);animation-timing-function:cubic-bezier(.4,0,.4,1)}
+  82%{transform:rotate(-.7deg) scale(1.004)}
+  100%{opacity:1;transform:none}}
+@keyframes smyDob{0%,34%{--p:54%;animation-timing-function:cubic-bezier(.2,.75,.25,1)}100%{--p:0%}}
+@keyframes smySal{
+  0%{opacity:1;transform:none;--p:0%}
+  45%{opacity:1;transform:rotate(-4deg) scale(1.03);--p:50%}
+  100%{opacity:0;transform:translate(45%,-80%) rotate(-34deg) scale(.7);--p:56%}}
+
+/* ===== MENCIÓN MARY MECHADAS: sticker abajo a la derecha + franja roja con Instagram ===== */
+.mmy{position:absolute;left:0;top:0;width:1920px;height:1080px;pointer-events:none}
+.mmy-st{position:absolute;left:1476px;top:672px;z-index:2}
+.mmy-barra{position:absolute;left:962px;top:908px;width:675px;height:81px;z-index:1;display:flex;align-items:center;gap:30px;padding-left:22px;box-sizing:border-box;
+  background:linear-gradient(180deg,#EE4231,#E2321F);box-shadow:0 6px 14px rgba(0,0,0,.25)}
+.mmy-ig{position:relative;flex:none;width:50px;height:50px;border-radius:14px;
+  background:radial-gradient(circle at 30% 107%,#FDF497 0%,#FDF497 5%,#FD5949 45%,#D6249F 62%,#285AEB 92%)}
+.mmy-ig b{position:absolute;inset:9px;border:4px solid #fff;border-radius:10px}
+.mmy-ig b:before{content:"";position:absolute;left:50%;top:50%;width:12px;height:12px;margin:-10px 0 0 -10px;border:4px solid #fff;border-radius:50%}
+.mmy-ig b:after{content:"";position:absolute;right:2px;top:2px;width:5px;height:5px;border-radius:50%;background:#fff}
+.mmy-barra{overflow:hidden}
+.mmy-tx i{display:inline-block;font-style:normal}
+.mmy-filo{position:absolute;top:0;bottom:0;left:100%;width:26px;margin-left:-13px;background:linear-gradient(90deg,transparent,rgba(255,236,214,.95),transparent);opacity:0}
+.mmy-brillo{position:absolute;inset:0;background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,.38) 48%,transparent 62%);background-size:260% 100%;background-position:150% 0;pointer-events:none}
+.mmy-barra:after{content:"";position:absolute;left:0;right:0;bottom:0;height:6px;background:#B91D10;transform-origin:100% 50%}
+.mmy-barra span{position:relative;z-index:1;color:#fff;font:400 46px/1 Arial,"Helvetica Neue",Helvetica,sans-serif;letter-spacing:.085em;white-space:nowrap}
+.t-mencionMary.entra .smy-in{animation:smyEnt .95s linear both}
+.t-mencionMary.entra .smy{animation:smyDob .95s linear both}
+.t-mencionMary.entra .mmy-barra{animation:mmyBarra .6s cubic-bezier(.16,.84,.3,1) .95s both}
+.t-mencionMary.entra .mmy-ig{animation:mmyPop .5s cubic-bezier(.3,1.6,.5,1) 1.3s both}
+.t-mencionMary.entra .mmy-tx i{animation:mmyChar .5s cubic-bezier(.2,.9,.3,1.25) calc(1.32s + var(--i) * .032s) both}
+.t-mencionMary.entra .mmy-filo{animation:mmyFilo .6s cubic-bezier(.16,.84,.3,1) .95s both}
+.t-mencionMary .mmy-brillo{animation:mmyBrillo 6s ease-in-out 2.1s infinite}
+.t-mencionMary.entra .mmy-barra:after{animation:mmyLinea .5s cubic-bezier(.2,.8,.3,1) 1.25s both}
+@keyframes mmyChar{0%{opacity:0;transform:translateY(70%) rotate(10deg)}60%{opacity:1}100%{opacity:1;transform:none}}
+@keyframes mmyFilo{0%{left:100%;opacity:1}85%{opacity:1}100%{left:0;opacity:0}}
+@keyframes mmyBrillo{0%{background-position:150% 0}22%,100%{background-position:-50% 0}}
+@keyframes mmyLinea{0%{transform:scaleX(0)}100%{transform:scaleX(1)}}
+@keyframes mmyBarra{0%{clip-path:inset(0 0 0 100%)}100%{clip-path:inset(0 0 0 0)}}
+@keyframes mmyPop{0%{transform:scale(0) rotate(-40deg)}100%{transform:none}}
+@keyframes mmyTxt{0%{opacity:0;transform:translateX(46px)}100%{opacity:1;transform:none}}
+.t-mencionMary.sale{animation:none}
+.t-mencionMary.sale .mmy-tx i{animation:mmyCharS .22s ease-in calc(var(--i) * .012s) both}
+.t-mencionMary.sale .mmy-ig{animation:mmyFuera .2s ease-in both}
+@keyframes mmyCharS{to{opacity:0;transform:translateY(-60%)}}
+.t-mencionMary.sale .mmy-barra{animation:mmyBarraS .4s cubic-bezier(.6,0,.8,.3) .1s both}
+.t-mencionMary.sale .smy-in{animation:smySal .5s cubic-bezier(.5,0,.75,0) .38s both}
+@keyframes mmyFuera{to{opacity:0}}
+@keyframes mmyBarraS{0%{clip-path:inset(0 0 0 0)}100%{clip-path:inset(0 0 0 100%)}}

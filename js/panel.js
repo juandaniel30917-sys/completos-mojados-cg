@@ -575,7 +575,7 @@
           arr.forEach(function (it, i) {
             var row = document.createElement("div"); row.className = "li";
             row.style.gridTemplateColumns = subs.map(function (sf) { return sf.t === "color" ? "auto" : sf.ancho ? sf.ancho + "px" : "minmax(0,1fr)"; }).join(" ") + " auto";
-            row.innerHTML = subs.map(function (sf) { return sf.t === "color" ? '<input type="color" data-k="' + sf.k + '" title="' + esc(sf.l) + '">' : '<input type="text" data-k="' + sf.k + '" placeholder="' + esc(sf.ph || sf.l) + '" aria-label="' + esc(sf.l) + '">'; }).join("") +
+            row.innerHTML = subs.map(function (sf) { return sf.t === "color" ? '<input type="color" data-k="' + sf.k + '" title="' + esc(sf.l) + '">' : sf.t === "num" ? '<input type="number" inputmode="decimal" data-k="' + sf.k + '" min="' + (sf.min || 0) + '" max="' + (sf.max || 999) + '" step="' + (sf.step || 1) + '" placeholder="' + esc(sf.ph || sf.l) + '" title="' + esc(sf.l) + '" aria-label="' + esc(sf.l) + '">' : '<input type="text" data-k="' + sf.k + '" placeholder="' + esc(sf.ph || sf.l) + '" aria-label="' + esc(sf.l) + '">'; }).join("") +
               '<button type="button" class="q" title="Quitar"><svg><use href="#i-basura"/></svg></button>';
             $$("[data-k]", row).forEach(function (x) { x.value = it[x.dataset.k] || (x.type === "color" ? "#000000" : ""); x.oninput = function () { arr[i][x.dataset.k] = x.value; cambio(f.k, arr); }; });
             $(".q", row).onclick = function () { if (f.k === "mensajes" && arr.length <= 1) { toast("Debe quedar al menos un mensaje", "err"); return; } arr.splice(i, 1); cambio(f.k, arr); pintar(); };
@@ -584,7 +584,7 @@
           if (!arr.length) { li.innerHTML = '<span class="nota">Vacío. Usa «Agregar».</span>'; }
         };
         pintar();
-        $("button.btn", w).onclick = function () { var arr = (d[f.k] || []).slice(); arr.push(clon(f.nuevo)); cambio(f.k, arr); pintar(); var ins = $$(".li input[type=text]", li); if (ins.length) { ins[ins.length - subs.filter(function (x) { return x.t !== "color"; }).length].focus(); } };
+        $("button.btn", w).onclick = function () { var arr = (d[f.k] || []).slice(); arr.push(clon(f.nuevo)); cambio(f.k, arr); pintar(); var ins = $$(".li input[type=text]", li); if (ins.length) { ins[ins.length - subs.filter(function (x) { return x.t === "text"; }).length].focus(); } };
         break;
       case "select":
         w.innerHTML = lab + '<select id="' + id + '">' + f.o.map(function (o) { return '<option value="' + esc(o[0]) + '">' + esc(o[1]) + '</option>'; }).join("") + '</select>';
@@ -1742,7 +1742,7 @@
   /* ------------------------------------------------------------------ arranque */
   function normalizar(e) {
     e = e || {}; var ini = CG.estadoInicial();
-    if (!Array.isArray(e.elementos) || !e.elementos.length) { CG.sembrarLibreto(ini); sembrarBotonera(ini); botonesAuspicios(ini); return ini; }
+    if (!Array.isArray(e.elementos) || !e.elementos.length) { CG.sembrarLibreto(ini); sembrarBotonera(ini); botonesAuspicios(ini); zocaloConVivo(ini); botonMencionMary(ini); return ini; }
     e.elementos = e.elementos.filter(function (x) { return x && P[x.plantilla]; }).map(function (x) {
       x.datos = Object.assign(clon(P[x.plantilla].defaults), x.datos || {}); x.on = !!x.on; return x;
     });
@@ -1752,7 +1752,42 @@
     if (CG.sembrarLibreto(e)) { e._sembrado = true; }
     if (sembrarBotonera(e)) { e._sembrado = true; }
     if (botonesAuspicios(e)) { e._sembrado = true; e._ausNuevos = true; }
+    if (zocaloConVivo(e)) { e._sembrado = true; e._zcVivo = true; }
+    if (botonMencionMary(e)) { e._sembrado = true; e._mmNuevo = true; }
     return e;
+  }
+  /* una sola vez por sala: el EN VIVO + hora ahora va dentro del zócalo. Se saca la gráfica EN VIVO suelta
+     de los botones que la mostraban junto al zócalo (el de «3 en una») y se quita su botón individual. */
+  function zocaloConVivo(e) {
+    var bt = e.botonera; if (!bt || !Array.isArray(bt.botones) || bt.zocaloVivo) { return false; }
+    bt.zocaloVivo = true;
+    var tipo = {}; (e.elementos || []).forEach(function (x) { tipo[x.id] = x.plantilla; });
+    var vivos = {}, hubo = false;
+    bt.botones.forEach(function (b) {
+      var ids = b.els || [b.el];
+      if (ids.length > 1 && ids.some(function (x) { return tipo[x] === "zocalo"; })) { ids.forEach(function (x) { if (tipo[x] === "enVivo") { vivos[x] = 1; } }); }
+    });
+    bt.botones = bt.botones.filter(function (b) {
+      if (b.els && b.els.length > 1) {
+        var r = b.els.filter(function (x) { return !vivos[x]; });
+        if (r.length !== b.els.length) { hubo = true; b.els = r; if (r.indexOf(b.el) < 0) { b.el = r[0]; } if (r.length < 2) { b.varias = false; delete b.els; } }
+        return true;
+      }
+      if (vivos[b.el]) { hubo = true; return false; }
+      return true;
+    });
+    (e.elementos || []).forEach(function (x) { if (vivos[x.id]) { x.on = false; } });
+    return hubo;
+  }
+  /* una sola vez por sala: botón para la mención de Mary Mechadas (sticker + @Marymechadas) */
+  function botonMencionMary(e) {
+    var bt = e.botonera; if (!bt || !Array.isArray(bt.botones) || bt.mencionMary) { return false; }
+    if (!(e.elementos || []).some(function (x) { return x.id === "lb-mencion-mary"; })) { return false; }
+    bt.mencionMary = true;
+    if (bt.botones.some(function (b) { return (b.els || [b.el]).indexOf("lb-mencion-mary") >= 0; })) { return false; }
+    var i = -1; bt.botones.forEach(function (b, j) { if (/aus-mary|aus-rayo/.test(b.el || "")) { i = j; } });
+    bt.botones.splice(i < 0 ? bt.botones.length : i + 1, 0, nuevoBoton({el: "lb-mencion-mary", esp: "", etiqueta: "@MARYMECHADAS 📸", color: "#E8392A", tecla: ""}));
+    return true;
   }
   /* una sola vez por sala: agrega a la botonera guardada un botón por cada auspicio animado (Rayo Maulino y Mary Mechadas) */
   function botonesAuspicios(e) {
@@ -1810,7 +1845,10 @@
       $("#salaNombre").textContent = r.nombre || (LOCAL ? "Modo local" : sala); document.title = (r.nombre || "Panel") + " · CM CG";
       if (!LOCAL) { outKey = r.outKey; guardarSala(sala, token, r.nombre); }
       borr = leerLS("cg_borr_" + sala, {}); Object.keys(borr).forEach(function (id) { if (!el(id)) { delete borr[id]; } });
-      if (nuevo || estado._sembrado) { var aus = estado._ausNuevos; delete estado._sembrado; delete estado._ausNuevos; publicar(); if (!nuevo) { toast(aus ? "Se agregaron a tu botonera los auspicios animados de Rayo Maulino y Mary Mechadas" : "Se agregó la escaleta del libreto a esta sala (tus gráficas anteriores siguen en Categorías)", "ok"); } } else { pgm(); }
+      if (nuevo || estado._sembrado) {
+        var aus = estado._ausNuevos, zv = estado._zcVivo, mm = estado._mmNuevo; delete estado._sembrado; delete estado._ausNuevos; delete estado._zcVivo; delete estado._mmNuevo; publicar();
+        if (!nuevo) { toast(zv || mm ? (zv ? "El EN VIVO y la hora ahora van dentro del zócalo (botonera actualizada)" : "") + (zv && mm ? " · " : "") + (mm ? "Se agregó el botón @MARYMECHADAS" : "") : aus ? "Se agregaron a tu botonera los auspicios animados de Rayo Maulino y Mary Mechadas" : "Se agregó la escaleta del libreto a esta sala (tus gráficas anteriores siguen en Categorías)", "ok"); }
+      } else { pgm(); }
       dibujarLista(); dibujarBotonera();   /* también al recargar: si no, la botonera del celular quedaba vacía hasta el primer cambio */
       var s = leerLS("cg_sel_" + sala, null); if (s && el(s)) { seleccionar(s); }
       if (!LOCAL && !nuevo) { /* nada */ }
