@@ -35,7 +35,7 @@
 
   /* ===================== CINTILLOS ===================== */
   P.barraConcurso = {
-    nombre: "Barra concurso", cat: "cintillos", icono: "barra", capa: 40, salidaMs: 950,
+    nombre: "Barra concurso", cat: "cintillos", icono: "barra", capa: 40, salidaMs: 1500,
     desc: "Barra blanca con logo y mensajes que van cambiando (como tu GC de las mechadas).",
     campos: [
       {k: "mensajes", l: "Mensajes (rotan solos)", t: "lista", g: "Texto", nuevo: {a: "NUEVO MENSAJE", ca: "#FFA500", b: "", cb: "#FF0000"},
@@ -53,8 +53,8 @@
     render: function (d, ctx) {
       var ms = (d.mensajes || []).filter(function (m) { return (m.a || m.b); });
       return '<div class="bc" style="top:' + d.y + 'px;height:' + d.alto + 'px;--fondo:' + esc(d.fondo) + ';--tam:' + d.tamTexto + 'px">' +
-        '<div class="bc-barra"></div>' +
-        (d.logo ? (d.logoEstilo !== "programa" && CG.stickerMary ? '<div class="bc-logo bc-mary">' + CG.stickerMary(Math.round(d.alto * 1.12), ctx) + '</div>'
+        '<div class="bc-fondo"><div class="bc-barra"></div><div class="bc-zona"><i class="bc-dob"></i></div></div>' +
+        (d.logo ? (d.logoEstilo !== "programa" && CG.stickerMary ? '<div class="bc-logo bc-mary" style="--sob:' + Math.max(0, Math.round(d.alto * 0.06) - 6) + 'px">' + CG.stickerMary(Math.round(d.alto * 1.12), ctx) + '</div>'
           : '<img class="bc-logo" alt="" src="' + esc(logoSrc(ctx)) + '" style="height:' + Math.round(d.alto * 1.18) + 'px">') : '') +
         '<div class="bc-txt" style="left:' + (d.logo ? Math.round(d.alto * 1.88) : 90) + 'px">' +
         ms.map(function (m, i) { return '<div class="bc-msg' + (i === 0 ? " on" : "") + '"><span style="color:' + esc(m.ca) + '">' + esc(m.a) + '</span>' + (m.b ? ' <span style="color:' + esc(m.cb) + '">' + esc(m.b) + '</span>' : '') + '</div>'; }).join("") +

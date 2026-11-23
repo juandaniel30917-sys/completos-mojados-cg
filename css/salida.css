@@ -27,26 +27,39 @@ body.monitor{background:transparent}
 
 /* ===================== BARRA CONCURSO ===================== */
 .bc{position:absolute;left:0;width:1920px}
-.bc-barra{position:absolute;inset:0;background:var(--fondo);box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.bc-fondo{position:absolute;inset:0;filter:drop-shadow(0 8px 14px rgba(0,0,0,.25));--q:-400px}
+/* la barra se pega como sticker: --q = dónde cruza el pliegue (casi vertical, inclinado 8°). Lo que está a la derecha
+   del pliegue ya está pegado; la parte doblada se ve por su reverso, acortada y sin salirse de la franja. */
+.bc-barra{position:absolute;inset:0;background:var(--fondo);
+  clip-path:polygon(calc(var(--q) - 418px) -2970px,calc(var(--q) + 418px) 2970px,calc(var(--q) + 6000px) 0)}
+.bc-zona{position:absolute;inset:0;clip-path:inset(-5px -200px -5px -200px);pointer-events:none}
+.bc-dob{position:absolute;inset:0;transform-origin:0 0;
+  background:linear-gradient(180deg,#F7F8FB 0%,#DCE0E7 55%,#C9CED7 100%);
+  transform:translate(var(--q),0) rotate(-8deg) scaleX(-.3) rotate(8deg) translate(calc(var(--q) * -1),0);
+  clip-path:polygon(calc(var(--q) - 418px) -2970px,calc(var(--q) + 418px) 2970px,calc(var(--q) - 6000px) 0)}
+@property --q{syntax:"<length>";inherits:true;initial-value:-400px}
+@keyframes bcPega{0%{--q:2150px;animation-timing-function:cubic-bezier(.35,.05,.3,1)}100%{--q:-400px}}
+@keyframes bcDespega{0%{--q:-400px;animation-timing-function:cubic-bezier(.55,0,.6,1)}100%{--q:2150px}}
+.bc-mary .smy-zona{clip-path:inset(var(--sob) -600px var(--sob) -600px)}
 .bc-logo{position:absolute;left:58px;top:50%;transform:translateY(-50%);filter:drop-shadow(0 6px 10px rgba(0,0,0,.35));z-index:2}
 .bc-txt{position:absolute;top:0;bottom:0;right:40px;overflow:hidden}
 .bc-msg{position:absolute;inset:0;display:flex;align-items:center;gap:.32em;white-space:nowrap;font:900 var(--tam)/1 var(--black);letter-spacing:.06em;text-transform:uppercase;
   transform:translateY(105%);opacity:0;transition:transform .65s var(--suave),opacity .5s}
 .bc-msg.on{transform:none;opacity:1}
 .bc-msg.fuera{transform:translateY(-105%);opacity:0}
-.t-barraConcurso.entra .bc-barra{animation:wipeIn .6s var(--suave) both}
+.t-barraConcurso.entra .bc-fondo{animation:bcPega 1.05s linear both}
 .t-barraConcurso.entra .bc-logo{animation:popC .55s var(--rebote) .35s both}
-.t-barraConcurso.entra .bc-txt{animation:subeTxt .55s var(--suave) .45s both}
+.t-barraConcurso.entra .bc-txt{animation:subeTxt .55s var(--suave) .8s both}
 .t-barraConcurso.sale{animation:none}
 .t-barraConcurso.sale .bc-txt{animation:desaparece .25s ease forwards}
 .t-barraConcurso.sale .bc-logo{animation:popOutC .35s var(--sale) forwards}
 .bc-logo.bc-mary{filter:none}
 .t-barraConcurso.entra .bc-logo.bc-mary,.t-barraConcurso.sale .bc-logo.bc-mary{animation:none}
-.t-barraConcurso.entra .bc-mary .smy-in{animation:smyEnt 1.4s linear .3s both}
-.t-barraConcurso.entra .bc-mary .smy{animation:smyDob 1.4s linear .3s both}
-.t-barraConcurso.sale .bc-mary .smy-in{animation:smySal .8s linear both}
+.t-barraConcurso.entra .bc-mary .smy-in{animation:smyEnt 1.3s linear .75s both}
+.t-barraConcurso.entra .bc-mary .smy{animation:smyDob 1.3s linear .75s both}
+.t-barraConcurso.sale .bc-mary .smy-in{animation:smySal .75s linear both}
 .t-barraConcurso.entra .bc-mary .smy-onda{animation-delay:.75s}
-.t-barraConcurso.sale .bc-barra{animation:wipeOut .55s var(--sale) .2s forwards}
+.t-barraConcurso.sale .bc-fondo{animation:bcDespega 1.05s linear .4s both}
 
 /* ===================== ZÓCALO ===================== */
 .zc{position:absolute;left:0;right:0;bottom:0;height:84px;display:flex;border-top:6px solid var(--linea)}
