@@ -1755,6 +1755,7 @@
     if (zocaloConVivo(e)) { e._sembrado = true; e._zcVivo = true; }
     if (botonMencionMary(e)) { e._sembrado = true; e._mmNuevo = true; }
     if (mencionEnBotonMary(e)) { e._sembrado = true; e._mmBoton = true; }
+    if (barraSobreZocalo(e)) { e._sembrado = true; }
     return e;
   }
   /* una sola vez por sala: el EN VIVO + hora ahora va dentro del zócalo. Se saca la gráfica EN VIVO suelta
@@ -1792,6 +1793,13 @@
   }
   /* una sola vez por sala: el botón del auspicio animado Mary Mechadas también muestra la mención @Marymechadas
      (y se quita el botón suelto @MARYMECHADAS que se había agregado solo) */
+  /* una sola vez por sala: la barra concurso sube un poco para no chocar con el zócalo (EN VIVO) */
+  function barraSobreZocalo(e) {
+    var bt = e.botonera; if (!bt || bt.barraArriba) { return false; }
+    bt.barraArriba = true; var hubo = false;
+    (e.elementos || []).forEach(function (x) { if (x.plantilla === "barraConcurso" && x.datos && +x.datos.y === 798) { x.datos.y = 768; hubo = true; } });
+    return hubo;
+  }
   function mencionEnBotonMary(e) {
     var bt = e.botonera; if (!bt || !Array.isArray(bt.botones) || bt.mencionMary2) { return false; }
     if (!(e.elementos || []).some(function (x) { return x.id === "lb-mencion-mary"; })) { return false; }

@@ -555,10 +555,10 @@
      Entra girando con un rebote elástico y una onda blanca detrás; sale con un pequeño impulso y se encoge girando. */
   CG.stickerMary = function (px, ctx) {
     var src = ((ctx && ctx.base) || "") + "assets/marcas/mary_logo.svg";
-    return '<div class="smy" style="--d:' + Math.round(px) + 'px"><i class="smy-onda"></i><div class="smy-in"><div class="smy-cara"><img alt="Mary Mechadas" src="' + src + '"></div><i class="smy-doblez"></i></div></div>';
+    return '<div class="smy" style="--d:' + Math.round(px) + 'px"><i class="smy-onda"></i><div class="smy-in"><div class="smy-cara"><img alt="Mary Mechadas" src="' + src + '"></div><div class="smy-cara smy-lev"><img alt="" src="' + src + '"></div></div></div>';
   };
   P.mencionMary = {
-    nombre: "Mención Mary Mechadas (@Marymechadas)", cat: "menciones", icono: "estrella", capa: 58, salidaMs: 900, entraMs: 3200, tipo: "MENCION", grupo: "mencion-mary",
+    nombre: "Mención Mary Mechadas (@Marymechadas)", cat: "menciones", icono: "estrella", capa: 58, salidaMs: 1250, entraMs: 3200, tipo: "MENCION", grupo: "mencion-mary",
     desc: "Sticker redondo de Mary Mechadas abajo a la derecha y franja roja con Instagram @Marymechadas (como su video).",
     campos: [{k: "usuario", l: "Usuario de Instagram", t: "text", g: "Texto"}, POS_X, POS_Y, TAM, VEL],
     defaults: {usuario: "@Marymechadas", dx: 0, dy: 0, escala: 100, vel: 100},
