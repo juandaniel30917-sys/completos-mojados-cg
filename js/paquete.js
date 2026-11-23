@@ -551,11 +551,11 @@
     }
   };
 
-  /* ---- Sticker redondo de Mary Mechadas (vector): lo usan el logo de la esquina y la mención @Marymechadas ----
-     Entra como un sticker que se despega y cae girando; la esquina doblada se estira al final. */
+  /* ---- Sticker redondo de Mary Mechadas (vector): lo usan el logo de la esquina, la barra concurso y la mención @Marymechadas ----
+     Entra girando con un rebote elástico y una onda blanca detrás; sale con un pequeño impulso y se encoge girando. */
   CG.stickerMary = function (px, ctx) {
     var src = ((ctx && ctx.base) || "") + "assets/marcas/mary_logo.svg";
-    return '<div class="smy" style="--d:' + Math.round(px) + 'px"><div class="smy-in"><div class="smy-cara"><img alt="Mary Mechadas" src="' + src + '"></div><i class="smy-doblez"></i></div></div>';
+    return '<div class="smy" style="--d:' + Math.round(px) + 'px"><i class="smy-onda"></i><div class="smy-in"><div class="smy-cara"><img alt="Mary Mechadas" src="' + src + '"></div><i class="smy-doblez"></i></div></div>';
   };
   P.mencionMary = {
     nombre: "Mención Mary Mechadas (@Marymechadas)", cat: "menciones", icono: "estrella", capa: 58, salidaMs: 900, entraMs: 2600, tipo: "MENCION", grupo: "mencion-mary",

@@ -365,18 +365,21 @@
   clip-path:polygon(0 calc(100% - var(--p)),var(--p) 100%,0 100%)}
 @keyframes smyResp{0%,100%{transform:scale(1) rotate(0)}50%{transform:scale(1.035) rotate(-.6deg)}}
 @keyframes smyEnt{
-  0%{opacity:0;transform:translate(55%,-95%) rotate(-38deg) scale(.72);animation-timing-function:cubic-bezier(.25,.6,.35,1)}
-  12%{opacity:1}
-  42%{transform:translate(5%,-5%) rotate(-7deg) scale(1.04);animation-timing-function:cubic-bezier(.4,0,.4,1)}
-  56%{transform:translate(0,1.5%) rotate(2.4deg) scale(1.03,.95);animation-timing-function:cubic-bezier(.4,0,.4,1)}
-  70%{transform:translate(0,-.6%) rotate(-1.2deg) scale(.99,1.015);animation-timing-function:cubic-bezier(.4,0,.4,1)}
-  82%{transform:rotate(-.7deg) scale(1.004)}
-  100%{opacity:1;transform:none}}
-@keyframes smyDob{0%,34%{--p:54%;animation-timing-function:cubic-bezier(.2,.75,.25,1)}100%{--p:0%}}
+  0%{opacity:0;transform:scale(0) rotate(-150deg);filter:drop-shadow(0 8px 14px rgba(0,0,0,0)) blur(3px);animation-timing-function:cubic-bezier(.2,.7,.3,1)}
+  18%{opacity:1}
+  55%{transform:scale(1.12) rotate(10deg);filter:drop-shadow(0 14px 18px rgba(0,0,0,.22)) blur(0);animation-timing-function:cubic-bezier(.45,0,.4,1)}
+  74%{transform:scale(.95) rotate(-3deg);animation-timing-function:cubic-bezier(.45,0,.4,1)}
+  88%{transform:scale(1.02) rotate(1deg)}
+  100%{opacity:1;transform:none;filter:drop-shadow(0 8px 14px rgba(0,0,0,.3)) blur(0)}}
+@keyframes smyDob{0%,100%{--p:0%}}
 @keyframes smySal{
-  0%{opacity:1;transform:none;--p:0%}
-  45%{opacity:1;transform:rotate(-4deg) scale(1.03);--p:50%}
-  100%{opacity:0;transform:translate(45%,-80%) rotate(-34deg) scale(.7);--p:56%}}
+  0%{opacity:1;transform:none;animation-timing-function:cubic-bezier(.4,0,.6,1)}
+  30%{opacity:1;transform:scale(1.08) rotate(-6deg);animation-timing-function:cubic-bezier(.55,0,.8,.2)}
+  100%{opacity:0;transform:scale(0) rotate(140deg)}}
+/* onda que sale detrás del sticker cuando aterriza */
+.smy-onda{position:absolute;inset:0;border-radius:50%;border:calc(var(--d) * .03) solid #fff;opacity:0;pointer-events:none}
+.entra .smy-onda{animation:smyOnda .9s cubic-bezier(.2,.7,.3,1) .45s both}
+@keyframes smyOnda{0%{opacity:0;transform:scale(.9)}2%{opacity:.85;transform:scale(.92)}100%{opacity:0;transform:scale(1.55)}}
 
 /* ===== MENCIÓN MARY MECHADAS: sticker abajo a la derecha + franja roja con Instagram ===== */
 .mmy{position:absolute;left:0;top:0;width:1920px;height:1080px;pointer-events:none}

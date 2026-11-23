@@ -410,6 +410,5 @@ No usa Companion. El emisor publica cada 0,5 s por Supabase Realtime (solo mensa
 ### Cambios noviembre (zócalo, Mary Mechadas y Rayo)
 - **Zócalo con EN VIVO + hora**: la etiqueta roja del zócalo ahora es «● EN VIVO» con la hora y la ciudad (opción «EN VIVO + hora en vez de la etiqueta», activada por defecto). La gráfica EN VIVO suelta de arriba se quitó del botón «3 en una» y su botón individual se borró (una sola vez por sala).
 - **Barra concurso**: cada mensaje tiene su casilla de **segundos en pantalla**; si se deja vacía usa «Cambiar cada». El logo de la barra es el sticker de Mary Mechadas (opción «Logo»).
-- **Logo de la esquina**: ahora es el sticker redondo de Mary Mechadas (vector), que cae girando y estira su esquina doblada. Se puede volver a la imagen en «Logo → Imagen / logo del programa».
 - **Mención Mary Mechadas** (`mencionMary`): sticker abajo a la derecha y franja roja con Instagram @Marymechadas, calcada de su video. Botón «@MARYMECHADAS 📸» agregado a la botonera.
 - **Rayo Maulino**: la lata cae y se electrifica en el lado derecho para no tapar al invitado.

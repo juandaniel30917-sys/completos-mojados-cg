@@ -45,6 +45,7 @@ body.monitor{background:transparent}
 .t-barraConcurso.entra .bc-mary .smy-in{animation:smyEnt .95s linear .3s both}
 .t-barraConcurso.entra .bc-mary .smy{animation:smyDob .95s linear .3s both}
 .t-barraConcurso.sale .bc-mary .smy-in{animation:smySal .45s cubic-bezier(.5,0,.75,0) both}
+.t-barraConcurso.entra .bc-mary .smy-onda{animation-delay:.75s}
 .t-barraConcurso.sale .bc-barra{animation:wipeOut .55s var(--sale) .2s forwards}
 
 /* ===================== ZÓCALO ===================== */
@@ -189,11 +190,6 @@ body.monitor{background:transparent}
 .mo img{display:block;height:auto;filter:drop-shadow(0 6px 0 rgba(0,0,0,.25));animation:bob calc(3.4s / var(--vel)) ease-in-out infinite}
 .t-mosca.entra .mo{animation:popRot .55s cubic-bezier(.3,1.7,.5,1) both}
 .t-mosca.sale{animation:none}.t-mosca.sale .mo{animation:popOutC .35s var(--sale) forwards}
-.t-mosca.entra .mo.mo-mary,.t-mosca.sale .mo.mo-mary{animation:none}
-.mo.mo-mary img{filter:none;animation:smyResp 2.8s ease-in-out infinite}
-.t-mosca.entra .mo-mary .smy-in{animation:smyEnt .95s linear both}
-.t-mosca.entra .mo-mary .smy{animation:smyDob .95s linear both}
-.t-mosca.sale .mo-mary .smy-in{animation:smySal .5s cubic-bezier(.5,0,.75,0) forwards}
 
 /* ===================== EN VIVO ===================== */
 .ev{position:absolute;top:60px;display:flex;align-items:center;gap:16px}
