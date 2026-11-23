@@ -1785,23 +1785,26 @@
   /* una sola vez por sala: botón para la mención de Mary Mechadas (sticker + @Marymechadas) */
   function botonMencionMary(e) {
     var bt = e.botonera; if (!bt || !Array.isArray(bt.botones) || bt.mencionMary) { return false; }
-    if (!(e.elementos || []).some(function (x) { return x.id === "lb-mencion-mary"; })) { return false; }
+    if (!(e.elementos || []).some(function (x) { return x.id === "lb-ig-mary"; })) { return false; }
     bt.mencionMary = true;
-    if (bt.botones.some(function (b) { return (b.els || [b.el]).indexOf("lb-mencion-mary") >= 0; })) { return false; }
+    if (bt.botones.some(function (b) { return (b.els || [b.el]).indexOf("lb-ig-mary") >= 0; })) { return false; }
     var i = -1; bt.botones.forEach(function (b, j) { if (/aus-mary|aus-rayo/.test(b.el || "")) { i = j; } });
-    bt.botones.splice(i < 0 ? bt.botones.length : i + 1, 0, nuevoBoton({el: "lb-mencion-mary", esp: "", etiqueta: "@MARYMECHADAS 📸", color: "#E8392A", tecla: ""}));
+    bt.botones.splice(i < 0 ? bt.botones.length : i + 1, 0, nuevoBoton({el: "lb-ig-mary", esp: "", etiqueta: "@MARYMECHADAS 📸", color: "#E8392A", tecla: ""}));
     return true;
   }
   /* una sola vez por sala: el botón del auspicio animado Mary Mechadas también muestra la mención @Marymechadas
      (y se quita el botón suelto @MARYMECHADAS que se había agregado solo) */
   /* una sola vez por sala: botón propio «MENCIÓN MARY MECHADAS» (si ningún botón muestra ya la mención) */
   function botonMencionMary3(e) {
-    var bt = e.botonera; if (!bt || !Array.isArray(bt.botones) || bt.mencionMary4) { return false; }
-    if (!(e.elementos || []).some(function (x) { return x.id === "lb-mencion-mary"; })) { return false; }
-    bt.mencionMary4 = true;
-    if (bt.botones.some(function (b) { return (b.els || [b.el]).indexOf("lb-mencion-mary") >= 0; })) { return false; }
+    var bt = e.botonera; if (!bt || !Array.isArray(bt.botones) || bt.mencionMary5) { return false; }
+    if (!(e.elementos || []).some(function (x) { return x.id === "lb-ig-mary"; })) { return false; }
+    bt.mencionMary5 = true;
+    if (bt.botones.some(function (b) { return (b.els || [b.el]).indexOf("lb-ig-mary") >= 0; })) { return false; }
+    /* el botón que se agregó antes apuntaba a la tarjeta vieja: se cambia a la mención nueva */
+    var viejo = bt.botones.filter(function (b) { return b.el === "lb-mencion-mary" && !b.els && b.etiqueta === "MENCIÓN MARY MECHADAS"; })[0];
+    if (viejo) { viejo.el = "lb-ig-mary"; return true; }
     var i = -1; bt.botones.forEach(function (b, j) { if (/mary/.test((b.els || [b.el]).join(" "))) { i = j; } });
-    bt.botones.splice(i < 0 ? bt.botones.length : i + 1, 0, nuevoBoton({el: "lb-mencion-mary", esp: "", etiqueta: "MENCIÓN MARY MECHADAS", color: "#E8392A", tecla: ""}));
+    bt.botones.splice(i < 0 ? bt.botones.length : i + 1, 0, nuevoBoton({el: "lb-ig-mary", esp: "", etiqueta: "MENCIÓN MARY MECHADAS", color: "#E8392A", tecla: ""}));
     return true;
   }
   /* una sola vez por sala: la barra concurso sube un poco para no chocar con el zócalo (EN VIVO) */
@@ -1813,14 +1816,14 @@
   }
   function mencionEnBotonMary(e) {
     var bt = e.botonera; if (!bt || !Array.isArray(bt.botones) || bt.mencionMary2) { return false; }
-    if (!(e.elementos || []).some(function (x) { return x.id === "lb-mencion-mary"; })) { return false; }
+    if (!(e.elementos || []).some(function (x) { return x.id === "lb-ig-mary"; })) { return false; }
     bt.mencionMary2 = true;
     var b7 = bt.botones.filter(function (b) { return (b.els || [b.el]).indexOf("lb-aus-mary") >= 0; })[0];
     if (!b7) { return false; }
     var ids = (b7.els || [b7.el]).slice();
-    if (ids.indexOf("lb-mencion-mary") < 0) { ids.push("lb-mencion-mary"); }
+    if (ids.indexOf("lb-ig-mary") < 0) { ids.push("lb-ig-mary"); }
     b7.els = ids; b7.varias = true;
-    bt.botones = bt.botones.filter(function (b) { return !(b !== b7 && !b.els && b.el === "lb-mencion-mary" && b.etiqueta === "@MARYMECHADAS 📸"); });
+    bt.botones = bt.botones.filter(function (b) { return !(b !== b7 && !b.els && b.el === "lb-ig-mary" && b.etiqueta === "@MARYMECHADAS 📸"); });
     return true;
   }
   /* una sola vez por sala: agrega a la botonera guardada un botón por cada auspicio animado (Rayo Maulino y Mary Mechadas) */
