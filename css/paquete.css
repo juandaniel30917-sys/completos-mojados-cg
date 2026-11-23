@@ -367,12 +367,12 @@
 /* se pega a la pantalla: llega "en el aire" (más grande y con sombra lejana), baja y se apoya (la sombra se pega),
    y al final la esquina doblada se alisa sola */
 @keyframes smyEnt{
-  0%{opacity:0;transform:translate(9%,-14%) scale(1.22) rotate(-9deg);filter:drop-shadow(26px 40px 30px rgba(0,0,0,.0));animation-timing-function:cubic-bezier(.22,.61,.36,1)}
-  14%{opacity:1;filter:drop-shadow(24px 36px 28px rgba(0,0,0,.32))}
-  52%{transform:translate(0,0) scale(.985) rotate(.6deg);filter:drop-shadow(2px 5px 6px rgba(0,0,0,.34));animation-timing-function:cubic-bezier(.4,0,.3,1)}
-  66%{transform:scale(1.008) rotate(-.2deg)}
-  100%{opacity:1;transform:none;filter:drop-shadow(0 5px 8px rgba(0,0,0,.3))}}
-@keyframes smyDob{0%,40%{--p:58%;animation-timing-function:cubic-bezier(.55,.05,.25,1)}100%{--p:0%}}
+  0%{opacity:0;transform:translate(11%,-17%) scale(1.3) rotate(-10deg);filter:drop-shadow(30px 46px 30px rgba(0,0,0,0));animation-timing-function:linear}
+  6%{opacity:1;transform:translate(10%,-15.5%) scale(1.28) rotate(-9.5deg);filter:drop-shadow(28px 42px 28px rgba(0,0,0,.3));animation-timing-function:cubic-bezier(.3,.1,.25,1)}
+  42%{transform:translate(0,0) scale(.975) rotate(.5deg);filter:drop-shadow(2px 4px 5px rgba(0,0,0,.36));animation-timing-function:cubic-bezier(.4,0,.3,1)}
+  52%{transform:scale(1.012) rotate(-.2deg);animation-timing-function:cubic-bezier(.4,0,.4,1)}
+  60%,100%{opacity:1;transform:none;filter:drop-shadow(0 5px 8px rgba(0,0,0,.3))}}
+@keyframes smyDob{0%,40%{--p:62%;animation-timing-function:cubic-bezier(.45,0,.2,1)}100%{--p:0%}}
 @keyframes smySal{
   0%{opacity:1;transform:none;--p:0%;filter:drop-shadow(0 5px 8px rgba(0,0,0,.3));animation-timing-function:cubic-bezier(.45,0,.55,1)}
   45%{opacity:1;transform:scale(1.03) rotate(-1.5deg);--p:52%;filter:drop-shadow(6px 12px 12px rgba(0,0,0,.32));animation-timing-function:cubic-bezier(.5,0,.75,.2)}
@@ -395,14 +395,14 @@
 .mmy-brillo{position:absolute;inset:0;background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,.38) 48%,transparent 62%);background-size:260% 100%;background-position:150% 0;pointer-events:none}
 .mmy-barra:after{content:"";position:absolute;left:0;right:0;bottom:0;height:6px;background:#B91D10;transform-origin:100% 50%}
 .mmy-barra span{position:relative;z-index:1;color:#fff;font:400 46px/1 Arial,"Helvetica Neue",Helvetica,sans-serif;letter-spacing:.085em;white-space:nowrap}
-.t-mencionMary.entra .smy-in{animation:smyEnt 1.1s linear both}
-.t-mencionMary.entra .smy{animation:smyDob 1.1s linear both}
-.t-mencionMary.entra .mmy-barra{animation:mmyBarra .6s cubic-bezier(.16,.84,.3,1) .95s both}
-.t-mencionMary.entra .mmy-ig{animation:mmyPop .5s cubic-bezier(.3,1.6,.5,1) 1.3s both}
-.t-mencionMary.entra .mmy-tx i{animation:mmyChar .5s cubic-bezier(.2,.9,.3,1.25) calc(1.32s + var(--i) * .032s) both}
-.t-mencionMary.entra .mmy-filo{animation:mmyFilo .6s cubic-bezier(.16,.84,.3,1) .95s both}
-.t-mencionMary .mmy-brillo{animation:mmyBrillo 6s ease-in-out 2.1s infinite}
-.t-mencionMary.entra .mmy-barra:after{animation:mmyLinea .5s cubic-bezier(.2,.8,.3,1) 1.25s both}
+.t-mencionMary.entra .smy-in{animation:smyEnt 1.7s linear both}
+.t-mencionMary.entra .smy{animation:smyDob 1.7s linear both}
+.t-mencionMary.entra .mmy-barra{animation:mmyBarra .6s cubic-bezier(.16,.84,.3,1) 1.55s both}
+.t-mencionMary.entra .mmy-ig{animation:mmyPop .5s cubic-bezier(.3,1.6,.5,1) 1.9s both}
+.t-mencionMary.entra .mmy-tx i{animation:mmyChar .5s cubic-bezier(.2,.9,.3,1.25) calc(1.92s + var(--i) * .032s) both}
+.t-mencionMary.entra .mmy-filo{animation:mmyFilo .6s cubic-bezier(.16,.84,.3,1) 1.55s both}
+.t-mencionMary .mmy-brillo{animation:mmyBrillo 6s ease-in-out 2.7s infinite}
+.t-mencionMary.entra .mmy-barra:after{animation:mmyLinea .5s cubic-bezier(.2,.8,.3,1) 1.85s both}
 @keyframes mmyChar{0%{opacity:0;transform:translateY(70%) rotate(10deg)}60%{opacity:1}100%{opacity:1;transform:none}}
 @keyframes mmyFilo{0%{left:100%;opacity:1}85%{opacity:1}100%{left:0;opacity:0}}
 @keyframes mmyBrillo{0%{background-position:150% 0}22%,100%{background-position:-50% 0}}
