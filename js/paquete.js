@@ -555,7 +555,7 @@
      Entra pegándose entero (la parte doblada se estira desde abajo a la derecha) y sale despegándose entero, como un sticker real. */
   CG.stickerMary = function (px, ctx) {
     var src = ((ctx && ctx.base) || "") + "assets/marcas/mary_logo.svg";
-    return '<div class="smy" style="--d:' + Math.round(px) + 'px"><i class="smy-onda"></i><div class="smy-in"><div class="smy-cara"><img alt="Mary Mechadas" src="' + src + '"></div><i class="smy-doblez"></i></div></div>';
+    return '<div class="smy" style="--d:' + Math.round(px) + 'px"><i class="smy-onda"></i><div class="smy-in"><div class="smy-cara"><img alt="Mary Mechadas" src="' + src + '"></div><b class="smy-zona"><i class="smy-doblez"></i></b></div></div>';
   };
   P.mencionMary = {
     nombre: "Mención Mary Mechadas (@Marymechadas)", cat: "menciones", icono: "estrella", capa: 58, salidaMs: 1400, entraMs: 3200, tipo: "MENCION", grupo: "mencion-mary",

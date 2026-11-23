@@ -366,8 +366,10 @@
 .smy-cara:before{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;
   background:linear-gradient(45deg,transparent calc(var(--p) / 2 - .5%),rgba(0,0,0,.28) calc(var(--p) / 2),rgba(0,0,0,.1) calc(var(--p) / 2 + 3%),transparent calc(var(--p) / 2 + 9%))}
 /* la parte despegada: el sticker reflejado sobre la línea del pliegue, por su reverso (papel), con brillo en la curva */
+.smy-zona{position:absolute;inset:0;pointer-events:none}
 .smy-doblez{position:absolute;inset:0;border-radius:50%;transform-origin:0 0;
-  transform:translate(calc(var(--p) - 100%),calc(100% - var(--p))) matrix(0,1,1,0,0,0);
+  /* reflejo sobre el pliegue, acortado (×0,45) para que la parte doblada quede cerca y no se salga de la barra */
+  transform:translate(calc(var(--p) - 100%),0) rotate(-45deg) scaleX(-.45) rotate(45deg) translate(calc(100% - var(--p)),0);
   background:linear-gradient(45deg,#A9A595 calc(var(--p) / 2 - 70%),#C9C6B7 calc(var(--p) / 2 - 22%),#DEDBCF calc(var(--p) / 2 - 7%),#F4F2EC calc(var(--p) / 2 - 2.2%),#FFFFFF calc(var(--p) / 2 - .4%),#D8D5C9 calc(var(--p) / 2));
   clip-path:polygon(calc(var(--p) - 400%) -300%,calc(var(--p) + 200%) 300%,-300% 300%)}
 @keyframes smyResp{0%,100%{transform:scale(1) rotate(0)}50%{transform:scale(1.035) rotate(-.6deg)}}
