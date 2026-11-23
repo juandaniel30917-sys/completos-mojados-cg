@@ -354,26 +354,27 @@
 @property --p{syntax:"<percentage>";inherits:true;initial-value:0%}
 .smy{position:relative;width:var(--d);height:var(--d);--p:0%}
 /* --p = dónde va la línea del pliegue (0% = pegado entero, 200% = despegado entero).
-   La línea cruza en diagonal «/» y avanza de arriba-izquierda hacia abajo-derecha, como un sticker real que se despega. */
+   La línea cruza en diagonal «\»: al entrar el sticker aparece doblado por arriba a la derecha y termina de pegarse
+   abajo a la izquierda; al salir se despega desde abajo a la izquierda y se va por arriba a la derecha. */
 .smy-in{position:absolute;inset:0;filter:drop-shadow(0 6px 10px rgba(0,0,0,.3))}
 .smy-cara{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 38% 30%,#FFFFFF 0%,#F1F3F9 55%,#E2E6EF 100%);display:flex;align-items:center;justify-content:center;overflow:hidden;
-  clip-path:polygon(calc(var(--p) + 300%) -300%,calc(var(--p) - 300%) 300%,300% 300%)}
+  clip-path:polygon(calc(var(--p) - 400%) -300%,calc(var(--p) + 200%) 300%,300% -300%)}
 .smy-cara:after{content:"";position:absolute;inset:-20%;background:linear-gradient(115deg,transparent 40%,rgba(255,255,255,.85) 50%,transparent 60%);transform:translateX(-120%);animation:smyGlint 7s ease-in-out 1.2s infinite;pointer-events:none}
 @keyframes smyGlint{0%{transform:translateX(-120%)}14%,100%{transform:translateX(120%)}}
 .smy-cara img{width:77%;height:auto;margin-top:-6%;display:block;animation:smyResp 2.8s ease-in-out infinite}
 /* sombra que deja la parte doblada sobre lo que sigue pegado */
 .smy-cara:before{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;
-  background:linear-gradient(135deg,transparent calc(var(--p) / 2 - .5%),rgba(0,0,0,.28) calc(var(--p) / 2),rgba(0,0,0,.1) calc(var(--p) / 2 + 3%),transparent calc(var(--p) / 2 + 9%))}
+  background:linear-gradient(45deg,transparent calc(var(--p) / 2 - .5%),rgba(0,0,0,.28) calc(var(--p) / 2),rgba(0,0,0,.1) calc(var(--p) / 2 + 3%),transparent calc(var(--p) / 2 + 9%))}
 /* la parte despegada: el sticker reflejado sobre la línea del pliegue, por su reverso (papel), con brillo en la curva */
 .smy-doblez{position:absolute;inset:0;border-radius:50%;transform-origin:0 0;
-  transform:translate(var(--p),var(--p)) matrix(0,-1,-1,0,0,0);
-  background:linear-gradient(135deg,#A9A595 calc(var(--p) / 2 - 70%),#C9C6B7 calc(var(--p) / 2 - 22%),#DEDBCF calc(var(--p) / 2 - 7%),#F4F2EC calc(var(--p) / 2 - 2.2%),#FFFFFF calc(var(--p) / 2 - .4%),#D8D5C9 calc(var(--p) / 2));
-  clip-path:polygon(calc(var(--p) + 300%) -300%,calc(var(--p) - 300%) 300%,-300% -300%)}
+  transform:translate(calc(var(--p) - 100%),calc(100% - var(--p))) matrix(0,1,1,0,0,0);
+  background:linear-gradient(45deg,#A9A595 calc(var(--p) / 2 - 70%),#C9C6B7 calc(var(--p) / 2 - 22%),#DEDBCF calc(var(--p) / 2 - 7%),#F4F2EC calc(var(--p) / 2 - 2.2%),#FFFFFF calc(var(--p) / 2 - .4%),#D8D5C9 calc(var(--p) / 2));
+  clip-path:polygon(calc(var(--p) - 400%) -300%,calc(var(--p) + 200%) 300%,-300% 300%)}
 @keyframes smyResp{0%,100%{transform:scale(1) rotate(0)}50%{transform:scale(1.035) rotate(-.6deg)}}
-/* entrada: la parte doblada llega desde abajo a la derecha y el sticker se va pegando entero hasta la esquina de arriba */
+/* entrada: la parte doblada aparece por arriba a la derecha y el sticker se va pegando hasta la izquierda */
 @keyframes smyEnt{0%{opacity:0}8%,100%{opacity:1}}
 @keyframes smyDob{0%{--p:200%;animation-timing-function:cubic-bezier(.3,.05,.25,1)}100%{--p:0%}}
-/* salida: se despega entero desde arriba a la izquierda y la parte doblada se va por abajo a la derecha */
+/* salida: se despega entero desde abajo a la izquierda y la parte doblada se va por arriba a la derecha */
 @keyframes smySal{0%{--p:0%;opacity:1;animation-timing-function:cubic-bezier(.55,0,.6,1)}92%{opacity:1}100%{--p:200%;opacity:0}}
 .smy-onda{display:none}
 
